@@ -10,9 +10,6 @@ return view.extend({
         return Promise.all([ udx.getStatus(), uci.load('udx-usb'), udx.frequencyStatus() ]);
     },
     render : function(initial) {
-        var m = new form.Map('udx-usb');
-        var s = m.section(form.NamedSection, 'main', 'gadget');
-        s.anonymous = true;
         var clocks = new form.JSONMap({main : {}});
         var f = clocks.section(form.NamedSection, 'main', 'frequency');
         f.anonymous = true;
@@ -385,22 +382,66 @@ return view.extend({
             false);
         embed('storage', E('section', {class : 'cbi-section'},
                            [ E('h3', {}, _('UBI volumes')), volumes.node ]));
-        var profile = s.option(form.ListValue, 'profile', _('USB mode'));
-        profile.value('ncm', _('NCM hardware acceleration'));
-        profile.value('ncm-software', _('NCM software mode'));
-        profile.value('ecm', _('CDC-ECM (Linux / macOS)'));
-        profile.value('rndis', _('RNDIS (Windows compatible)'));
-        var acm = s.option(form.Flag, 'acm', _('Authenticated ACM console'));
-        var apply = s.option(form.Button, '_apply', _('Apply USB configuration'));
-        apply.inputtitle = _('Apply');
-        apply.inputstyle = 'apply';
-        apply.description =
-            _('Changing USB mode restarts the device. Changing ACM reconnects USB.');
-        apply.onclick = function() {
-            return udx.notify(function() {
-                return udx.usb(profile.formvalue('main'), acm.formvalue('main') === '1');
-            });
-        };
+        /*
+         * USB 模式选择器。
+         *
+         * 这里刻意不使用 form.Map / form.ListValue：LuCI 25.x 的
+         * form.Map.render() 会把 cbi-map 直接 append 到 document.body，
+         * 本页又把同一个 DOM 节点塞进自定义 tab 容器，节点被重复 append
+         * 后选项区（含下拉框）不会显示。改为手工构造 DOM，行为确定。
+         */
+        var usbModes = [
+            [ 'ncm', _('NCM (hardware accelerated)'), _('Works on Windows, Linux and macOS. Fastest.') ],
+            [ 'ncm-software', _('NCM (software mode)'), _('Use when the host has trouble with accelerated NCM.') ],
+            [ 'ecm', _('CDC-ECM'), _('Native support on Linux and macOS.') ],
+            [ 'rndis', _('RNDIS'), _('Compatibility mode for Windows, especially older releases.') ]
+        ];
+        var usbCfg = initial[1] || {};
+        var usbMain = usbCfg['main'] || {};
+        var usbSelect = E('select', { 'class' : 'cbi-input-select' },
+            usbModes.map(function(m) {
+                return E('option', {
+                    'value' : m[0],
+                    'selected' : (m[0] === (usbMain['profile'] || 'ncm')) ? 'selected' : null
+                }, [ m[1] ]);
+            }));
+        var usbHint = E('div', { 'class' : 'cbi-value-description' }, [ '' ]);
+        var usbAcm = E('input', {
+            'type' : 'checkbox',
+            'class' : 'cbi-input-checkbox',
+            'checked' : (usbMain['acm'] === '1') ? 'checked' : null
+        });
+        function usbRefreshHint() {
+            var sel = usbModes.filter(function(m) { return m[0] === usbSelect.value; })[0];
+            usbHint.textContent = sel ? sel[2] : '';
+        }
+        usbSelect.addEventListener('change', usbRefreshHint);
+        usbRefreshHint();
+        var usbApply = E('button', {
+            'class' : 'cbi-button cbi-button-action important',
+            'click' : ui.createHandlerFn(this, function() {
+                if (!confirm(_('Switch the USB network mode to %s? The device reboots and the USB link drops for about a minute.').format(usbSelect.value)))
+                    return;
+                return udx.notify(function() {
+                    return udx.usb(usbSelect.value, usbAcm.checked ? '1' : '0');
+                });
+            })
+        }, [ _('Apply and reboot') ]);
+        embed('usb', E('section', {class : 'cbi-section'}, [
+            E('h3', {}, _('USB network mode')),
+            E('div', {class : 'cbi-value'}, [
+                E('label', {class : 'cbi-value-title'}, [ _('USB mode') ]),
+                E('div', {class : 'cbi-value-field'}, [ usbSelect, ' ', usbApply ]),
+                usbHint
+            ]),
+            E('div', {class : 'cbi-value'}, [
+                E('label', {class : 'cbi-value-title'}, [ _('Authenticated ACM console') ]),
+                E('div', {class : 'cbi-value-field'}, [
+                    usbAcm,
+                    E('span', {style : 'margin-left:8px'}, [ _('Adds a second serial channel for debug console access.') ])
+                ])
+            ])
+        ]));
         var usb = udx.table(_('USB status'), [
             [
                 _('Mode'),
@@ -478,14 +519,13 @@ return view.extend({
             filesystems.update(d.storage || []);
             volumes.update(d.ubi || []);
         }, initial[0]);
-        return Promise.all([ m.render(), clocks.render() ]).then(function(forms) {
-            panels.sensors.push(forms[1]);
-            panels.usb.unshift(forms[0]);
+        return clocks.render().then(function(form) {
+            panels.sensors.push(form);
             var titles = {
                 system : _('Board and system'),
                 sensors : _('Sensors and clocks'),
                 storage : _('Boot and storage'),
-                usb : _('USB configuration')
+                usb : _('USB network mode')
             };
             var tabs = E('div', {}, Object.keys(panels).map(function(name) {
                 return E('div', {'data-tab' : name, 'data-tab-title' : titles[name]}, panels[name]);
