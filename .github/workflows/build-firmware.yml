@@ -1,0 +1,115 @@
+name: build-firmware
+
+# The SY108 images are arm64/musl.  The build tree is driven by the shared
+# container in tools/, so the runner has to be able to run an arm64 image.
+# GitHub's native arm64 runners match the container platform and avoid the
+# qemu emulation that made the previous x86 runs unusably slow.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Image profile to build'
+        required: true
+        default: main
+        type: choice
+        options: [main, recovery, both]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build-${{ matrix.profile }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [main, recovery]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Cache build tree and downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            out/openwrt-build
+            out/downloads
+            out/ccache
+          key: sy108-${{ matrix.profile }}-${{ hashFiles('manifests/*.json', 'integration/openwrt/**') }}
+          restore-keys: |
+            sy108-${{ matrix.profile }}-
+
+      - name: Prepare builder image
+        run: |
+          docker build -t sy108-build:25.12.5 containers/
+
+      - name: Bootstrap build tree
+        run: |
+          python3 tools/bootstrap.py
+
+      - name: Build ${{ matrix.profile }} firmware
+        run: |
+          python3 tools/build/firmware.py ${{ matrix.profile }} --jobs 4
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifact/${{ matrix.profile }}
+          cp -a out/images/${{ matrix.profile }}/. artifact/${{ matrix.profile }}/
+          cd artifact/${{ matrix.profile }}
+          sha256sum * > SHA256SUMS || true
+
+      - name: Upload ${{ matrix.profile }} artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sy108-${{ matrix.profile }}
+          path: artifact/${{ matrix.profile }}
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: publish-release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifact
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifact/sy108-main/sysupgrade.bin
+            artifact/sy108-main/boot.bin
+            artifact/sy108-main/rootfs.squashfs
+            artifact/sy108-main/build.json
+            artifact/sy108-main/SHA256SUMS
+            artifact/sy108-recovery/boot.bin
+            artifact/sy108-recovery/rootfs.cpio.gz
+            artifact/sy108-recovery/build.json
+            artifact/sy108-recovery/SHA256SUMS
+          fail_on_unmatched_files: true
+          body: |
+            SY108 mainline firmware.
+
+            * `sysupgrade.bin` - flash this from LuCI under System -> Maintenance,
+              or with `sysupgrade -n /tmp/sysupgrade.bin` over SSH.
+            * `boot.bin` / `rootfs.squashfs` - raw image parts for the U-Boot
+              capsule flow.
+            * `SHA256SUMS` - checksums for every published file.

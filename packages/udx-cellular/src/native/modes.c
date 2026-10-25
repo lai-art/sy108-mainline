@@ -196,6 +196,7 @@ static int command(struct controller *c, const char *text, double timeout)
 static int invalidate_sim(struct controller *c)
 {
 	c->fallback_attempted = false;
+	c->fallback_index = 0;
 	json_object_put(c->fallback_profile);
 	c->fallback_profile = NULL;
 	json_object_object_del(c->status, "automatic_apn");

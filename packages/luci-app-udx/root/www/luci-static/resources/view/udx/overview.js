@@ -152,7 +152,14 @@ return view.extend({
                 _('Operator'),
                 function(d) {
                     var op = c(d).operator || {};
-                    return brands[op.brand] || op.name;
+                    /* brand is resolved from the numeric PLMN; fall back to
+                     * the SIM's home operator so a roaming camp on a partner
+                     * network cannot make the router claim the wrong
+                     * carrier. */
+                    var name = brands[op.brand] || brands[op.home_brand] || op.name;
+                    if (op.plmn)
+                        name += ' (' + op.plmn + ')';
+                    return name;
                 }
             ],
             [

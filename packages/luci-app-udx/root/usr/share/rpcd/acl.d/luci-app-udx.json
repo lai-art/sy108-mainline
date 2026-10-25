@@ -24,6 +24,9 @@
     ],
     "network.interface.wan6": [
      "status"
+    ],
+    "network.device": [
+     "status"
     ]
    },
    "uci": [

@@ -32,6 +32,75 @@ const char *operator_brand(const char *plmn)
 	return NULL;
 }
 
+/* Last-resort brand for a display name that is not a PLMN.  The module keeps
+ * the AT+COPS display format in its own non-volatile memory, so any external
+ * AT client can switch it to the long-name format and hide the digits.  A
+ * Broadnet SIM then reports "China Unicom" or "China Mobile" and the UI shows
+ * the wrong carrier.  Match the well known Chinese and English names so the
+ * brand stays correct even before the numeric format is restored. */
+static const char *brand_by_name(const char *name)
+{
+	static const char *const names[][2] = {
+	    {"中国移动", "china_mobile"}, {"移动", "china_mobile"},   {"China Mobile", "china_mobile"},
+	    {"中国联通", "china_unicom"}, {"联通", "china_unicom"},   {"China Unicom", "china_unicom"},
+	    {"中国电信", "china_telecom"}, {"电信", "china_telecom"},   {"China Telecom", "china_telecom"},
+	    {"中国广电", "china_broadnet"}, {"广电", "china_broadnet"}, {"China Broadnet", "china_broadnet"},
+	    {"中国广电 (CBN) NET", "china_broadnet"}};
+	if (!name || !*name)
+		return NULL;
+	for (size_t i = 0; i < sizeof(names) / sizeof(*names); i++)
+		if (!strcmp(name, names[i][0]))
+			return names[i][1];
+	return NULL;
+}
+
+/* Brand derived from the SIM's own IMSI prefix.  This is the operator the
+ * SIM belongs to and stays correct while the modem roams on a partner
+ * network, which is exactly the case where the serving network name is
+ * misleading. */
+const char *operator_home_brand(struct controller *c)
+{
+	const char *imsi = str(c->status, "imsi");
+	if (!imsi || strlen(imsi) < 5)
+		return NULL;
+	char plmn[6];
+	memcpy(plmn, imsi, 5);
+	plmn[5] = 0;
+	return operator_brand(plmn);
+}
+
+/* Reverse lookup for a display name, so the numeric PLMN survives even when
+ * the module is stuck in the long-name display format. */
+const char *operator_plmn_from_name(const char *name)
+{
+	static const char *const names[][2] = {
+	    {"中国移动", "46000"}, {"China Mobile", "46000"}, {"移动", "46000"},
+	    {"中国联通", "46001"}, {"China Unicom", "46001"}, {"联通", "46001"},
+	    {"中国电信", "46003"}, {"China Telecom", "46003"}, {"电信", "46003"},
+	    {"中国广电", "46015"}, {"China Broadnet", "46015"}, {"广电", "46015"},
+	    {"中国广电 (CBN) NET", "46015"}};
+	if (!name || !*name)
+		return NULL;
+	for (size_t i = 0; i < sizeof(names) / sizeof(*names); i++)
+		if (!strcmp(name, names[i][0]))
+			return names[i][1];
+	return NULL;
+}
+
+/* Resolve the brand for a reported operator name.  A numeric PLMN wins; a
+ * long display name is matched by name; the SIM's home operator is used when
+ * the modem reports something entirely unrecognised. */
+const char *operator_resolve_brand(struct controller *c, const char *name)
+{
+	const char *brand = operator_brand(name);
+	if (brand)
+		return brand;
+	brand = brand_by_name(name);
+	if (brand)
+		return brand;
+	return operator_home_brand(c);
+}
+
 int operator_validate(const char *op, J *args)
 {
 	if (!strcmp(op, "operators_scan") || !strcmp(op, "operator_auto") ||
@@ -71,6 +140,128 @@ J *operator_catalog(struct controller *c)
 		string(all, "home_plmn", str(json_object_array_get_idx(selected, 0), "plmn"));
 	json_object_object_del(all, "providers");
 	return all;
+}
+
+/* All catalogue rows for one PLMN, in catalogue order. */
+static J *operator_rows_for_plmn(const char *plmn)
+{
+	if (!plmn_valid(plmn))
+		return NULL;
+	J *all = read_json(CELL_PROVIDERS, 262144);
+	if (!all)
+		return NULL;
+	J *rows = get(all, "providers"), *out = json_object_new_array();
+	for (size_t i = 0; i < json_object_array_length(rows); i++) {
+		J *r = json_object_array_get_idx(rows, i);
+		if (text_equal(str(r, "plmn"), plmn))
+			json_object_array_add(out, json_object_get(r));
+	}
+	json_object_put(all);
+	return out;
+}
+
+/* Ordered Internet candidates for automatic mode.
+ *
+ * The catalogue is keyed by the network the modem is camped on, not by the
+ * SIM's owner: a Broadnet SIM (46015, APN cbnet) that roams onto a Unicom
+ * cell has to use the Unicom profile (46001, APN 3gnet) or the PDP context
+ * never comes up.  A fixed home APN is exactly what made the router show
+ * "China Unicom" and then fail to connect.
+ *
+ * The serving network therefore wins, and the SIM's own operator is only the
+ * fallback for the case where the visited network has no catalogue entry. */
+J *operator_candidates(struct controller *c)
+{
+	J *out = json_object_new_array();
+	const char *serving = str(get(c->status, "operator"), "plmn");
+	char owned[8] = {0};
+	if (!serving || !plmn_valid(serving)) {
+		/* The cached operator can be stale or absent right after a SIM
+		 * change, so read the camped network directly. */
+		J *fields = controller_query(c, "AT+COPS?", 50, "+COPS:");
+		if (fields) {
+			const char *name = json_object_array_length(fields) > 2
+						   ? json_object_get_string(
+								 json_object_array_get_idx(fields, 2))
+						   : NULL;
+			if (name && plmn_valid(name))
+				snprintf(owned, sizeof(owned), "%s", name);
+			else {
+				const char *mapped = operator_plmn_from_name(name);
+				if (mapped)
+					snprintf(owned, sizeof(owned), "%s", mapped);
+			}
+			json_object_put(fields);
+		}
+		if (owned[0])
+			serving = owned;
+	}
+	if (serving && plmn_valid(serving)) {
+		J *rows = operator_rows_for_plmn(serving);
+		for (size_t i = 0; i < json_object_array_length(rows); i++) {
+			J *r = json_object_array_get_idx(rows, i);
+			if (!get(r, "mvno_type"))
+				json_object_array_add(out, json_object_get(r));
+		}
+		json_object_put(rows);
+	}
+	if (info_sim_identity(c) < 0)
+		return out;
+	J *catalog = operator_catalog(c);
+	if (!catalog)
+		return out;
+	J *home = get(catalog, "home_candidates");
+	for (size_t i = 0; i < json_object_array_length(home); i++) {
+		J *r = json_object_array_get_idx(home, i);
+		if (get(r, "mvno_type"))
+			continue;
+		const char *plmn = str(r, "plmn");
+		bool duplicate = false;
+		for (size_t j = 0; j < json_object_array_length(out); j++)
+			if (text_equal(str(json_object_array_get_idx(out, j), "plmn"), plmn) &&
+			    text_equal(str(json_object_array_get_idx(out, j), "apn"),
+					str(r, "apn"))) {
+				duplicate = true;
+				break;
+			}
+		if (!duplicate)
+			json_object_array_add(out, json_object_get(r));
+	}
+	json_object_put(catalog);
+	return out;
+}
+
+/* Select the next usable Internet candidate for automatic mode.
+ * Returns 1 when a candidate was installed, 0 when none is left. */
+int operator_next_candidate(struct controller *c)
+{
+	if (!text_equal(str(c->config, "apn_mode"), "auto"))
+		return 0;
+	J *candidates = operator_candidates(c);
+	if (!candidates)
+		return -1;
+	size_t n = json_object_array_length(candidates);
+	for (size_t i = c->fallback_index; i < n; i++) {
+		J *r = json_object_array_get_idx(candidates, i);
+		J *profile = json_object_new_object();
+		string(profile, "apn", str(r, "apn"));
+		string(profile, "pdp_type", str(r, "pdp_type"));
+		integer(profile, "cid", 1);
+		int valid = profile_validate(profile);
+		json_object_put(profile);
+		if (valid < 0 || apn_auth_validate(r) < 0)
+			continue;
+		c->fallback_index = i + 1;
+		json_object_put(c->fallback_profile);
+		c->fallback_profile = jclone(r);
+		string(c->status, "automatic_apn", str(r, "apn"));
+		string(c->status, "apn_plmn", str(r, "plmn"));
+		string(c->status, "home_plmn", str(r, "plmn"));
+		json_object_put(candidates);
+		return 1;
+	}
+	json_object_put(candidates);
+	return 0;
 }
 
 /* A single Internet candidate per SIM, only after a definite activation rejection.

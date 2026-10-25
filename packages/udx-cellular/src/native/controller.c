@@ -437,6 +437,7 @@ static int sim_refresh(struct controller *c)
 	const char *previous = str(get(c->status, "sim"), "state");
 	if (!text_equal(previous, state)) {
 		c->fallback_attempted = false;
+		c->fallback_index = 0;
 		json_object_put(c->fallback_profile);
 		c->fallback_profile = NULL;
 		json_object_object_del(c->status, "automatic_apn");
@@ -682,15 +683,21 @@ J *controller_connect(struct controller *c, unsigned wait_seconds)
 			goto fail;
 		json_object_object_add(c->status, "default_bearer", context);
 	} else {
-		/* Auto mode with no explicit APN: resolve the home operator's APN
-		 * from the catalogue before the first attach. Without this the
+		/* Auto mode with no explicit APN: resolve the Internet profile
+		 * from the catalogue before the first attach.  Without this the
 		 * modem is asked to activate an empty APN (CME ERROR 30) and the
 		 * post-failure fallback below becomes the only recovery path,
 		 * which stays unreachable whenever the failure is not classed as
-		 * a modem rejection. */
+		 * a modem rejection.
+		 *
+		 * The candidate list follows the network the modem is camped on
+		 * and only then the SIM's home operator.  A Broadnet SIM that
+		 * roams onto a Unicom cell has to use the Unicom profile, and a
+		 * fixed home APN is exactly what left the router unable to come
+		 * online while it reported "China Unicom". */
 		const char *auto_apn = str(c->config, "apn");
 		if (text_equal(str(c->config, "apn_mode"), "auto") &&
-		    (!auto_apn || !*auto_apn) && operator_fallback(c) > 0) {
+		    (!auto_apn || !*auto_apn) && operator_next_candidate(c) > 0) {
 			json_object_put(wanted);
 			wanted = controller_profile(c);
 		}
@@ -698,18 +705,25 @@ J *controller_connect(struct controller *c, unsigned wait_seconds)
 			goto fail;
 	}
 	raw = controller_at(c, "AT+CGDATA=\"M-ETHER\",1", 120);
-	if (!raw && !active && cell_error_kind == CELL_MODEM && !c->transport.poisoned &&
-	    !c->fallback_attempted && text_equal(str(c->config, "apn_mode"), "auto")) {
+	/* Walk the remaining catalogue candidates when the activation was
+	 * rejected by the modem.  Each candidate is a profile of the same
+	 * operator family, so retrying stays within the roaming agreement of
+	 * the SIM's owner. */
+	while (!raw && !active && cell_error_kind == CELL_MODEM && !c->transport.poisoned &&
+	       text_equal(str(c->config, "apn_mode"), "auto")) {
 		char saved[512];
 		snprintf(saved, sizeof(saved), "%s", cell_error);
 		enum cell_error_kind kind = cell_error_kind;
-		if (operator_fallback(c) > 0) {
-			json_object_put(wanted);
-			wanted = controller_profile(c);
-			if (apn_configure(c) < 0)
-				goto fail;
-			raw = controller_at(c, "AT+CGDATA=\"M-ETHER\",1", 120);
-		} else
+		if (operator_next_candidate(c) <= 0) {
+			errorf(kind, "%s", saved);
+			break;
+		}
+		json_object_put(wanted);
+		wanted = controller_profile(c);
+		if (apn_configure(c) < 0)
+			goto fail;
+		raw = controller_at(c, "AT+CGDATA=\"M-ETHER\",1", 120);
+		if (!raw)
 			errorf(kind, "%s", saved);
 	}
 	if (!raw)
@@ -782,11 +796,49 @@ int controller_refresh(struct controller *c)
 		json_object_put(op);
 		return errorf(CELL_INVALID, "Invalid operator response");
 	}
+	const char *reported = n > 2 ? json_object_get_string(json_object_array_get_idx(op, 2)) : NULL;
+	/* The module keeps the AT+COPS display format in its own non-volatile
+	 * memory.  Any external AT client - the stock web UI, a manual AT
+	 * terminal, a third party tool - can switch it to the long-name format,
+	 * which hides the digits and makes the UI report the wrong carrier.  A
+	 * Broadnet SIM then showed up as "China Unicom" and never came online.
+	 * Re-assert the numeric format whenever the reply is not a PLMN. */
+	const char *plmn = reported;
+	bool numeric = reported && strlen(reported) >= 5 && strlen(reported) <= 6;
+	for (size_t i = 0; numeric && i < strlen(reported); i++)
+		if (reported[i] < '0' || reported[i] > '9')
+			numeric = false;
+	if (!numeric && reported && *reported) {
+		char *raw = controller_at(c, "AT+COPS=3,2", 5);
+		free(raw);
+		json_object_put(op);
+		op = controller_query(c, "AT+COPS?", 50, "+COPS:");
+		if (!op)
+			return -1;
+		n = json_object_array_length(op);
+		reported = n > 2 ? json_object_get_string(json_object_array_get_idx(op, 2)) : NULL;
+		plmn = reported;
+		numeric = reported && strlen(reported) >= 5 && strlen(reported) <= 6;
+		for (size_t i = 0; numeric && i < strlen(reported); i++)
+			if (reported[i] < '0' || reported[i] > '9')
+				numeric = false;
+		if (!numeric) {
+			/* Still not numeric: recover the digits from the display name
+			 * so the brand mapping still resolves. */
+			plmn = operator_plmn_from_name(reported);
+			if (plmn)
+				numeric = true;
+		}
+	}
 	J *operator = json_object_new_object();
 	integer(operator, "selection", selection);
-	string(operator, "name",
-	       n > 2 ? json_object_get_string(json_object_array_get_idx(op, 2)) : NULL);
-	string(operator, "brand", operator_brand(str(operator, "name")));
+	if (numeric && plmn)
+		string(operator, "plmn", plmn);
+	else
+		json_object_object_add(operator, "plmn", NULL);
+	string(operator, "name", reported);
+	string(operator, "brand", operator_resolve_brand(c, numeric && plmn ? plmn : reported));
+	string(operator, "home_brand", operator_home_brand(c));
 	if (n > 3)
 		integer(operator, "act", act);
 	else

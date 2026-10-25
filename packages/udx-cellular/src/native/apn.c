@@ -226,6 +226,7 @@ static int set_config(struct controller *c, J *values)
 static J *apply(struct controller *c, J *values)
 {
 	c->fallback_attempted = false;
+	c->fallback_index = 0;
 	json_object_put(c->fallback_profile);
 	c->fallback_profile = NULL;
 	json_object_object_del(c->status, "automatic_apn");

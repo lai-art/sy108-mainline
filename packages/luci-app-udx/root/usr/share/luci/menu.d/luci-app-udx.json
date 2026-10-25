@@ -50,5 +50,13 @@
    "type": "view",
    "path": "udx/hardware"
   }
+ },
+ "admin/udx/signal": {
+  "title": "Signal dashboard",
+  "order": 60,
+  "action": {
+   "type": "view",
+   "path": "udx/signal"
+  }
  }
 }

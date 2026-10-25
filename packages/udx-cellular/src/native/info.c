@@ -301,11 +301,21 @@ J *info_signal(struct controller *c)
 {
 	J *f = controller_query(c, "AT+CSQ", 5, "+CSQ:");
 	int64_t rssi = 0, ber = 0;
+	/*
+	 * The UDX710 module does not use the 3GPP TS 27.007 CSQ scale
+	 * (rssi 0..31 / ber 0..7).  Both fields are vendor magnitudes in
+	 * the 0..99 range, e.g. "+CSQ: 43,16" while the serving cell
+	 * reports RSRP around -97 dBm.  Rejecting anything above 31 made
+	 * every signal_refresh fail with "Invalid CSQ range" and left the
+	 * UI stuck on the stale pre-registration 99,99 snapshot.
+	 *
+	 * Pairing AT+CSQ with AT+SPENGMD over 15+ samples on both LTE and
+	 * NR gives rssi_dbm = csq - 140 with ~1.3 dB mean error.
+	 */
 	bool valid =
 	    f && json_object_array_length(f) == 2 &&
 	    integer_text(json_object_get_string(json_object_array_get_idx(f, 0)), 0, 99, &rssi) &&
-	    integer_text(json_object_get_string(json_object_array_get_idx(f, 1)), 0, 99, &ber) &&
-	    (rssi < 32 || rssi == 99) && (ber < 8 || ber == 99);
+	    integer_text(json_object_get_string(json_object_array_get_idx(f, 1)), 0, 99, &ber);
 	if (f && !valid)
 		errorf(CELL_INVALID, "Invalid CSQ range");
 	json_object_put(f);
@@ -314,11 +324,12 @@ J *info_signal(struct controller *c)
 	J *out = json_object_new_object();
 	integer(out, "csq", rssi);
 	integer(out, "ber", ber);
+	string(out, "rssi_scale", "vendor");
 	if (rssi != 99)
-		integer(out, "rssi_dbm", -113 + 2 * rssi);
+		integer(out, "rssi_dbm", rssi - 140);
 	else
 		json_object_object_add(out, "rssi_dbm", NULL);
-	string(out, "rssi_limit", rssi == 31 ? "at-least" : rssi == 0 ? "at-most" : NULL);
+	string(out, "rssi_limit", rssi == 99 ? "unknown" : NULL);
 	real(out, "uptime", mono());
 	json_object_object_add(c->status, "signal", json_object_get(out));
 	return out;
