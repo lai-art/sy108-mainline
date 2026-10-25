@@ -32,7 +32,7 @@ case "${1:-status}" in
 		exit 0
 		;;
 	*)
-		echo 'usage: udx-usbctl status | start | switch {ncm|ncm-software} [acm|no-acm] | reset | stop | cancel-pending' >&2
+		echo 'usage: udx-usbctl status | start | switch {ncm|ncm-software|ecm|rndis} [acm|no-acm] | reset | stop | cancel-pending' >&2
 		exit 64;;
 esac
 if [ "$request" = reset ] && [ -f "$UDX_RUN/pending" ] && [ "$(g_read "$UDX_RUN/pending")" = reset ]; then

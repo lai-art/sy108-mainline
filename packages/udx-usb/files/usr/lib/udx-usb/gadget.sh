@@ -192,7 +192,9 @@ g_profile() {
 	case "$PROFILE" in
 		ncm) FUNCTIONS=ncm; PID=0x0105; PAMU3=1 ;;
 		ncm-software) FUNCTIONS=ncm; PID=0x0105; PAMU3=0 ;;
-		*) g_error 'profile must be ncm or ncm-software'; return 64 ;;
+		ecm) FUNCTIONS=ecm; PID=0x0106; PAMU3=0 ;;
+		rndis) FUNCTIONS=rndis; PID=0x0107; PAMU3=0 ;;
+		*) g_error 'profile must be ncm, ncm-software, ecm or rndis'; return 64 ;;
 	esac
 	case "$ACM" in
 		0) ;;
@@ -264,18 +266,34 @@ g_lock() {
 }
 
 g_net_function() {
-	local dir=$UDX_G/functions/ncm.usb0
+	local kind=$1 dir=$UDX_G/functions/$kind.usb0
 	g_mkdir "$dir" || return 1
+	# Every profile keeps the uncm%d name so board.json, the usbmgmt bridge and
+	# the firewall zone stay valid across profile switches.
 	g_write "$dir/ifname" 'uncm%d' || return 1
 	g_write "$dir/dev_addr" "$DEV_MAC" || return 1
 	g_write "$dir/host_addr" "$HOST_MAC" || return 1
-	g_write "$dir/max_segment_size" 1514 || return 1
-	g_write "$dir/pamu3" "$PAMU3" || return 1
-	# Windows UsbNcm.sys matches MS_COMP_WINNCM. WINUSB would select
-	# Winusb.sys and would not expose this function as a network adapter.
-	g_write "$dir/os_desc/interface.ncm/compatible_id" WINNCM || return 1
-	g_write "$dir/os_desc/interface.ncm/sub_compatible_id" '' || return 1
-	g_link "$dir" "$UDX_G/configs/c.1/ncm.usb0"
+	case "$kind" in
+		ncm)
+			g_write "$dir/max_segment_size" 1514 || return 1
+			g_write "$dir/pamu3" "$PAMU3" || return 1
+			# Windows UsbNcm.sys matches MS_COMP_WINNCM. WINUSB would select
+			# Winusb.sys and would not expose this function as a network adapter.
+			g_write "$dir/os_desc/interface.ncm/compatible_id" WINNCM || return 1
+			g_write "$dir/os_desc/interface.ncm/sub_compatible_id" '' || return 1
+			;;
+		ecm)
+			# CDC-ECM needs no MS OS descriptor: Linux/macOS/Android bind it
+			# from the standard CDC descriptors. Windows 10 has no inbox ECM
+			# driver, use the ncm or rndis profile there instead.
+			;;
+		rndis)
+			# Windows binds its inbox rndis.inf through the CDC class triple
+			# (E0/01/03) that the gadget advertises; no OS descriptor required.
+			;;
+		*) g_error "unsupported network function $kind"; return 64 ;;
+	esac
+	g_link "$dir" "$UDX_G/configs/c.1/$kind.usb0"
 }
 
 g_create() {
@@ -307,10 +325,14 @@ g_create() {
 	g_mkdir "$UDX_G/configs/c.1/strings/0x409" || return 1
 	g_write "$UDX_G/configs/c.1/strings/0x409/configuration" "$PROFILE management" || return 1
 	for kind in $FUNCTIONS; do g_net_function "$kind" || return 1; done
-	g_write "$UDX_G/os_desc/use" 1 || return 1
-	g_write "$UDX_G/os_desc/b_vendor_code" 0xcd || return 1
-	g_write "$UDX_G/os_desc/qw_sign" MSFT100 || return 1
-	g_link "$UDX_G/configs/c.1" "$UDX_G/os_desc/c.1" || return 1
+	if [ "$FUNCTIONS" = ncm ]; then
+		# MS OS descriptors carry the WINNCM compatible id; ECM/RNDIS advertise
+		# standard CDC descriptors and must not reference a missing interface.
+		g_write "$UDX_G/os_desc/use" 1 || return 1
+		g_write "$UDX_G/os_desc/b_vendor_code" 0xcd || return 1
+		g_write "$UDX_G/os_desc/qw_sign" MSFT100 || return 1
+		g_link "$UDX_G/configs/c.1" "$UDX_G/os_desc/c.1" || return 1
+	fi
 	if [ "$ACM" = 1 ]; then
 		g_mkdir "$UDX_G/functions/acm.maint" || return 1
 		[ "$(g_read "$UDX_G/functions/acm.maint/port_num")" = 0 ] || { g_error 'ttyGS0 is already allocated'; return 1; }
@@ -342,13 +364,24 @@ g_destroy() {
 		"$UDX_UDC") g_write "$UDX_G/UDC" '' || return 1;;
 		*) g_error 'owned gadget is bound to an unexpected controller'; return 1;;
 	esac
-	for path in "$UDX_G/os_desc/c.1" "$UDX_G/configs/c.1/acm.maint" \
-		"$UDX_G/configs/c.1/ncm.usb0"; do
+	local funcs=${FUNCTIONS:-}
+	[ -n "$funcs" ] || funcs=$(cd "$UDX_G/functions" 2>/dev/null && ls -d *.usb0 2>/dev/null | sed 's/\.usb0$//') || funcs=ncm
+	for path in "$UDX_G/os_desc/c.1" "$UDX_G/configs/c.1/acm.maint"; do
+		[ ! -L "$path" ] || g_unlink "$path" || return 1
+	done
+	for kind in $funcs; do
+		path="$UDX_G/configs/c.1/$kind.usb0"
 		[ ! -L "$path" ] || g_unlink "$path" || return 1
 	done
 	for path in "$UDX_G/configs/c.1/strings/0x409" "$UDX_G/configs/c.1" \
-		"$UDX_G/functions/acm.maint" "$UDX_G/functions/ncm.usb0" \
-		"$UDX_G/strings/0x409"; do
+		"$UDX_G/functions/acm.maint"; do
+		[ ! -d "$path" ] || g_rmdir "$path" || return 1
+	done
+	for kind in $funcs; do
+		path="$UDX_G/functions/$kind.usb0"
+		[ ! -d "$path" ] || g_rmdir "$path" || return 1
+	done
+	for path in "$UDX_G/strings/0x409"; do
 		[ ! -d "$path" ] || g_rmdir "$path" || return 1
 	done
 	g_rmdir "$UDX_G" || return 1

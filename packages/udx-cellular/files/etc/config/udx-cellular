@@ -2,8 +2,10 @@ config cellular 'modem'
  option apn ''
  option cid '1'
  option pdp_type 'IPV4V6'
- option automatic_connect '1'
- option roaming '0'
+	option automatic_connect '1'
+	# 中国广电（46015）共享中国移动网络，注册会被判定为漫游，默认放开漫游
+	# 才能直接上网；其余运营商在归属网络下不受该选项影响。
+	option roaming '1'
  option radio_enabled '1'
  option nr_capability 'sa_nsa'
  option username ''

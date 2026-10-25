@@ -364,6 +364,24 @@ static int management_network_ready(void)
 	return -1;
 }
 
+/* /run/udx-usb/applied starts with the active profile line. Keep every gadget
+ * profile the daemon supports readable here, otherwise an ECM/RNDIS boot would
+ * be treated as an unmanaged gadget and block the boot trial confirmation. */
+static int usb_profile_line(const char *value)
+{
+	static const char *const profiles[] = {"ncm", "ncm-software", "ecm", "rndis"};
+
+	if (strncmp(value, "profile=", 8))
+		return 0;
+	value += 8;
+	for (size_t i = 0; i < sizeof(profiles) / sizeof(*profiles); i++) {
+		size_t len = strlen(profiles[i]);
+		if (!strncmp(value, profiles[i], len) && value[len] == '\n')
+			return 1;
+	}
+	return 0;
+}
+
 static int boot_management_ready(void)
 {
 	char value[512];
@@ -371,7 +389,7 @@ static int boot_management_ready(void)
 	 * All run files are from this boot; require the live UDC binding too. */
 	if (text("/sys/kernel/config/usb_gadget/udx-usb/UDC", value, sizeof(value)) ||
 	    strcmp(value, "29100000.usb\n") || text("/run/udx-usb/applied", value, sizeof(value)) ||
-	    (strncmp(value, "profile=ncm\n", 12) && strncmp(value, "profile=ncm-software\n", 21)) ||
+	    !usb_profile_line(value) ||
 	    management_listener(22) || (management_listener(80) && management_listener(443)) ||
 	    management_network_ready())
 		return -1;

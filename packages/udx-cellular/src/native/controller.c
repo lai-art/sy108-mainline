@@ -681,8 +681,22 @@ J *controller_connect(struct controller *c, unsigned wait_seconds)
 		if (!context)
 			goto fail;
 		json_object_object_add(c->status, "default_bearer", context);
-	} else if (apn_configure(c) < 0)
-		goto fail;
+	} else {
+		/* Auto mode with no explicit APN: resolve the home operator's APN
+		 * from the catalogue before the first attach. Without this the
+		 * modem is asked to activate an empty APN (CME ERROR 30) and the
+		 * post-failure fallback below becomes the only recovery path,
+		 * which stays unreachable whenever the failure is not classed as
+		 * a modem rejection. */
+		const char *auto_apn = str(c->config, "apn");
+		if (text_equal(str(c->config, "apn_mode"), "auto") &&
+		    (!auto_apn || !*auto_apn) && operator_fallback(c) > 0) {
+			json_object_put(wanted);
+			wanted = controller_profile(c);
+		}
+		if (apn_configure(c) < 0)
+			goto fail;
+	}
 	raw = controller_at(c, "AT+CGDATA=\"M-ETHER\",1", 120);
 	if (!raw && !active && cell_error_kind == CELL_MODEM && !c->transport.poisoned &&
 	    !c->fallback_attempted && text_equal(str(c->config, "apn_mode"), "auto")) {
