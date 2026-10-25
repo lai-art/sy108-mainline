@@ -22,7 +22,10 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A full firmware build compiles the kernel from source and takes a long
+  # time.  Cancelling an in-flight build on every push wastes that work and
+  # leaves the branch without an artifact, so only the queued run is replaced.
+  cancel-in-progress: false
 
 jobs:
   build:
