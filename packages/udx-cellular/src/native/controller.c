@@ -438,6 +438,7 @@ static int sim_refresh(struct controller *c)
 	if (!text_equal(previous, state)) {
 		c->fallback_attempted = false;
 		c->fallback_index = 0;
+		c->fallback_tried[0] = 0;
 		json_object_put(c->fallback_profile);
 		c->fallback_profile = NULL;
 		json_object_object_del(c->status, "automatic_apn");

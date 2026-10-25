@@ -41,6 +41,11 @@ struct controller {
 	struct transport transport;
 	J *config, *status, *data, *fallback_profile;
 	bool fallback_attempted;
+	/* Identity of the candidate that was tried last, as "plmn/apn".  The
+	 * candidate list is rebuilt on every attempt, so a positional cursor
+	 * would drift whenever the order changes; matching on the identity
+	 * keeps the retry sequence stable. */
+	char fallback_tried[64];
 	size_t fallback_index;
 	bool want_data, initialized, ims_initialized;
 	bool radio_restore_pending, restore_radio, restore_data;

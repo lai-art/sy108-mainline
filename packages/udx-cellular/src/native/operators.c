@@ -232,7 +232,13 @@ J *operator_candidates(struct controller *c)
 }
 
 /* Select the next usable Internet candidate for automatic mode.
- * Returns 1 when a candidate was installed, 0 when none is left. */
+ * Returns 1 when a candidate was installed, 0 when none is left.
+ *
+ * The candidate list is rebuilt on every call, so the cursor cannot be a
+ * position into that list: the serving network can appear or disappear while
+ * the retry loop runs and the order changes with it.  The identity of the
+ * last attempted candidate is remembered instead, and the next call resumes
+ * after it. */
 int operator_next_candidate(struct controller *c)
 {
 	if (!text_equal(str(c->config, "apn_mode"), "auto"))
@@ -241,8 +247,19 @@ int operator_next_candidate(struct controller *c)
 	if (!candidates)
 		return -1;
 	size_t n = json_object_array_length(candidates);
-	for (size_t i = c->fallback_index; i < n; i++) {
+	/* Nothing was attempted yet, so the whole list is still available. */
+	bool resumed = c->fallback_tried[0] == 0;
+	for (size_t i = 0; i < n; i++) {
 		J *r = json_object_array_get_idx(candidates, i);
+		char identity[64];
+		snprintf(identity, sizeof(identity), "%s/%s", str(r, "plmn"),
+			 str(r, "apn"));
+		if (!resumed) {
+			/* Skip everything up to and including the last attempt. */
+			if (text_equal(identity, c->fallback_tried))
+				resumed = true;
+			continue;
+		}
 		J *profile = json_object_new_object();
 		string(profile, "apn", str(r, "apn"));
 		string(profile, "pdp_type", str(r, "pdp_type"));
@@ -252,6 +269,7 @@ int operator_next_candidate(struct controller *c)
 		if (valid < 0 || apn_auth_validate(r) < 0)
 			continue;
 		c->fallback_index = i + 1;
+		snprintf(c->fallback_tried, sizeof(c->fallback_tried), "%s", identity);
 		json_object_put(c->fallback_profile);
 		c->fallback_profile = jclone(r);
 		string(c->status, "automatic_apn", str(r, "apn"));
