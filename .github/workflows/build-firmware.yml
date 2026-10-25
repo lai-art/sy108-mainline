@@ -29,6 +29,12 @@ jobs:
     name: build-${{ matrix.profile }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
+    env:
+      # The arm64 runner exposes four processors; the container limit is
+      # clamped to the host capacity anyway, but stating it keeps the make
+      # job count and the cgroup quota in step.
+      SY108_JOBS: 4
+      SY108_MEMORY: 8g
     strategy:
       fail-fast: false
       matrix:
