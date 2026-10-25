@@ -8,3 +8,6 @@ config gadget 'main'
 	option vid '0x1d6b'
 	option dev_mac 'auto'
 	option host_mac 'auto'
+	# Recovers the management link when the gadget keeps renegotiating with
+	# the host.  Set to 0 to keep the link exactly as the platform leaves it.
+	option watchdog '1'
