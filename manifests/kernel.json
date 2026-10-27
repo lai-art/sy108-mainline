@@ -3,9 +3,9 @@
   "upstream": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
   "upstream_tag": "v7.3",
   "upstream_commit": "c03c1a14507dfaf8b856c2608f9ac216021fc222",
-  "commit": "b4ad448924d56fa83a4901204c78f9e0acbd6e16",
-  "archive": "linux-7.3.0-sy108-b4ad448924d5.tar.gz",
+  "commit": "17ec8c2878152c2a521f79a8e12dd45549e44e5c",
+  "archive": "linux-7.3.0-sy108-17ec8c287815.tar.gz",
   "version": "7.3.0",
-  "sha256": "e1cbbfde2286f60731c64b2e943f68b8185e19d9502460020a6da4de8952e513",
-  "tree_sha256": "9e585767052f0866ce00f5d455cdbcec3468e90951a89ef64c43efe1fbc079e1"
+  "sha256": "74c5643ac0749d1dc3e84d2bad8e1678fc183794f96fe8891aa03d90397b2a8b",
+  "tree_sha256": "0d654bf5e6195627640ee322cafd5ef549a6e96d8ef97bf9cdf1c154ebd06cfb"
 }

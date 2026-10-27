@@ -99,19 +99,22 @@ shutil.copyfile(kernel / '.config', output / 'kernel.config')
 # A cached build tree can hand back the previous kernel silently, which is how
 # a firmware carrying none of the requested drivers still shipped.  Make the
 # build fail instead of delivering an image whose .config contradicts the lock.
-required_kernel_options = (
-    'CONFIG_USB_DWC3_DUAL_ROLE=y',
-    'CONFIG_USB_XHCI_HCD=y',
-    'CONFIG_USB_USBNET=y',
-    'CONFIG_USB_NET_AX88179_178A=y',
-)
-built_config = (kernel / '.config').read_text()
-missing = [option for option in required_kernel_options if option not in built_config]
-if missing:
-    raise RuntimeError(
-        'built kernel .config lacks %s: the kernel was not rebuilt from the locked source'
-        % ', '.join(missing)
+# Recovery deliberately stays gadget-only (config-recovery), so this guard only
+# applies to the main profile.
+if a.profile == 'main':
+    required_kernel_options = (
+        'CONFIG_USB_DWC3_DUAL_ROLE=y',
+        'CONFIG_USB_XHCI_HCD=y',
+        'CONFIG_USB_USBNET=y',
+        'CONFIG_USB_NET_AX88179_178A=y',
     )
+    built_config = (kernel / '.config').read_text()
+    missing = [option for option in required_kernel_options if option not in built_config]
+    if missing:
+        raise RuntimeError(
+            'built kernel .config lacks %s: the kernel was not rebuilt from the locked source'
+            % ', '.join(missing)
+        )
 dtb = 'udx710-sy108' + ('-recovery' if a.profile == 'recovery' else '') + '.dtb'
 shutil.copyfile(kernel / 'arch/arm64/boot/dts/sprd' / dtb, output / 'board.dtb')
 if a.profile == 'main':
