@@ -33,6 +33,29 @@ lock = json.loads((PROJECT / 'manifests/kernel.json').read_text())
 archive_path = Path(
     subprocess.check_output([sys.executable, str(PROJECT / 'tools/build/kernel-source.py')], text=True).strip()
 )
+# OpenWrt keys the extracted kernel on LINUX_VERSION, so a source lock that
+# changes the commit without changing the version silently reuses the cached
+# build_dir/linux-<version> tree and its already-built Image.  Drop that tree
+# whenever the pinned archive differs from the one the cache was built from;
+# the kernel then gets re-extracted and recompiled instead of shipping stale.
+digest = lock['sha256']
+stamp = tree / '.sy108-kernel-digest'
+previous = stamp.read_text().strip() if stamp.exists() else ''
+if previous != digest:
+    patterns = (
+        'build_dir/target-*/linux-sprd_udx710',
+        'build_dir/target-*/linux-sprd_udx710-*',
+        'staging_dir/target-*/stamp/.linux*',
+    )
+    for pattern in patterns:
+        for stale in tree.glob(pattern):
+            if stale.is_dir():
+                shutil.rmtree(stale, ignore_errors=True)
+            else:
+                stale.unlink(missing_ok=True)
+    if previous:
+        print('kernel source lock changed, discarded the cached kernel build', file=sys.stderr)
+    stamp.write_text(digest + '\n')
 revision = subprocess.check_output(['git', '-C', str(PROJECT), 'rev-parse', 'HEAD'], text=True).strip()
 build_id = subprocess.check_output(['git', '-C', str(PROJECT), 'describe', '--always', '--dirty'], text=True).strip()
 common = [
@@ -73,6 +96,22 @@ if not kernel.is_dir():
     kernel = candidates[0]
 shutil.copyfile(kernel / 'arch/arm64/boot/Image', output / 'Image')
 shutil.copyfile(kernel / '.config', output / 'kernel.config')
+# A cached build tree can hand back the previous kernel silently, which is how
+# a firmware carrying none of the requested drivers still shipped.  Make the
+# build fail instead of delivering an image whose .config contradicts the lock.
+required_kernel_options = (
+    'CONFIG_USB_DWC3_DUAL_ROLE=y',
+    'CONFIG_USB_XHCI_HCD=y',
+    'CONFIG_USB_USBNET=y',
+    'CONFIG_USB_NET_AX88179_178A=y',
+)
+built_config = (kernel / '.config').read_text()
+missing = [option for option in required_kernel_options if option not in built_config]
+if missing:
+    raise RuntimeError(
+        'built kernel .config lacks %s: the kernel was not rebuilt from the locked source'
+        % ', '.join(missing)
+    )
 dtb = 'udx710-sy108' + ('-recovery' if a.profile == 'recovery' else '') + '.dtb'
 shutil.copyfile(kernel / 'arch/arm64/boot/dts/sprd' / dtb, output / 'board.dtb')
 if a.profile == 'main':

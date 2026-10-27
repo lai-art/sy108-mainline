@@ -100,6 +100,16 @@ jobs:
         with:
           path: artifact
 
+      # Both profiles emit boot.bin, build.json and SHA256SUMS.  Uploading them
+      # under the same names makes the second one overwrite the first, which
+      # already shipped a recovery capsule as the main boot.bin.  Rename the
+      # recovery copies before publishing.
+      - name: Disambiguate profile assets
+        run: |
+          mv artifact/sy108-recovery/boot.bin artifact/sy108-recovery/boot-recovery.bin
+          mv artifact/sy108-recovery/build.json artifact/sy108-recovery/build-recovery.json
+          mv artifact/sy108-recovery/SHA256SUMS artifact/sy108-recovery/SHA256SUMS-recovery
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -109,10 +119,10 @@ jobs:
             artifact/sy108-main/rootfs.squashfs
             artifact/sy108-main/build.json
             artifact/sy108-main/SHA256SUMS
-            artifact/sy108-recovery/boot.bin
+            artifact/sy108-recovery/boot-recovery.bin
             artifact/sy108-recovery/rootfs.cpio.gz
-            artifact/sy108-recovery/build.json
-            artifact/sy108-recovery/SHA256SUMS
+            artifact/sy108-recovery/build-recovery.json
+            artifact/sy108-recovery/SHA256SUMS-recovery
           fail_on_unmatched_files: true
           body: |
             SY108 mainline firmware.
@@ -120,5 +130,7 @@ jobs:
             * `sysupgrade.bin` - flash this from LuCI under System -> Maintenance,
               or with `sysupgrade -n /tmp/sysupgrade.bin` over SSH.
             * `boot.bin` / `rootfs.squashfs` - raw image parts for the U-Boot
-              capsule flow.
-            * `SHA256SUMS` - checksums for every published file.
+              capsule flow (main profile).
+            * `boot-recovery.bin` / `rootfs.cpio.gz` - recovery profile capsule.
+            * `SHA256SUMS` - checksums for the main profile; `SHA256SUMS-recovery`
+              covers the recovery profile.
