@@ -63,6 +63,50 @@ function value(v, suffix) {
                '—';
     return String(v) + (suffix || '');
 }
+/* Signal grading. The breakpoints mirror the UDX710 signal dashboard: each
+ * metric is scored 0..100 through a piecewise linear curve, then bucketed into
+ * five levels. Keep these numbers in sync if the dashboard ever changes. */
+var SIGNAL_CURVES = {
+    rsrp : [ [ -120, 0 ], [ -110, 20 ], [ -100, 45 ], [ -90, 70 ], [ -80, 88 ], [ -60, 100 ] ],
+    rsrq : [ [ -30, 0 ], [ -20, 25 ], [ -15, 60 ], [ -10, 85 ], [ -3, 100 ] ],
+    sinr : [ [ -10, 0 ], [ 0, 25 ], [ 13, 65 ], [ 20, 85 ], [ 30, 100 ] ]
+};
+var SIGNAL_LEVELS = [
+    { min : 80, label : 'Excellent', color : '#16a34a' },
+    { min : 60, label : 'Good', color : '#22c55e' },
+    { min : 40, label : 'Fair', color : '#d97706' },
+    { min : 20, label : 'Poor', color : '#ea580c' },
+    { min : -1, label : 'Bad', color : '#dc2626' }
+];
+function interp(v, points) {
+    if (v <= points[0][0])
+        return points[0][1];
+    for (var i = 1; i < points.length; i++) {
+        var a = points[i - 1], b = points[i];
+        if (v <= b[0])
+            return a[1] + (b[1] - a[1]) * (v - a[0]) / (b[0] - a[0]);
+    }
+    return points[points.length - 1][1];
+}
+function signalQuality(kind, v) {
+    if (v === null || v === undefined || v === '' || !SIGNAL_CURVES[kind])
+        return null;
+    var score = interp(Number(v), SIGNAL_CURVES[kind]);
+    score = Math.min(100, Math.max(0, score));
+    for (var i = 0; i < SIGNAL_LEVELS.length; i++)
+        if (score >= SIGNAL_LEVELS[i].min)
+            return { score : score, label : _(SIGNAL_LEVELS[i].label), color : SIGNAL_LEVELS[i].color };
+    return null;
+}
+/* "优秀 (-95.4 dBm)" with the level coloured, used inside table/list cells. */
+function signalBadge(kind, v, suffix) {
+    var q = signalQuality(kind, v);
+    if (!q)
+        return E('span', {}, '—');
+    return E('span', {},
+             [ E('span', {style : 'color:' + q.color + ';font-weight:600'}, q.label), ' (',
+               String(v) + (suffix || ''), ')' ]);
+}
 function failure(row) {
     var e = new Error(row.error || _('Operation failed'));
     e.result = row.result;
@@ -196,7 +240,14 @@ function table(title, rows) {
         node : node,
         update : function(data) {
             rows.forEach(function(r, i) {
-                cells[i].textContent = value(r[1](data), r[2]);
+                var v = r[1](data);
+                if (typeof r[3] === 'function') {
+                    cells[i].textContent = '';
+                    cells[i].appendChild(r[3](v, r[2]));
+                }
+                else {
+                    cells[i].textContent = value(v, r[2]);
+                }
             });
         }
     };
@@ -241,7 +292,14 @@ function list(columns, key, selectable, action) {
                 }
                 entry.row = row;
                 columns.forEach(function(c, i) {
-                    entry.cells[i].textContent = value(c[1](row));
+                    var v = c[1](row);
+                    if (typeof c[2] === 'function') {
+                        entry.cells[i].textContent = '';
+                        entry.cells[i].appendChild(c[2](v, row));
+                    }
+                    else {
+                        entry.cells[i].textContent = value(v);
+                    }
                 });
                 if (body.children[index] !== entry.node)
                     body.insertBefore(entry.node, body.children[index] || null);
@@ -328,6 +386,8 @@ return baseclass.extend({
         });
     },
     value : value,
+    signalQuality : signalQuality,
+    signalBadge : signalBadge,
     execute : execute,
     notify : notify,
     button : button,

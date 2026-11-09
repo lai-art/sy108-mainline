@@ -107,7 +107,7 @@ return view.extend({
                     }
                 ],
                 [
-                    'ARFCN',
+                    _('Frequency point'),
                     function(r) {
                         return r.arfcn;
                     }
@@ -119,21 +119,30 @@ return view.extend({
                     }
                 ],
                 [
-                    'RSRP',
+                    _('Reference signal power (RSRP)'),
                     function(r) {
-                        return udx.value(r.rsrp, ' dBm');
+                        return r.rsrp;
+                    },
+                    function(v) {
+                        return udx.signalBadge('rsrp', v, ' dBm');
                     }
                 ],
                 [
-                    'RSRQ',
+                    _('Reference signal quality (RSRQ)'),
                     function(r) {
-                        return udx.value(r.rsrq, ' dB');
+                        return r.rsrq;
+                    },
+                    function(v) {
+                        return udx.signalBadge('rsrq', v, ' dB');
                     }
                 ],
                 [
-                    'SINR',
+                    _('Signal to interference noise ratio (SINR)'),
                     function(r) {
-                        return udx.value(r.sinr, ' dB');
+                        return r.sinr;
+                    },
+                    function(v) {
+                        return udx.signalBadge('sinr', v, ' dB');
                     }
                 ],
                 [
@@ -143,7 +152,7 @@ return view.extend({
                     }
                 ],
                 [
-                    'Cell ID',
+                    _('Cell ID'),
                     function(r) {
                         return r.cell_id;
                     }

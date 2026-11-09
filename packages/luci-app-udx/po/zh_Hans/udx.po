@@ -717,3 +717,72 @@ msgstr "DDR 由固件自动调频，此处仅显示监测数据。"
 
 msgid "Apply CPU frequency settings"
 msgstr "应用 CPU 频率设置"
+
+msgid "Frequency point (ARFCN)"
+msgstr "频点 (ARFCN)"
+
+msgid "Physical cell ID (PCI)"
+msgstr "物理小区标识 (PCI)"
+
+msgid "Reference signal power (RSRP)"
+msgstr "参考信号功率 (RSRP)"
+
+msgid "Reference signal quality (RSRQ)"
+msgstr "参考信号质量 (RSRQ)"
+
+msgid "Signal to interference noise ratio (SINR)"
+msgstr "信干噪比 (SINR)"
+
+msgid "Tracking area code (TAC)"
+msgstr "跟踪区码 (TAC)"
+
+msgid "Cell ID"
+msgstr "小区标识"
+
+msgid "Excellent"
+msgstr "优秀"
+
+msgid "Good"
+msgstr "良好"
+
+msgid "Fair"
+msgstr "一般"
+
+msgid "Poor"
+msgstr "较差"
+
+msgid "Bad"
+msgstr "极差"
+
+msgid "AP core 0"
+msgstr "AP 核心 0"
+
+msgid "AP core 1"
+msgstr "AP 核心 1"
+
+msgid "5G baseband"
+msgstr "5G 基带"
+
+msgid "ANK core 0"
+msgstr "ANK 核心 0"
+
+msgid "ANK core 1"
+msgstr "ANK 核心 1"
+
+msgid "CPU cluster 0"
+msgstr "CPU 集群 0"
+
+msgid "SoC"
+msgstr "芯片整体 (SoC)"
+
+msgid "4G power amplifier"
+msgstr "4G 功放"
+
+msgid "5G power amplifier"
+msgstr "5G 功放"
+
+msgid "Board"
+msgstr "主板"
+
+msgid "Frequency point"
+msgstr "频点"

@@ -716,3 +716,72 @@ msgstr ""
 
 msgid "Apply CPU frequency settings"
 msgstr ""
+
+msgid "Frequency point (ARFCN)"
+msgstr ""
+
+msgid "Physical cell ID (PCI)"
+msgstr ""
+
+msgid "Reference signal power (RSRP)"
+msgstr ""
+
+msgid "Reference signal quality (RSRQ)"
+msgstr ""
+
+msgid "Signal to interference noise ratio (SINR)"
+msgstr ""
+
+msgid "Tracking area code (TAC)"
+msgstr ""
+
+msgid "Cell ID"
+msgstr ""
+
+msgid "Excellent"
+msgstr ""
+
+msgid "Good"
+msgstr ""
+
+msgid "Fair"
+msgstr ""
+
+msgid "Poor"
+msgstr ""
+
+msgid "Bad"
+msgstr ""
+
+msgid "AP core 0"
+msgstr ""
+
+msgid "AP core 1"
+msgstr ""
+
+msgid "5G baseband"
+msgstr ""
+
+msgid "ANK core 0"
+msgstr ""
+
+msgid "ANK core 1"
+msgstr ""
+
+msgid "CPU cluster 0"
+msgstr ""
+
+msgid "SoC"
+msgstr ""
+
+msgid "4G power amplifier"
+msgstr ""
+
+msgid "5G power amplifier"
+msgstr ""
+
+msgid "Board"
+msgstr ""
+
+msgid "Frequency point"
+msgstr ""

@@ -3,7 +3,7 @@ SY108_RECIPE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 include $(TOPDIR)/rules.mk
 PKG_NAME:=luci-app-udx
 PKG_VERSION:=3.1
-PKG_RELEASE:=7
+PKG_RELEASE:=8
 PKG_LICENSE:=GPL-2.0-only
 PKGARCH:=all
 PKG_BUILD_DEPENDS:=luci-base/host
@@ -23,6 +23,7 @@ endef
 
 define Build/Compile
 	po2lmo $(PKG_BUILD_DIR)/packages/luci-app-udx/po/zh_Hans/udx.po $(PKG_BUILD_DIR)/udx.zh-cn.lmo
+	po2lmo $(PKG_BUILD_DIR)/packages/luci-app-udx/po/zh_Hans/luci-extra.po $(PKG_BUILD_DIR)/luci-extra.zh-cn.lmo
 endef
 
 define Package/luci-app-udx/install
@@ -30,5 +31,6 @@ define Package/luci-app-udx/install
 	$(CP) $(PKG_BUILD_DIR)/packages/luci-app-udx/root/. $(1)/
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/udx.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/luci-extra.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
 endef
 $(eval $(call BuildPackage,luci-app-udx))

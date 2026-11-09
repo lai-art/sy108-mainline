@@ -158,18 +158,62 @@ return view.extend({
             ]
         ]);
         embed('system', runtime.node);
+        /* Thermal zone names are kernel device-tree labels; map the known ones to
+         * readable names and fall back to the raw label minus the -thermal suffix. */
+        var SENSOR_LABELS = {
+            'apcpu0-thermal' : _('AP core 0'),
+            'apcpu1-thermal' : _('AP core 1'),
+            'nrcp-thermal' : _('5G baseband'),
+            'ank0-thermal' : _('ANK core 0'),
+            'ank1-thermal' : _('ANK core 1'),
+            'cluster0-thermal' : _('CPU cluster 0'),
+            'soc-thermal' : _('SoC'),
+            'pa-thermal' : _('4G power amplifier'),
+            'pa5g-thermal' : _('5G power amplifier'),
+            'board-thermal' : _('Board')
+        };
+        function sensorLabel(name) {
+            if (SENSOR_LABELS[name])
+                return SENSOR_LABELS[name];
+            return String(name || '').replace(/-thermal$/, '') || '—';
+        }
+        /* Colour bands: below 55 C green, 55-65 amber, 65-75 orange, 75+ red.
+         * The bar maps 20..95 C onto 0..100 %. */
+        function temperatureBar(v) {
+            if (v === null || v === undefined || v === '')
+                return E('span', {}, '—');
+            var t = Number(v);
+            if (!isFinite(t))
+                return E('span', {}, '—');
+            var color = t >= 75 ? '#dc2626' : t >= 65 ? '#f97316' : t >= 55 ? '#d97706' : '#16a34a';
+            var pct = Math.max(0, Math.min(100, (t - 20) / 75 * 100));
+            return E('div', {style : 'display:flex;align-items:center;gap:10px'},
+                     [ E('div',
+                         {style : 'flex:1 1 120px;height:8px;border-radius:4px;' +
+                                   'background:rgba(128,128,128,0.25);overflow:hidden'},
+                         E('div',
+                           {style : 'height:100%;border-radius:4px;background:' + color +
+                                     ';width:' + pct.toFixed(1) + '%'})),
+                       E('span',
+                         {style : 'font-variant-numeric:tabular-nums;font-weight:600;color:' +
+                                   color + ';min-width:76px;text-align:right'},
+                         t.toFixed(1) + ' °C') ]);
+        }
         var temperatures = udx.list(
             [
                 [
                     _('Sensor'),
                     function(r) {
-                        return r.name;
+                        return sensorLabel(r.name);
                     }
                 ],
                 [
                     _('Temperature'),
                     function(r) {
-                        return udx.value(r.temperature_c, ' °C');
+                        return r.temperature_c;
+                    },
+                    function(v) {
+                        return temperatureBar(v);
                     }
                 ]
             ],

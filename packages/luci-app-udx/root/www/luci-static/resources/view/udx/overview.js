@@ -196,46 +196,55 @@ return view.extend({
                 }
             ],
             [
-                'ARFCN',
+                _('Frequency point (ARFCN)'),
                 function(d) {
                     return cell(d).arfcn;
                 }
             ],
             [
-                'PCI',
+                _('Physical cell ID (PCI)'),
                 function(d) {
                     return cell(d).pci;
                 }
             ],
             [
-                'RSRP',
+                _('Reference signal power (RSRP)'),
                 function(d) {
                     return cell(d).rsrp;
                 },
-                ' dBm'
+                ' dBm',
+                function(v, suffix) {
+                    return udx.signalBadge('rsrp', v, suffix);
+                }
             ],
             [
-                'RSRQ',
+                _('Reference signal quality (RSRQ)'),
                 function(d) {
                     return cell(d).rsrq;
                 },
-                ' dB'
+                ' dB',
+                function(v, suffix) {
+                    return udx.signalBadge('rsrq', v, suffix);
+                }
             ],
             [
-                'SINR',
+                _('Signal to interference noise ratio (SINR)'),
                 function(d) {
                     return cell(d).sinr;
                 },
-                ' dB'
+                ' dB',
+                function(v, suffix) {
+                    return udx.signalBadge('sinr', v, suffix);
+                }
             ],
             [
-                'TAC',
+                _('Tracking area code (TAC)'),
                 function(d) {
                     return cell(d).tac;
                 }
             ],
             [
-                'Cell ID',
+                _('Cell ID'),
                 function(d) {
                     return cell(d).cell_id;
                 }

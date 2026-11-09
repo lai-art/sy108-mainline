@@ -1,0 +1,55 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# LuCI upstream ships no zh_Hans translation for the 25.12+ Appearance page
+# (not even in current master), so these labels stay English on a Chinese UI.
+# This catalogue is loaded together with every other *.zh-cn.lmo by
+# load_catalog() and only fills the gaps; it never replaces base.zh-cn.lmo.
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Visual style"
+msgstr "视觉风格"
+
+msgid "Branding"
+msgstr "品牌标识"
+
+msgid "Package"
+msgstr "主题包"
+
+msgid "Theme"
+msgstr "主题"
+
+msgid "Accent"
+msgstr "强调色"
+
+msgid "Background"
+msgstr "背景"
+
+msgid "Foreground"
+msgstr "前景"
+
+msgid "Font"
+msgstr "字体"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Mode"
+msgstr "模式"
+
+msgid "Navigation"
+msgstr "导航"
+
+msgid "Save and apply"
+msgstr "保存并应用"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Reset"
+msgstr "复位"
