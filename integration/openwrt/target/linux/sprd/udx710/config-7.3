@@ -463,6 +463,10 @@ CONFIG_DEVFREQ_GOV_USERSPACE=y
 CONFIG_ARM_SPRD_ORCA_DDR_DEVFREQ=y
 CONFIG_EXTCON=y
 CONFIG_EXTCON_USB_GPIO=y
+# Type-C class plus the SC2730 PMIC port controller, used only to
+# detect the port role during the OTG bring-up experiment.
+CONFIG_TYPEC=y
+CONFIG_TYPEC_SC27XX=y
 CONFIG_IIO=y
 CONFIG_SC27XX_ADC=y
 CONFIG_SY108_MCU=y

@@ -1,0 +1,557 @@
+diff --git a/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi b/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
+index e5c550b..eea5391 100644
+--- a/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
++++ b/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
+@@ -249,7 +249,7 @@
+ 	};
+ 	typec@380 {
+ 		mode = <0x2>;
+-		status = "disabled";
++		status = "okay";
+ 	};
+ 	fchg@400 {
+ 		status = "disabled";
+diff --git a/drivers/mfd/sprd-sc27xx-spi.c b/drivers/mfd/sprd-sc27xx-spi.c
+index d9f94e7..00331da 100644
+--- a/drivers/mfd/sprd-sc27xx-spi.c
++++ b/drivers/mfd/sprd-sc27xx-spi.c
+@@ -65,6 +65,8 @@ static const struct mfd_cell sc2730_devices[] = {
+ 	MFD_CELL_OF("sc2730-poweroff", NULL, NULL, 0, 0,
+ 		    "sprd,sc2730-poweroff"),
+ 	MFD_CELL_OF("sc2730-rtc", NULL, NULL, 0, 0, "sprd,sc2730-rtc"),
++	MFD_CELL_OF("sc2730-typec", NULL, NULL, 0, 0,
++		    "sprd,sc2730-typec"),
+ 	MFD_CELL_OF("sc2730-wdt", NULL, NULL, 0, 0, "sprd,sc2730-wdt"),
+ 	MFD_CELL_OF("sc2730-vibrator", NULL, NULL, 0, 0,
+ 		    "sprd,sc2730-vibrator"),
+diff --git a/drivers/usb/typec/Kconfig b/drivers/usb/typec/Kconfig
+index 2f80c27..77a98b3 100644
+--- a/drivers/usb/typec/Kconfig
++++ b/drivers/usb/typec/Kconfig
+@@ -110,6 +110,16 @@ config TYPEC_WUSB3801
+ 	  If you choose to build this driver as a dynamically linked module, the
+ 	  module will be called wusb3801.ko.
+ 
++config TYPEC_SC27XX
++	tristate "Unisoc SC27XX (SC2730) USB Type-C port controller"
++	depends on MFD_SC27XX_PMIC
++	select TYPEC
++	help
++	  Say Y here to enable detection of the Type-C port on the
++	  Unisoc SC2730 PMIC (UDX710 / SY108). The driver only
++	  reports the attach state and the data/power role; it
++	  switches no role and moves no lane.
++
+ source "drivers/usb/typec/mux/Kconfig"
+ 
+ source "drivers/usb/typec/altmodes/Kconfig"
+diff --git a/drivers/usb/typec/Makefile b/drivers/usb/typec/Makefile
+index 8a6a1c6..7e13111 100644
+--- a/drivers/usb/typec/Makefile
++++ b/drivers/usb/typec/Makefile
+@@ -11,4 +11,5 @@ obj-$(CONFIG_TYPEC_HD3SS3220)	+= hd3ss3220.o
+ obj-$(CONFIG_TYPEC_STUSB160X) 	+= stusb160x.o
+ obj-$(CONFIG_TYPEC_RT1719)	+= rt1719.o
+ obj-$(CONFIG_TYPEC_WUSB3801)	+= wusb3801.o
++obj-$(CONFIG_TYPEC_SC27XX)	+= sc27xx-typec.o
+ obj-$(CONFIG_TYPEC)		+= mux/
+diff --git b/drivers/usb/typec/sc27xx-typec.c b/drivers/usb/typec/sc27xx-typec.c
+new file mode 100644
+index 0000000..f707fae
+--- /dev/null
++++ b/drivers/usb/typec/sc27xx-typec.c
+@@ -0,0 +1,494 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Driver for Spreadtrum/Unisoc SC27XX (SC2730) USB Type-C port controller.
++ * UDX710 (orca / roc1) adaptation: a detection-only DRP driver that reports
++ * the Type-C block's attach/detach state machine as an extcon device
++ * (EXTCON_USB / EXTCON_USB_HOST), which dwc3's DRD block consumes to switch
++ * host / device.
++ *
++ * Ported from the Unisoc 4.14 kernel (drivers/usb/typec/sc27xx_typec.c) onto
++ * the mainline 7.x typec/extcon APIs. The PMIC's Type-C block (typec@380,
++ * "sprd,sc2730-typec") runs its own attach/detach state machine in the mode
++ * the device tree gives (sprd,mode / "mode": DRP on these boards), with the CC
++ * trim from the PMIC eFuse (single "cc_calib" cell, CC1 in bits[9:5], CC2 in
++ * bits[4:0]). The driver only reports what it finds:
++ *   - a Type-C port (port0) and a partner while something is attached,
++ *   - its power/data role from the attach state (sink/device or source/host),
++ *   - an extcon device (USB, USB_HOST and JACK_HEADPHONE as 4.14's),
++ *   - the CC pin in use (exposed as the "typec_cc_polarity_role" sysfs attr).
++ *
++ * It switches no role itself and moves no lane. Writing a role in the Type-C
++ * class is refused (no ops). What drives VBUS and the USB controller role
++ * (extcon-usb-gpio for VBUS, dwc3 DRD for the controller) is not its business.
++ *
++ * Left out of the vendor driver: the PD stack's hooks, the vconn regulator and
++ * the try-role option; the SC2721 variant.
++ */
++#include <linux/extcon-provider.h>
++#include <linux/interrupt.h>
++#include <linux/kernel.h>
++#include <linux/module.h>
++#include <linux/mutex.h>
++#include <linux/nvmem-consumer.h>
++#include <linux/of.h>
++#include <linux/of_platform.h>
++#include <linux/platform_device.h>
++#include <linux/regmap.h>
++#include <linux/slab.h>
++#include <linux/usb/typec.h>
++
++/* Type-C block registers (base = "reg", SC2730: 0x380) */
++#define SC27XX_EN			0x00
++#define SC27XX_MODE			0x04
++#define SC27XX_INT_EN			0x0c
++#define SC27XX_INT_CLR			0x10
++#define SC27XX_INT_RAW			0x14
++#define SC27XX_INT_MASK			0x18
++#define SC27XX_STATUS			0x1c
++#define SC27XX_TCCDE_CNT		0x20
++#define SC27XX_RTRIM			0x3c
++#define SC27XX_DBG1			0x60
++
++/* SC27XX_DBG1: which CC pin is in use */
++#define SC27XX_CC_MASK			GENMASK(7, 0)
++#define SC27XX_CC_1_DETECT		BIT(0)
++#define SC27XX_CC_2_DETECT		BIT(4)
++
++/* SC27XX_EN */
++#define SC27XX_TYPEC_USB20_ONLY		BIT(4)
++
++/* SC27XX_MODE */
++#define SC27XX_MODE_SNK			0
++#define SC27XX_MODE_SRC			1
++#define SC27XX_MODE_DRP			2
++#define SC27XX_MODE_MASK		3
++
++/* SC27XX_INT_EN / INT_CLR / INT_MASK */
++#define SC27XX_ATTACH_INT_EN		BIT(0)
++#define SC27XX_DETACH_INT_EN		BIT(1)
++#define SC27XX_ATTACH_INT_CLR		BIT(0)
++#define SC27XX_DETACH_INT_CLR		BIT(1)
++#define SC27XX_ATTACH_INT		BIT(0)
++#define SC27XX_DETACH_INT		BIT(1)
++
++#define SC27XX_STATE_MASK		GENMASK(4, 0)
++#define SC27XX_EVENT_MASK		GENMASK(9, 0)
++
++/* SC2730 eFuse: single "cc_calib" cell, CC1 in bits[9:5], CC2 in bits[4:0] */
++#define SC2730_EFUSE_SHIFT		0
++#define SC27XX_CC1_MASK(n)		GENMASK((n) + 9, (n) + 5)
++#define SC27XX_CC2_MASK(n)		GENMASK((n) + 4, (n))
++#define SC27XX_CC1_SHIFT(n)		(5 + (n))
++#define SC27XX_CC2_SHIFT		5
++
++/* 100 ms CC debounce (Unisoc: PD signalling at 150 ms disturbed it) */
++#define SC27XX_TCC_DEBOUNCE_CNT		0xc7f
++
++enum sc27xx_typec_state {
++	SC27XX_DETACHED_SNK,
++	SC27XX_ATTACHWAIT_SNK,
++	SC27XX_ATTACHED_SNK,
++	SC27XX_DETACHED_SRC,
++	SC27XX_ATTACHWAIT_SRC,
++	SC27XX_ATTACHED_SRC,
++	SC27XX_POWERED_CABLE,
++	SC27XX_AUDIO_CABLE,
++	SC27XX_DEBUG_CABLE,
++	SC27XX_TOGGLE_SLEEP,
++	SC27XX_ERR_RECOV,
++	SC27XX_DISABLED,
++};
++
++enum sc27xx_cc_polarity { SC27XX_CC1, SC27XX_CC2 };
++
++static const char * const sc27xx_cc_names[] = { "cc_1", "cc_2" };
++
++static const unsigned int sc27xx_typec_cable[] = {
++	EXTCON_USB,
++	EXTCON_USB_HOST,
++	EXTCON_JACK_HEADPHONE,
++	EXTCON_NONE,
++};
++
++struct sc27xx_typec {
++	struct device *dev;
++	struct regmap *regmap;
++	u32 base;
++	int irq;
++	int mode;
++	bool usb20_only;
++	struct extcon_dev *edev;
++	struct typec_port *port;
++	struct typec_partner *partner;
++	struct typec_capability cap;
++	struct mutex lock;
++	u32 state;
++	u32 pre_state;
++	enum sc27xx_cc_polarity cc;
++};
++
++static void sc27xx_typec_set_cc(struct sc27xx_typec *sc)
++{
++	enum sc27xx_cc_polarity cc = SC27XX_CC1;
++	u32 val;
++
++	if (regmap_read(sc->regmap, sc->base + SC27XX_DBG1, &val))
++		return;
++	val &= SC27XX_CC_MASK;
++	if (val & SC27XX_CC_1_DETECT)
++		cc = SC27XX_CC1;
++	else if (val & SC27XX_CC_2_DETECT)
++		cc = SC27XX_CC2;
++
++	if (cc == sc->cc)
++		return;
++	sc->cc = cc;
++	sysfs_notify(&sc->dev->kobj, NULL, "typec_cc_polarity_role");
++	kobject_uevent(&sc->dev->kobj, KOBJ_CHANGE);
++}
++
++static void sc27xx_typec_connect(struct sc27xx_typec *sc)
++{
++	enum typec_role power_role, vconn_role;
++	enum typec_data_role data_role;
++	struct typec_partner_desc desc = { .accessory = TYPEC_ACCESSORY_NONE };
++	struct typec_partner *partner;
++
++	if (sc->partner)
++		return;
++
++	switch (sc->state) {
++	case SC27XX_ATTACHED_SNK:
++	case SC27XX_DEBUG_CABLE:
++		power_role = TYPEC_SINK;
++		data_role = TYPEC_DEVICE;
++		vconn_role = TYPEC_SINK;
++		break;
++	case SC27XX_ATTACHED_SRC:
++	case SC27XX_POWERED_CABLE:
++	case SC27XX_AUDIO_CABLE:
++		power_role = TYPEC_SOURCE;
++		data_role = TYPEC_HOST;
++		vconn_role = TYPEC_SOURCE;
++		if (sc->state == SC27XX_AUDIO_CABLE)
++			desc.accessory = TYPEC_ACCESSORY_AUDIO;
++		break;
++	default:
++		/* the PMIC may report an attach in a state that is none
++		 * (Unisoc: "workaround error status") */
++		dev_dbg(sc->dev, "attach in state %u\n", sc->state);
++		return;
++	}
++
++	partner = typec_register_partner(sc->port, &desc);
++	if (IS_ERR(partner)) {
++		dev_warn(sc->dev, "cannot register the partner: %ld\n",
++			 PTR_ERR(partner));
++		return;
++	}
++	sc->partner = partner;
++	if (sc->state != SC27XX_AUDIO_CABLE) {
++		typec_set_pwr_opmode(sc->port, TYPEC_PWR_MODE_USB);
++		typec_set_pwr_role(sc->port, power_role);
++		typec_set_data_role(sc->port, data_role);
++		typec_set_vconn_role(sc->port, vconn_role);
++	}
++
++	switch (sc->state) {
++	case SC27XX_ATTACHED_SNK:
++	case SC27XX_DEBUG_CABLE:
++		sc->pre_state = SC27XX_ATTACHED_SNK;
++		extcon_set_state_sync(sc->edev, EXTCON_USB, true);
++		break;
++	case SC27XX_ATTACHED_SRC:
++		sc->pre_state = SC27XX_ATTACHED_SRC;
++		extcon_set_state_sync(sc->edev, EXTCON_USB_HOST, true);
++		break;
++	default:
++		sc->pre_state = SC27XX_AUDIO_CABLE;
++		extcon_set_state_sync(sc->edev, EXTCON_JACK_HEADPHONE, true);
++		break;
++	}
++	sc27xx_typec_set_cc(sc);
++	dev_info(sc->dev, "attached: %s\n",
++		 sc->state == SC27XX_AUDIO_CABLE ? "audio accessory" :
++		 power_role == TYPEC_SINK ? "sink, device" : "source, host");
++}
++
++static void sc27xx_typec_disconnect(struct sc27xx_typec *sc)
++{
++	if (!sc->partner)
++		return;
++	typec_unregister_partner(sc->partner);
++	sc->partner = NULL;
++	typec_set_pwr_opmode(sc->port, TYPEC_PWR_MODE_USB);
++	typec_set_pwr_role(sc->port, TYPEC_SINK);
++	typec_set_data_role(sc->port, TYPEC_DEVICE);
++	typec_set_vconn_role(sc->port, TYPEC_SINK);
++
++	switch (sc->pre_state) {
++	case SC27XX_ATTACHED_SNK:
++	case SC27XX_DEBUG_CABLE:
++		extcon_set_state_sync(sc->edev, EXTCON_USB, false);
++		break;
++	case SC27XX_ATTACHED_SRC:
++		extcon_set_state_sync(sc->edev, EXTCON_USB_HOST, false);
++		break;
++	case SC27XX_AUDIO_CABLE:
++		extcon_set_state_sync(sc->edev, EXTCON_JACK_HEADPHONE, false);
++		break;
++	}
++	sc->pre_state = SC27XX_DETACHED_SNK;
++	dev_info(sc->dev, "detached\n");
++}
++
++static irqreturn_t sc27xx_typec_interrupt(int irq, void *data)
++{
++	struct sc27xx_typec *sc = data;
++	u32 event, state;
++
++	if (regmap_read(sc->regmap, sc->base + SC27XX_INT_MASK, &event))
++		return IRQ_NONE;
++	event &= SC27XX_EVENT_MASK;
++
++	mutex_lock(&sc->lock);
++	if (!regmap_read(sc->regmap, sc->base + SC27XX_STATUS, &state)) {
++		sc->state = state & SC27XX_STATE_MASK;
++		if (event & SC27XX_ATTACH_INT)
++			sc27xx_typec_connect(sc);
++		else if (event & SC27XX_DETACH_INT)
++			sc27xx_typec_disconnect(sc);
++	}
++	mutex_unlock(&sc->lock);
++
++	regmap_write(sc->regmap, sc->base + SC27XX_INT_CLR, event);
++	dev_dbg(sc->dev, "state %u, event 0x%x\n", sc->state, event);
++	return IRQ_HANDLED;
++}
++
++/* the mode from the device tree, the 100 ms debounce, then the interrupts on */
++static int sc27xx_typec_enable(struct sc27xx_typec *sc)
++{
++	u32 val;
++	int ret;
++
++	ret = regmap_read(sc->regmap, sc->base + SC27XX_MODE, &val);
++	if (ret)
++		return ret;
++	val &= ~SC27XX_MODE_MASK;
++	switch (sc->mode) {
++	case TYPEC_PORT_SRC:
++		val |= SC27XX_MODE_SRC;
++		break;
++	case TYPEC_PORT_SNK:
++		val |= SC27XX_MODE_SNK;
++		break;
++	default:
++		val |= SC27XX_MODE_DRP;
++		break;
++	}
++	ret = regmap_write(sc->regmap, sc->base + SC27XX_MODE, val);
++	if (ret)
++		return ret;
++
++	/* USB 2.0 only: sink mode only, as on 4.14 */
++	if (sc->mode == TYPEC_PORT_SNK && sc->usb20_only) {
++		ret = regmap_update_bits(sc->regmap, sc->base + SC27XX_EN,
++					 SC27XX_TYPEC_USB20_ONLY,
++					 SC27XX_TYPEC_USB20_ONLY);
++		if (ret)
++			return ret;
++	}
++
++	/* SC2730: the 100 ms CC debounce (hardware signal and clock are not
++	 * accurate; PD signalling at 150 ms disturbs the shorter default) */
++	ret = regmap_write(sc->regmap, sc->base + SC27XX_TCCDE_CNT,
++			   SC27XX_TCC_DEBOUNCE_CNT);
++	if (ret)
++		return ret;
++
++	ret = regmap_read(sc->regmap, sc->base + SC27XX_INT_EN, &val);
++	if (ret)
++		return ret;
++	val |= SC27XX_ATTACH_INT_EN | SC27XX_DETACH_INT_EN;
++	return regmap_write(sc->regmap, sc->base + SC27XX_INT_EN, val);
++}
++
++static int sc27xx_typec_get_efuse(struct sc27xx_typec *sc)
++{
++	struct nvmem_cell *cell;
++	u32 calib_data = 0;
++	size_t len;
++	void *buf;
++
++	cell = nvmem_cell_get(sc->dev, "cc_calib");
++	if (IS_ERR(cell))
++		return PTR_ERR(cell);
++
++	buf = nvmem_cell_read(cell, &len);
++	nvmem_cell_put(cell);
++	if (IS_ERR(buf))
++		return PTR_ERR(buf);
++
++	memcpy(&calib_data, buf, min(len, sizeof(calib_data)));
++	kfree(buf);
++	return calib_data;
++}
++
++/* write the CC current trims from the eFuse into RTRIM */
++static int typec_set_rtrim(struct sc27xx_typec *sc)
++{
++	unsigned long shift = SC2730_EFUSE_SHIFT;
++	int calib_data = sc27xx_typec_get_efuse(sc);
++	u32 rtrim;
++
++	if (calib_data < 0)
++		return calib_data;
++
++	rtrim = (calib_data & SC27XX_CC1_MASK(shift)) >> SC27XX_CC1_SHIFT(shift);
++	rtrim |= ((calib_data & SC27XX_CC2_MASK(shift)) >> shift) << SC27XX_CC2_SHIFT;
++
++	return regmap_write(sc->regmap, sc->base + SC27XX_RTRIM, rtrim);
++}
++
++static ssize_t typec_cc_polarity_role_show(struct device *dev,
++					    struct device_attribute *attr,
++					    char *buf)
++{
++	struct sc27xx_typec *sc = dev_get_drvdata(dev);
++
++	return sysfs_emit(buf, "%s\n", sc27xx_cc_names[sc->cc]);
++}
++static DEVICE_ATTR_RO(typec_cc_polarity_role);
++
++static struct attribute *sc27xx_typec_attrs[] = {
++	&dev_attr_typec_cc_polarity_role.attr,
++	NULL,
++};
++ATTRIBUTE_GROUPS(sc27xx_typec);
++
++static void sc27xx_typec_unregister(void *data)
++{
++	struct sc27xx_typec *sc = data;
++
++	/* the interrupt is gone (devm, registered later): no event can come in */
++	mutex_lock(&sc->lock);
++	sc27xx_typec_disconnect(sc);
++	mutex_unlock(&sc->lock);
++	typec_unregister_port(sc->port);
++}
++
++static void sc27xx_typec_irq_off(void *data)
++{
++	struct sc27xx_typec *sc = data;
++
++	regmap_update_bits(sc->regmap, sc->base + SC27XX_INT_EN,
++			   SC27XX_ATTACH_INT_EN | SC27XX_DETACH_INT_EN, 0);
++}
++
++static int sc27xx_typec_probe(struct platform_device *pdev)
++{
++	struct device *dev = &pdev->dev;
++	struct device_node *np = dev->of_node;
++	struct sc27xx_typec *sc;
++	u32 mode, state;
++	int ret;
++
++	sc = devm_kzalloc(dev, sizeof(*sc), GFP_KERNEL);
++	if (!sc)
++		return -ENOMEM;
++	sc->dev = dev;
++	mutex_init(&sc->lock);
++	platform_set_drvdata(pdev, sc);
++
++	sc->regmap = dev_get_regmap(dev->parent, NULL);
++	if (!sc->regmap)
++		return dev_err_probe(dev, -ENODEV, "no regmap\n");
++
++	ret = of_property_read_u32(np, "reg", &sc->base);
++	if (ret)
++		return dev_err_probe(dev, ret, "no reg\n");
++
++	/* UDX710 device tree uses the bare "mode" property, as on 4.14 */
++	ret = of_property_read_u32(np, "mode", &mode);
++	if (ret)
++		return dev_err_probe(dev, ret, "no mode\n");
++
++	sc->irq = platform_get_irq(pdev, 0);
++	if (sc->irq < 0)
++		return sc->irq;
++
++	/* 4.14's reading of mode: 0 source, 2 dual role, anything else a
++	 * USB 2.0-only sink */
++	if (mode != TYPEC_PORT_SRC && mode != TYPEC_PORT_DRP) {
++		mode = TYPEC_PORT_SNK;
++		sc->usb20_only = true;
++	}
++	sc->mode = mode;
++
++	sc->edev = devm_extcon_dev_allocate(dev, sc27xx_typec_cable);
++	if (IS_ERR(sc->edev))
++		return PTR_ERR(sc->edev);
++	ret = devm_extcon_dev_register(dev, sc->edev);
++	if (ret)
++		return dev_err_probe(dev, ret, "cannot register the extcon device\n");
++
++	sc->cap.type = mode;
++	sc->cap.data = TYPEC_PORT_DRD;
++	sc->cap.revision = USB_TYPEC_REV_1_2;
++	sc->cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
++	sc->port = typec_register_port(dev, &sc->cap);
++	if (IS_ERR(sc->port))
++		return dev_err_probe(dev, PTR_ERR(sc->port),
++				     "cannot register the port\n");
++	ret = devm_add_action_or_reset(dev, sc27xx_typec_unregister, sc);
++	if (ret)
++		return ret;
++
++	ret = typec_set_rtrim(sc);
++	if (ret)
++		return dev_err_probe(dev, ret, "cannot set the CC trims from the eFuse\n");
++
++	ret = devm_request_threaded_irq(dev, sc->irq, NULL,
++					sc27xx_typec_interrupt, IRQF_ONESHOT,
++					dev_name(dev), sc);
++	if (ret)
++		return dev_err_probe(dev, ret, "cannot request the interrupt\n");
++
++	ret = sc27xx_typec_enable(sc);
++	if (ret)
++		return dev_err_probe(dev, ret, "cannot set up the Type-C block\n");
++	ret = devm_add_action_or_reset(dev, sc27xx_typec_irq_off, sc);
++	if (ret)
++		return ret;
++
++	/* something attached before the driver came (the cable at boot): its
++	 * attach interrupt may be long cleared */
++	mutex_lock(&sc->lock);
++	if (!regmap_read(sc->regmap, sc->base + SC27XX_STATUS, &state)) {
++		sc->state = state & SC27XX_STATE_MASK;
++		sc27xx_typec_connect(sc);
++	}
++	mutex_unlock(&sc->lock);
++	return 0;
++}
++
++static const struct of_device_id sc27xx_typec_match[] = {
++	{ .compatible = "sprd,sc27xx-typec" },
++	{ .compatible = "sprd,sc2730-typec" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, sc27xx_typec_match);
++
++static struct platform_driver sc27xx_typec_driver = {
++	.probe = sc27xx_typec_probe,
++	.driver = {
++		.name = "sc27xx-typec",
++		.of_match_table = sc27xx_typec_match,
++		.dev_groups = sc27xx_typec_groups,
++	},
++};
++module_platform_driver(sc27xx_typec_driver);
++
++MODULE_DESCRIPTION("Unisoc SC2730 (UDX710) USB Type-C detection");
++MODULE_LICENSE("GPL");
