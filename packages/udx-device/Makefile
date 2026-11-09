@@ -3,7 +3,7 @@ SY108_RECIPE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 include $(TOPDIR)/rules.mk
 PKG_NAME:=udx-device
 PKG_VERSION:=3.1
-PKG_RELEASE:=4
+PKG_RELEASE:=5
 PKG_LICENSE:=GPL-2.0-only
 SY108_SOURCE_PATHS := packages/udx-device packages/udx-cellular/src/native
 include $(SY108_RECIPE_DIR)../source.mk

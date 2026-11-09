@@ -432,6 +432,9 @@ return view.extend({
         var profile = s.option(form.ListValue, 'profile', _('USB mode'));
         profile.value('ncm', _('NCM hardware acceleration'));
         profile.value('ncm-software', _('NCM software mode'));
+        profile.value('rndis', _('RNDIS hardware acceleration'));
+        profile.value('rndis-software', _('RNDIS software mode'));
+        profile.value('ecm', _('CDC-ECM mode'));
         var acm = s.option(form.Flag, 'acm', _('Authenticated ACM console'));
         var apply = s.option(form.Button, '_apply', _('Apply USB configuration'));
         apply.inputtitle = _('Apply');

@@ -189,10 +189,17 @@ g_load_config() {
 }
 
 g_profile() {
+	# One row per supported protocol. FUNC is the configfs function directory,
+	# PROTO selects the descriptor layout, and each protocol gets its own PID:
+	# Windows keys a device instance on VID:PID, so reusing one PID across
+	# protocols makes it keep the previously loaded driver after a switch.
 	case "$PROFILE" in
-		ncm) FUNCTIONS=ncm; PID=0x0105; PAMU3=1 ;;
-		ncm-software) FUNCTIONS=ncm; PID=0x0105; PAMU3=0 ;;
-		*) g_error 'profile must be ncm or ncm-software'; return 64 ;;
+		ncm) FUNC=ncm.usb0; PROTO=ncm; PID=0x0105; PAMU3=1 ;;
+		ncm-software) FUNC=ncm.usb0; PROTO=ncm; PID=0x0105; PAMU3=0 ;;
+		rndis) FUNC=rndis.usb0; PROTO=rndis; PID=0x0106; PAMU3=1 ;;
+		rndis-software) FUNC=rndis.usb0; PROTO=rndis; PID=0x0106; PAMU3=0 ;;
+		ecm) FUNC=ecm.usb0; PROTO=ecm; PID=0x0107; PAMU3=0 ;;
+		*) g_error 'profile must be ncm, ncm-software, rndis, rndis-software or ecm'; return 64 ;;
 	esac
 	case "$ACM" in
 		0) ;;
@@ -264,22 +271,42 @@ g_lock() {
 }
 
 g_net_function() {
-	local dir=$UDX_G/functions/ncm.usb0
+	local dir=$UDX_G/functions/$FUNC
 	g_mkdir "$dir" || return 1
+	# All three protocols accept the same interface identity attributes and all
+	# of them resolve to uncm0, so the bridge and firewall never change with
+	# the profile.
 	g_write "$dir/ifname" 'uncm%d' || return 1
 	g_write "$dir/dev_addr" "$DEV_MAC" || return 1
 	g_write "$dir/host_addr" "$HOST_MAC" || return 1
-	g_write "$dir/max_segment_size" 1514 || return 1
-	g_write "$dir/pamu3" "$PAMU3" || return 1
-	# Windows UsbNcm.sys matches MS_COMP_WINNCM. WINUSB would select
-	# Winusb.sys and would not expose this function as a network adapter.
-	g_write "$dir/os_desc/interface.ncm/compatible_id" WINNCM || return 1
-	g_write "$dir/os_desc/interface.ncm/sub_compatible_id" '' || return 1
-	g_link "$dir" "$UDX_G/configs/c.1/ncm.usb0"
+	case "$PROTO" in
+		ncm)
+			g_write "$dir/max_segment_size" 1514 || return 1
+			g_write "$dir/pamu3" "$PAMU3" || return 1
+			# Windows UsbNcm.sys matches MS_COMP_WINNCM. WINUSB would select
+			# Winusb.sys and would not expose this function as a network
+			# adapter.
+			g_write "$dir/os_desc/interface.ncm/compatible_id" WINNCM || return 1
+			g_write "$dir/os_desc/interface.ncm/sub_compatible_id" '' || return 1
+			;;
+		rndis)
+			g_write "$dir/pamu3" "$PAMU3" || return 1
+			# Windows binds usb8023/rndis.sys through this compatibility id;
+			# without it the interface enumerates as an unknown device.
+			g_write "$dir/os_desc/interface.rndis/compatible_id" RNDIS || return 1
+			g_write "$dir/os_desc/interface.rndis/sub_compatible_id" 5162001 || return 1
+			;;
+		ecm)
+			# CDC-ECM is class compliant. f_ecm exposes no pamu3 and no
+			# max_segment_size, and there is no Microsoft OS descriptor for
+			# it, so nothing beyond the identity attributes is written here.
+			;;
+	esac
+	g_link "$dir" "$UDX_G/configs/c.1/$FUNC"
 }
 
 g_create() {
-	local kind actual expected
+	local actual expected
 	g_boot_mark "event=identity source=${IDENTITY_SOURCE:-uci-explicit} reason=${IDENTITY_REASON:-none}"
 	[ "${IDENTITY_SOURCE:-}" != diagnostic-fallback ] || g_error "factory serial unavailable ($IDENTITY_REASON); using generic diagnostic identity"
 	[ ! -e "$UDX_G" ] || return 1
@@ -306,11 +333,16 @@ g_create() {
 	g_write "$UDX_G/configs/c.1/MaxPower" 500 || return 1
 	g_mkdir "$UDX_G/configs/c.1/strings/0x409" || return 1
 	g_write "$UDX_G/configs/c.1/strings/0x409/configuration" "$PROFILE management" || return 1
-	for kind in $FUNCTIONS; do g_net_function "$kind" || return 1; done
-	g_write "$UDX_G/os_desc/use" 1 || return 1
-	g_write "$UDX_G/os_desc/b_vendor_code" 0xcd || return 1
-	g_write "$UDX_G/os_desc/qw_sign" MSFT100 || return 1
-	g_link "$UDX_G/configs/c.1" "$UDX_G/os_desc/c.1" || return 1
+	g_net_function || return 1
+	# Only NCM and RNDIS carry a Microsoft OS descriptor. CDC-ECM is class
+	# compliant, and advertising MS OS descriptors for it makes Windows
+	# mis-identify the interface.
+	if [ "$PROTO" != ecm ]; then
+		g_write "$UDX_G/os_desc/use" 1 || return 1
+		g_write "$UDX_G/os_desc/b_vendor_code" 0xcd || return 1
+		g_write "$UDX_G/os_desc/qw_sign" MSFT100 || return 1
+		g_link "$UDX_G/configs/c.1" "$UDX_G/os_desc/c.1" || return 1
+	fi
 	if [ "$ACM" = 1 ]; then
 		g_mkdir "$UDX_G/functions/acm.maint" || return 1
 		[ "$(g_read "$UDX_G/functions/acm.maint/port_num")" = 0 ] || { g_error 'ttyGS0 is already allocated'; return 1; }
@@ -325,11 +357,9 @@ g_create() {
 	g_write "$UDX_G/UDC" "$UDX_UDC" || return 1
 	[ "$(g_read "$UDX_G/UDC")" = "$UDX_UDC" ] || return 1
 	g_boot_mark 'event=udc-bind-done'
-	for kind in $FUNCTIONS; do
-		expected=uncm0
-		actual=$(g_read "$UDX_G/functions/$kind.usb0/ifname") || return 1
-		[ "$actual" = "$expected" ] || { g_error "unexpected interface $actual"; return 1; }
-	done
+	expected=uncm0
+	actual=$(g_read "$UDX_G/functions/$FUNC/ifname") || return 1
+	[ "$actual" = "$expected" ] || { g_error "unexpected interface $actual"; return 1; }
 }
 
 g_destroy() {
@@ -342,12 +372,15 @@ g_destroy() {
 		"$UDX_UDC") g_write "$UDX_G/UDC" '' || return 1;;
 		*) g_error 'owned gadget is bound to an unexpected controller'; return 1;;
 	esac
+	# Remove every linked function instead of a hard-coded name: the active
+	# protocol may be ncm, rndis or ecm, and a leftover *.usb0 link makes the
+	# next g_create() fail on its "gadget already exists" guard.
 	for path in "$UDX_G/os_desc/c.1" "$UDX_G/configs/c.1/acm.maint" \
-		"$UDX_G/configs/c.1/ncm.usb0"; do
+		"$UDX_G"/configs/c.1/*.usb0; do
 		[ ! -L "$path" ] || g_unlink "$path" || return 1
 	done
 	for path in "$UDX_G/configs/c.1/strings/0x409" "$UDX_G/configs/c.1" \
-		"$UDX_G/functions/acm.maint" "$UDX_G/functions/ncm.usb0" \
+		"$UDX_G/functions/acm.maint" "$UDX_G"/functions/*.usb0 \
 		"$UDX_G/strings/0x409"; do
 		[ ! -d "$path" ] || g_rmdir "$path" || return 1
 	done

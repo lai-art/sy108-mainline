@@ -363,6 +363,29 @@ static int management_network_ready(void)
 	return -1;
 }
 
+/* The trial gate must accept every profile the USB service can apply. The
+ * applied file starts with "profile=<name>"; compare the whole token instead
+ * of a length-counted prefix, where a wrong count fails silently. */
+static int usb_profile_supported(const char *applied)
+{
+	static const char *const profiles[] = {
+		"ncm", "ncm-software", "rndis", "rndis-software", "ecm",
+	};
+	char name[32];
+	const char *eol = strchr(applied, '\n');
+	size_t len = eol ? (size_t)(eol - applied) : strlen(applied);
+	unsigned i;
+
+	if (len <= 8 || len >= sizeof(name) + 8 || strncmp(applied, "profile=", 8))
+		return 0;
+	memcpy(name, applied + 8, len - 8);
+	name[len - 8] = '\0';
+	for (i = 0; i < sizeof(profiles) / sizeof(profiles[0]); i++)
+		if (!strcmp(name, profiles[i]))
+			return 1;
+	return 0;
+}
+
 static int boot_management_ready(void)
 {
 	char value[512];
@@ -370,7 +393,7 @@ static int boot_management_ready(void)
 	 * All run files are from this boot; require the live UDC binding too. */
 	if (text("/sys/kernel/config/usb_gadget/udx-usb/UDC", value, sizeof(value)) ||
 	    strcmp(value, "29100000.usb\n") || text("/run/udx-usb/applied", value, sizeof(value)) ||
-	    (strncmp(value, "profile=ncm\n", 12) && strncmp(value, "profile=ncm-software\n", 21)) ||
+	    !usb_profile_supported(value) ||
 	    management_listener(22) || (management_listener(80) && management_listener(443)) ||
 	    management_network_ready())
 		return -1;

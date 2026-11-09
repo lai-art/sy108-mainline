@@ -129,6 +129,9 @@ msgstr "启动策略"
 msgid "Buffered"
 msgstr "缓冲区"
 
+msgid "CDC-ECM mode"
+msgstr "CDC-ECM 模式"
+
 msgid "CP/NV error"
 msgstr "CP/NV 错误"
 
@@ -485,6 +488,12 @@ msgstr "返回结果"
 
 msgid "Restart modem"
 msgstr "重启基带"
+
+msgid "RNDIS hardware acceleration"
+msgstr "RNDIS 硬件加速"
+
+msgid "RNDIS software mode"
+msgstr "RNDIS 软件模式"
 
 msgid "Root filesystem"
 msgstr "根文件系统"
