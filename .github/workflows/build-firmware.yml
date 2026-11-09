@@ -64,6 +64,19 @@ jobs:
         run: |
           docker build -t sy108-build:25.12.5 containers/
 
+      - name: Drop cached kernel when target patches change
+        run: |
+          KD=$(ls -d out/openwrt-build/build_dir/target-*/linux-sprd_udx710 2>/dev/null || true)
+          [ -n "$KD" ] || exit 0
+          want=$(cat integration/openwrt/target/linux/sprd/udx710/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1)
+          have=$(cat "$KD/.sy108-patch-hash" 2>/dev/null || true)
+          if [ "$want" != "$have" ]; then
+            echo "target patches changed ($have -> $want): dropping the prepared kernel tree"
+            rm -rf "$KD"
+          else
+            echo "target patches unchanged: reusing the prepared kernel tree"
+          fi
+
       - name: Bootstrap build tree
         run: |
           python3 tools/bootstrap.py
@@ -71,6 +84,12 @@ jobs:
       - name: Build ${{ matrix.profile }} firmware
         run: |
           python3 tools/build/firmware.py ${{ matrix.profile }} --jobs 4
+
+      - name: Record target patch hash
+        run: |
+          KD=$(ls -d out/openwrt-build/build_dir/target-*/linux-sprd_udx710 2>/dev/null || true)
+          [ -n "$KD" ] || exit 0
+          cat integration/openwrt/target/linux/sprd/udx710/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1 > "$KD/.sy108-patch-hash"
 
       - name: Collect artifacts
         run: |
