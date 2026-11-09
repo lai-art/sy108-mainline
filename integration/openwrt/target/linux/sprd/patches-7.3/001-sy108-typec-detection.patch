@@ -25,17 +25,16 @@ index d9f94e7..00331da 100644
  	MFD_CELL_OF("sc2730-vibrator", NULL, NULL, 0, 0,
  		    "sprd,sc2730-vibrator"),
 diff --git a/drivers/usb/typec/Kconfig b/drivers/usb/typec/Kconfig
-index 2f80c27..77a98b3 100644
+index 2f80c27..104a4fb 100644
 --- a/drivers/usb/typec/Kconfig
 +++ b/drivers/usb/typec/Kconfig
-@@ -110,6 +110,16 @@ config TYPEC_WUSB3801
+@@ -110,6 +110,15 @@ config TYPEC_WUSB3801
  	  If you choose to build this driver as a dynamically linked module, the
  	  module will be called wusb3801.ko.
  
 +config TYPEC_SC27XX
 +	tristate "Unisoc SC27XX (SC2730) USB Type-C port controller"
 +	depends on MFD_SC27XX_PMIC
-+	select TYPEC
 +	help
 +	  Say Y here to enable detection of the Type-C port on the
 +	  Unisoc SC2730 PMIC (UDX710 / SY108). The driver only
