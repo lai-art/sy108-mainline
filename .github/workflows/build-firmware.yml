@@ -68,7 +68,7 @@ jobs:
         run: |
           KD=$(ls -d out/openwrt-build/build_dir/target-*/linux-sprd_udx710 2>/dev/null || true)
           [ -n "$KD" ] || exit 0
-          want=$(cat integration/openwrt/target/linux/sprd/udx710/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1)
+          want=$(cat integration/openwrt/target/linux/sprd/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1)
           have=$(cat "$KD/.sy108-patch-hash" 2>/dev/null || true)
           if [ "$want" != "$have" ]; then
             echo "target patches changed ($have -> $want): dropping the prepared kernel tree"
@@ -89,7 +89,7 @@ jobs:
         run: |
           KD=$(ls -d out/openwrt-build/build_dir/target-*/linux-sprd_udx710 2>/dev/null || true)
           [ -n "$KD" ] || exit 0
-          cat integration/openwrt/target/linux/sprd/udx710/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1 > "$KD/.sy108-patch-hash"
+          cat integration/openwrt/target/linux/sprd/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1 > "$KD/.sy108-patch-hash"
 
       - name: Collect artifacts
         run: |
