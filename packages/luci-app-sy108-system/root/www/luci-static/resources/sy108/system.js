@@ -74,7 +74,7 @@ return baseclass.extend({
                 'Clear the OpenWrt configuration and reboot? Device SSH keys and factory NV are retained. The login password will be reset to admin.')))
             return;
         return execute('/usr/libexec/sy108-system', [ 'reset' ],
-                       [ window.location.host, '192.168.66.1', 'sy108.lan' ]);
+                       [ window.location.host, '192.168.88.1', 'sy108.lan' ]);
     },
     handleRestoreConfirm : function() {
         return fs.exec('/sbin/sysupgrade', [ '--restore-backup', '/tmp/backup.tar.gz' ])
@@ -82,7 +82,7 @@ return baseclass.extend({
                 if (res.code !== 0)
                     throw new Error(res.stderr || _('Configuration restore failed'));
                 return execute('/usr/libexec/sy108-system', [ 'reboot', 'openwrt' ],
-                               [ window.location.host, '192.168.66.1', 'sy108.lan' ]);
+                               [ window.location.host, '192.168.88.1', 'sy108.lan' ]);
             })
             .catch(function(e) {
                 ui.addNotification(null, E('p', {}, e.message), 'warning');
@@ -96,6 +96,6 @@ return baseclass.extend({
         args.push('/tmp/firmware.bin');
         return execute('/sbin/sysupgrade', args,
                        opts.keep[0].checked ? [ window.location.host ]
-                                            : [ '192.168.66.1', 'sy108.lan' ]);
+                                            : [ '192.168.88.1', 'sy108.lan' ]);
     }
 });

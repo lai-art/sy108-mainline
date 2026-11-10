@@ -1,0 +1,25 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# Aurora 主题（luci-theme-aurora v1.4.0）自带界面文案的简体中文翻译。
+# 只收录 luci-base 词库中没有的 msgid（比对 openwrt/luci master 的
+# zh_Hans/base.po），避免覆盖 LuCI 既有译法。
+
+msgid "Dark Mode"
+msgstr "深色模式"
+
+msgid "Light Mode"
+msgstr "浅色模式"
+
+msgid "No changes to settings will be stored and are lost after rebooting. This mode should only be used to install a firmware upgrade"
+msgstr "此模式下设置的更改不会被保存，重启后将丢失。该模式仅应用于安装固件升级。"
+
+msgid "Toggle floating buttons"
+msgstr "切换浮动按钮"
+
+msgid "Type to filter…"
+msgstr "输入以筛选…"
+

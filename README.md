@@ -38,7 +38,7 @@ U-Boot 与 SPL 在 `sy108-uboot-spl` 仓库中独立构建，详见 [构建维�
 
 - **Web 管理（LuCI）**：SY108 菜单提供设备状态监控、蜂窝网络管理（运营商扫描与选网、NR/LTE 频段/频点/小区锁定、APN 模板、IMS/VoLTE）、短信收发、硬件监测、CPU 调频与 DDR 频率监测、AT 命令终端与 IMEI 管理；系统维护页面提供主系统/Recovery 启动目标切换。
 - **蜂窝数据平面**：基于原生 `netifd` 协议扩展与官方 DHCPv6 客户端管理 IPv4/IPv6 WAN 接入。
-- **USB 网络管理**：主系统与 Recovery 均在 USB1（`0x29100000`）上提供 CDC-NCM 管理网口（默认管理地址 `192.168.66.1/24`，初始登录凭据 `root` / `admin`）。主系统默认启用 PAM U3 硬件加速，Recovery 使用软件 NCM。
+- **USB 网络管理**：主系统与 Recovery 均在 USB1（`0x29100000`）上提供 CDC-NCM 管理网口（默认管理地址 `192.168.88.1/24`，初始登录凭据 `root` / `admin`）。主系统默认启用 PAM U3 硬件加速，Recovery 使用软件 NCM。
 
 ## 现状、已知限制与待办
 
@@ -71,6 +71,7 @@ U-Boot 与 SPL 在 `sy108-uboot-spl` 仓库中独立构建，详见 [构建维�
 - [设备树与启动 ABI](docs/devicetree.md)
 - [USB 与 MCU 接口](docs/usb-mcu.md)
 - [已验证改动](docs/verified-changes.md)
+- [上游 issue 稿存档：USB3 U1/U2](docs/upstream-issue-usb3-lpm.md)
 
 ## 致谢
 

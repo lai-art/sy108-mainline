@@ -19,10 +19,13 @@ define Package/luci-theme-aurora
 endef
 
 define Build/Compile
+	po2lmo $(PKG_BUILD_DIR)/packages/luci-theme-aurora/po/zh_Hans/luci-theme-aurora.po $(PKG_BUILD_DIR)/luci-theme-aurora.zh-cn.lmo
 endef
 
 define Package/luci-theme-aurora/install
 	$(CP) $(PKG_BUILD_DIR)/packages/luci-theme-aurora/root/. $(1)/
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/luci-theme-aurora.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/
 endef
 
 $(eval $(call BuildPackage,luci-theme-aurora))

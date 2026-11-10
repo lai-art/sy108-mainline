@@ -13,7 +13,7 @@
 - `/usr/libexec/udx-usb-gadget`：configfs Gadget 事务脚本。
 - `/usr/libexec/udx-usb-ready`：调用 `udx-boot-state management-ready` 的当前管理链路检查；启动确认使用同一实现。gadget 绑定不等待 logd/DHCP，状态不读取早期超时缓存。
 - `/usr/libexec/udx-usb-console` / `udx-usb-login`：ACM 串口 `agetty` 包装与密码认证登录入口（要求系统已设置非空 `root` 密码）。
-- `/etc/uci-defaults/90-udx-usb`：初始化 `usbmgmt`（`br-usb`，默认 `192.168.66.1/24`）网桥、DHCP 与防火墙规则。
+- `/etc/uci-defaults/90-udx-usb`：初始化 `usbmgmt`（`br-usb`，默认 `192.168.88.1/24`）网桥、DHCP 与防火墙规则。
 
 ## 模式与设备身份派生
 

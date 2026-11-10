@@ -1,0 +1,440 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh_Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+# Outline 主题（luci-theme-outline v1.3.1）自带界面文案的简体中文翻译。
+# 只收录 luci-base 词库中没有的 msgid（已比对 openwrt/luci master 的
+# zh_Hans/base.po，3234 条），避免覆盖 LuCI 既有译法。
+# 由 load_catalog() 与其它 *.zh-cn.lmo 合并加载，同名 msgid 后加载者优先。
+
+msgid "%s is %s; the limit is %s."
+msgstr "%s 为 %s；上限为 %s。"
+
+msgid "%s theme copied"
+msgstr "已复制主题 %s"
+
+msgid "%s theme imported"
+msgstr "已导入主题 %s"
+
+msgid "A CSS font-family list. The font must be installed on the device viewing LuCI; otherwise Geist is used."
+msgstr "CSS font-family 列表。字体须已安装在访问 LuCI 的设备上，否则使用 Geist。"
+
+msgid "Adjust the base size used for code, logs and config editors"
+msgstr "调整代码、日志与配置编辑器的基准字号"
+
+msgid "Adjust the base size used for pages"
+msgstr "调整页面的基准字号"
+
+msgid "Adjust the base size used for the LuCI interface"
+msgstr "调整 LuCI 界面的基准字号"
+
+msgid "Advanced"
+msgstr "高级"
+
+msgid "Another operation is still running."
+msgstr "另一项操作仍在进行中。"
+
+msgid "App icon"
+msgstr "应用图标"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Automatic updates"
+msgstr "自动更新"
+
+msgid "Automatic updates could not be changed: %s"
+msgstr "无法修改自动更新：%s"
+
+msgid "Black"
+msgstr "黑色"
+
+msgid "Blue"
+msgstr "蓝色"
+
+msgid "Brand"
+msgstr "品牌"
+
+msgid "Branding"
+msgstr "品牌标识"
+
+msgid "Check"
+msgstr "检查"
+
+msgid "Check for new releases on a schedule and install them"
+msgstr "定期检查新版本并自动安装"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Checking for updates failed."
+msgstr "检查更新失败。"
+
+msgid "Checking…"
+msgstr "检查中…"
+
+msgid "Checks every %s at %s"
+msgstr "%s %s 检查一次"
+
+msgid "Checks every day at %s"
+msgstr "每天 %s 检查一次"
+
+msgid "Checks on day %d of every month at %s"
+msgstr "每月 %d 日 %s 检查一次"
+
+msgid "Choose a theme, colors, and font for each"
+msgstr "分别为浅色与深色模式选择主题、配色和字体"
+
+msgid "Code font"
+msgstr "代码字体"
+
+msgid "Code font size"
+msgstr "代码字号"
+
+msgid "Color"
+msgstr "颜色"
+
+msgid "Content font"
+msgstr "正文字体"
+
+msgid "Content font size"
+msgstr "正文字号"
+
+msgid "Contrast"
+msgstr "对比度"
+
+msgid "Copy %s theme"
+msgstr "复制主题 %s"
+
+msgid "Could not copy to the clipboard"
+msgstr "无法复制到剪贴板"
+
+msgid "Could not upload %s: %s"
+msgstr "无法上传 %s：%s"
+
+msgid "Couldn’t import %s theme"
+msgstr "无法导入主题 %s"
+
+msgid "Daily"
+msgstr "每天"
+
+msgid "Danger zone"
+msgstr "危险操作"
+
+msgid "Dark Mode"
+msgstr "深色模式"
+
+msgid "Dark theme"
+msgstr "深色主题"
+
+msgid "Deleting leftover files…"
+msgstr "正在删除残留文件…"
+
+msgid "Done"
+msgstr "完成"
+
+msgid "Downloading the package…"
+msgstr "正在下载软件包…"
+
+msgid "Earlier"
+msgstr "更早"
+
+msgid "Font"
+msgstr "字体"
+
+msgid "Foreground"
+msgstr "前景色"
+
+msgid "Generating the icons…"
+msgstr "正在生成图标…"
+
+msgid "Green"
+msgstr "绿色"
+
+msgid "Hue"
+msgstr "色相"
+
+msgid "Import %s theme"
+msgstr "导入主题 %s"
+
+msgid "Import theme"
+msgstr "导入主题"
+
+msgid "Inactive"
+msgstr "未启用"
+
+msgid "Installed fonts"
+msgstr "已安装字体"
+
+msgid "Installing…"
+msgstr "正在安装…"
+
+msgid "Last checked %s"
+msgstr "上次检查：%s"
+
+msgid "Latest release"
+msgstr "最新版本"
+
+msgid "Light Mode"
+msgstr "浅色模式"
+
+msgid "Light theme"
+msgstr "浅色主题"
+
+msgid "Logo"
+msgstr "标志"
+
+msgid "Looking up the latest release…"
+msgstr "正在查询最新版本…"
+
+msgid "LuCI switches back to Bootstrap and the theme is removed. Its appearance and branding settings are kept, so installing it again restores them."
+msgstr "LuCI 将切回 Bootstrap 并移除该主题。外观与品牌设置会保留，重新安装后即可恢复。"
+
+msgid "Maximum width of the page content"
+msgstr "页面内容的最大宽度"
+
+msgid "Monthly"
+msgstr "每月"
+
+msgid "Navbar"
+msgstr "顶部导航"
+
+msgid "Neither opkg nor apk was found on this router."
+msgstr "本设备上未找到 opkg 或 apk。"
+
+msgid "No changes to settings will be stored and are lost after rebooting. This mode should only be used to install a firmware upgrade"
+msgstr "此模式下设置的更改不会被保存，重启后将丢失。该模式仅应用于安装固件升级。"
+
+msgid "No package manager found"
+msgstr "未找到软件包管理器"
+
+msgid "No release found"
+msgstr "未找到发布版本"
+
+msgid "No release was found. Check the internet connection of the router and try again."
+msgstr "未找到发布版本。请检查设备的网络连接后重试。"
+
+msgid "Not checked yet"
+msgstr "尚未检查"
+
+msgid "Orange"
+msgstr "橙色"
+
+msgid "Outline (theme default)"
+msgstr "Outline（主题默认）"
+
+msgid "Outline is installed, but LuCI is using a different theme."
+msgstr "已安装 Outline，但 LuCI 正在使用其他主题。"
+
+msgid "Outline theme"
+msgstr "Outline 主题"
+
+msgid "Package"
+msgstr "主题包"
+
+msgid "Package manager: %s"
+msgstr "软件包管理器：%s"
+
+msgid "Paste a theme string copied from another router (outline-theme-v1:…) or from Codex (codex-theme-v1:…)."
+msgstr "粘贴从其他设备（outline-theme-v1:…）或 Codex（codex-theme-v1:…）复制的主题字符串。"
+
+msgid "Pink"
+msgstr "粉色"
+
+msgid "Purple"
+msgstr "紫色"
+
+msgid "Reduce animations or match your system"
+msgstr "减少动画，或跟随系统设置"
+
+msgid "Reduce motion"
+msgstr "减少动效"
+
+msgid "Regular"
+msgstr "常规"
+
+msgid "Reinstall"
+msgstr "重新安装"
+
+msgid "Remove Outline completely"
+msgstr "彻底移除 Outline"
+
+msgid "Remove Outline completely?"
+msgstr "彻底移除 Outline？"
+
+msgid "Remove everything"
+msgstr "全部移除"
+
+msgid "Remove…"
+msgstr "移除…"
+
+msgid "Removing Outline completely"
+msgstr "正在彻底移除 Outline"
+
+msgid "Removing the package…"
+msgstr "正在移除软件包…"
+
+msgid "Reset to default"
+msgstr "恢复默认"
+
+msgid "Same as System › System › Language and Style."
+msgstr "等同于「系统 › 系统 › 语言和界面」。"
+
+msgid "Same as UI font"
+msgstr "与界面字体相同"
+
+msgid "Same as the logo"
+msgstr "与标志相同"
+
+msgid "Semibold"
+msgstr "半粗"
+
+msgid "Separate light and dark modes"
+msgstr "浅色与深色模式分别设置"
+
+msgid "Show installed fonts…"
+msgstr "显示已安装字体…"
+
+msgid "Sidebar and sign-in page"
+msgstr "侧边栏与登录页"
+
+msgid "Sidebar, or floating pills along the top"
+msgstr "侧边栏，或顶部的悬浮胶囊按钮"
+
+msgid "Switching LuCI back to Bootstrap…"
+msgstr "正在将 LuCI 切回 Bootstrap…"
+
+msgid "Switching LuCI to Outline…"
+msgstr "正在将 LuCI 切换到 Outline…"
+
+msgid "Tab, home screen and app · every size is made from one picture"
+msgstr "标签页、主屏幕与应用图标 · 各尺寸均由一张图片生成"
+
+msgid "The browser did not allow reading installed fonts."
+msgstr "浏览器不允许读取已安装字体。"
+
+msgid "The downloaded package did not match its checksum; nothing was installed."
+msgstr "下载的软件包校验和不匹配，未安装任何内容。"
+
+msgid "The image could not be read"
+msgstr "无法读取该图片"
+
+msgid "The image could not be rendered"
+msgstr "无法渲染该图片"
+
+msgid "The latest release has no package for this router’s package manager."
+msgstr "最新版本中没有适用于本设备软件包管理器的包。"
+
+msgid "The operation could not be started."
+msgstr "无法启动该操作。"
+
+msgid "The operation failed (%s)."
+msgstr "操作失败（%s）。"
+
+msgid "The package could not be downloaded."
+msgstr "无法下载该软件包。"
+
+msgid "The package manager could not install the package. See the log below."
+msgstr "软件包管理器无法安装该包，详见下方日志。"
+
+msgid "The package manager could not remove the package. See the log below."
+msgstr "软件包管理器无法移除该包，详见下方日志。"
+
+msgid "The release points at an unexpected download address; nothing was installed."
+msgstr "发布版本指向了非预期的下载地址，未安装任何内容。"
+
+msgid "The settings service did not answer. Reload the page; if it persists, restart rpcd."
+msgstr "设置服务无响应。请刷新页面；若仍无响应，请重启 rpcd。"
+
+msgid "The theme's icons"
+msgstr "主题图标"
+
+msgid "The theme, its settings and every uploaded image are deleted. This cannot be undone."
+msgstr "主题、其设置以及所有已上传图片都会被删除，此操作无法撤销。"
+
+msgid "Type to filter…"
+msgstr "输入以筛选…"
+
+msgid "UI font size"
+msgstr "界面字号"
+
+msgid "UI font style"
+msgstr "界面字体"
+
+msgid "Unable to save the appearance settings: %s"
+msgstr "无法保存外观设置：%s"
+
+msgid "Unable to save the branding settings: %s"
+msgstr "无法保存品牌设置：%s"
+
+msgid "Uninstall"
+msgstr "卸载"
+
+msgid "Uninstall the Outline theme?"
+msgstr "卸载 Outline 主题？"
+
+msgid "Uninstalling Outline"
+msgstr "正在卸载 Outline"
+
+msgid "Uninstalls the theme and deletes /etc/config/outline and the uploaded brand images; LuCI switches back to Bootstrap."
+msgstr "卸载主题并删除 /etc/config/outline 及已上传的品牌图片；LuCI 将切回 Bootstrap。"
+
+msgid "Up to date"
+msgstr "已是最新"
+
+msgid "Update available"
+msgstr "有可用更新"
+
+msgid "Update to %s"
+msgstr "更新至 %s"
+
+msgid "Updating Outline"
+msgstr "正在更新 Outline"
+
+msgid "Upload an SVG, PNG, JPG or WebP picture"
+msgstr "上传 SVG、PNG、JPG 或 WebP 图片"
+
+msgid "Upload failed"
+msgstr "上传失败"
+
+msgid "Upload failed (HTTP %s)"
+msgstr "上传失败（HTTP %s）"
+
+msgid "Use Outline"
+msgstr "使用 Outline"
+
+msgid "Use Outline as the LuCI theme"
+msgstr "将 Outline 用作 LuCI 主题"
+
+msgid "Use an SVG, PNG, JPG or WebP picture."
+msgstr "请使用 SVG、PNG、JPG 或 WebP 图片。"
+
+msgid "Use custom font value…"
+msgstr "使用自定义字体值…"
+
+msgid "Visual style"
+msgstr "视觉风格"
+
+msgid "Weekly"
+msgstr "每周"
+
+msgid "White"
+msgstr "白色"
+
+msgid "Working…"
+msgstr "处理中…"
+
+msgid "Yellow"
+msgstr "黄色"
+
+msgid "installed by hand"
+msgstr "手动安装"
+
+msgid "installs newer releases"
+msgstr "安装新版本"
+
+msgid "no answer from the router"
+msgstr "设备无响应"
+
