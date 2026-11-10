@@ -98,6 +98,30 @@ jobs:
           cd artifact/${{ matrix.profile }}
           sha256sum * > SHA256SUMS || true
 
+      # 002-sy108-usb3-lpm-disable.patch has to reach the compiled DTB, and a
+      # stale build tree or a cached kernel drops it silently - the image still
+      # boots and still trains SuperSpeed, only the link keeps falling into
+      # U1/U2.  That failure mode is indistinguishable from a cable problem
+      # until the image is flashed, so refuse to publish an image without it.
+      - name: Verify USB3 LPM quirks in device tree
+        run: |
+          dtb=artifact/${{ matrix.profile }}/board.dtb
+          if [ ! -f "$dtb" ]; then
+            echo "::error::board.dtb missing from ${{ matrix.profile }} artifacts"
+            exit 1
+          fi
+          for prop in snps,dis-u1-entry-quirk snps,dis-u2-entry-quirk; do
+            if ! grep -aq -- "$prop" "$dtb"; then
+              echo "::error::$prop missing from $dtb - 002-sy108-usb3-lpm-disable.patch was not applied"
+              exit 1
+            fi
+          done
+          if grep -aq -- 'snps,usb3-u1u2-disable' "$dtb"; then
+            echo "::error::dead property snps,usb3-u1u2-disable still present in $dtb - 002 not applied"
+            exit 1
+          fi
+          echo "USB3 LPM quirks present in $dtb"
+
       - name: Upload ${{ matrix.profile }} artifacts
         uses: actions/upload-artifact@v4
         with:

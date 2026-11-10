@@ -11,6 +11,33 @@
 
 重复运行 `bootstrap.py` 会复用已有 `out/openwrt-build`，仅同步 target 与内核清单，保留已编译工具链与包缓存。
 
+## 板级内核补丁
+
+`integration/openwrt/target/linux/sprd/patches-$(KERNEL_PATCHVER)/`（当前 `patches-7.3/`，`KERNEL_PATCHVER:=7.3`）下的 `*.patch` 由 OpenWrt 内核构建自动应用：`PATCH_DIR = $(CURDIR)/patches-$(KERNEL_PATCHVER)`，`CURDIR` 即 `target/linux/sprd`，按文件名字典序全量应用。**不要在 `integration/openwrt/series` 里登记内核补丁**——该 series 只覆盖 OpenWrt 源码树本身的板级补丁，内核补丁登记在那里不会生效（也不会报错）。
+
+当前补丁：
+
+| 文件 | 作用 |
+|---|---|
+| `001-sy108-typec-detection.patch` | 移植 `sc27xx-typec.c`，仅做 Type-C 状态检测上报，不参与 DRP 角色切换 |
+| `002-sy108-usb3-lpm-disable.patch` | `&usb1_dwc3` 关闭 U1/U2 进入，修复 SuperSpeed 链路滑入 U1/U2 后丢包与高延迟；同时清除无驱动解析的死属性 `snps,usb3-u1u2-disable` |
+
+构建树在 `out/openwrt-build` 中被缓存，新增或修改补丁**不会**自动触发内核重编。为此 CI 有两道保护，本地构建时同样应手动执行：
+
+1. `Drop cached kernel when target patches change` —— `patches-7.3/*.patch` 的合并哈希与 `build_dir/target-*/linux-sprd_udx710/.sy108-patch-hash` 不一致时删除准备好的内核树，强制重放补丁。本地等价操作：
+   ```sh
+   rm -rf out/openwrt-build/build_dir/target-*/linux-sprd_udx710
+   ```
+2. `Verify USB3 LPM quirks in device tree` —— 构建后直接检查产物 `board.dtb`：必须含 `snps,dis-u1-entry-quirk` 与 `snps,dis-u2-entry-quirk`，且不得再有 `snps,usb3-u1u2-disable`，缺一即构建失败。本地等价检查：
+   ```sh
+   grep -ac snps,dis-u1-entry-quirk out/images/main/board.dtb   # 期望 2
+   grep -ac snps,usb3-u1u2-disable  out/images/main/board.dtb   # 期望 0
+   ```
+
+这道校验针对的是一种很难从现象上区分的失败：补丁没进 DTB 时镜像照样能启动、照样能训练到 SuperSpeed，只是链路会持续滑回 U1/U2，看起来和线材问题一模一样。详见[已验证改动](verified-changes.md)。
+
+新增补丁时：序号接着排（`003-`…），必须能在锁定内核提交 `14658d97` 上、且在前面所有补丁之后干净应用；改动只碰 `arch/arm64/boot/dts/sprd/` 与 `drivers/` 内必要文件，不要改 `manifests/kernel.json`（该文件锁定的是内核归档身份，加平台补丁不需要动它）。
+
 ## 更新内核源码锁定
 
 本仓库内的 `components/` 与 `packages/` 直接由本地源码树参与构建；`linux-udx710` 内核源码则通过 `manifests/kernel.json` 锁定仓库地址与提交哈希。更新内核时，保持 `manifests/kernel.json` 中的 `version`、上游标签和提交、本地合并提交、归档名及 SHA-256 一致；导出目录和 OpenWrt 内核版本由 `version` 派生。`tools/build/kernel-source.py` 导出锁定提交并校验归档，同时更新构建树的 `LINUX_KERNEL_HASH`。

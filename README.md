@@ -42,10 +42,12 @@ U-Boot 与 SPL 在 `sy108-uboot-spl` 仓库中独立构建，详见 [构建维�
 
 ## 现状、已知限制与待办
 
+> 以下保留作者原始描述。已在本仓库验证并修复或补齐的条目在行末标注「✅ 已验证」，证据与回退方式见[已验证改动](docs/verified-changes.md)。
+
 - **USB 与协议支持**：
   - 粗略优化了 USB DWC3 的 PAM U3 硬件卸载加速。
-  - USB 3.0 SuperSpeed 链路偶发不稳，目前尚不确定是测试线材/转接头问题还是 PHY/链路参数仍需微调。
-  - USB 网络目前仅做了 CDC-NCM 支持；RNDIS 与 CDC-ECM 因个人无使用需求暂未适配。
+  - USB 3.0 SuperSpeed 链路偶发不稳，目前尚不确定是测试线材/转接头问题还是 PHY/链路参数仍需微调。**✅ 已验证**：根因是链路训练成功后滑入 U1/U2 低功耗态，已由 `002-sy108-usb3-lpm-disable.patch` 修复（`link_state` 全 U0、0% 丢包、~1 ms）。
+  - USB 网络目前仅做了 CDC-NCM 支持；RNDIS 与 CDC-ECM 因个人无使用需求暂未适配。**✅ 已验证**：已补齐 `rndis` / `rndis-software` / `ecm` 三档 profile（RNDIS 实测可用；ECM 连通性未实测）。
   - 当前配置只启用 USB Device，USB Host 不属于交付范围。
 - **蜂窝与基带功能**：
   - 目前仅使用中国联通 SIM 卡完成基础测试，其余运营商尚未实测。
@@ -68,6 +70,7 @@ U-Boot 与 SPL 在 `sy108-uboot-spl` 仓库中独立构建，详见 [构建维�
 - [构建维护](docs/build.md)
 - [设备树与启动 ABI](docs/devicetree.md)
 - [USB 与 MCU 接口](docs/usb-mcu.md)
+- [已验证改动](docs/verified-changes.md)
 
 ## 致谢
 
