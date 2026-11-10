@@ -334,7 +334,10 @@ CONFIG_USB_NET_DRIVERS=y
 # Realtek RTL8152/RTL8153 family (RTL8153B is a USB 3.0 gigabit part).
 # select MII/PHYLIB/CRC32/CRYPTO_LIB_SHA256 are pulled in by Kconfig.
 CONFIG_USB_RTL8152=y
-# CONFIG_USB_USBNET is not set
+# ASIX AX88179/178A (0x0b95:0x1790, 0x1790 covers the AX88179A part), built on
+# the usbnet framework. USB_USBNET selects MII; AX88179_178A selects CRC32.
+CONFIG_USB_USBNET=y
+CONFIG_USB_NET_AX88179_178A=y
 # CONFIG_WLAN is not set
 # CONFIG_INPUT_LEDS is not set
 CONFIG_INPUT_EVDEV=y
@@ -392,7 +395,9 @@ CONFIG_SND=y
 CONFIG_SND_USB_AUDIO=y
 CONFIG_USB=y
 # CONFIG_USB_PCI is not set
-# CONFIG_USB_XHCI_HCD is not set
+# Host stack for USB Ethernet adapters on the OTG port. Without XHCI there is
+# no USB host bus at all, so any usbnet/RTL8152 driver would never bind.
+CONFIG_USB_XHCI_HCD=y
 # CONFIG_USB_ACM is not set
 # CONFIG_USB_PRINTER is not set
 # CONFIG_USB_STORAGE is not set
@@ -564,7 +569,10 @@ CONFIG_VIDEO_CAMERA_SENSOR=y
 CONFIG_VIDEO_DEV=y
 CONFIG_VIDEO_V4L2_I2C=y
 CONFIG_VIDEO_V4L2_SUBDEV_API=y
+# Dual role: the port still comes up as peripheral (management network) because
+# the board DTS sets usb-role-switch + role-switch-default-mode = "peripheral".
+# Host mode is opt-in at run time via /sys/class/usb_role/*/role.
 # CONFIG_USB_DWC3_HOST is not set
-# CONFIG_USB_DWC3_DUAL_ROLE is not set
-CONFIG_USB_DWC3_GADGET=y
+CONFIG_USB_DWC3_DUAL_ROLE=y
+# CONFIG_USB_DWC3_GADGET is not set
 CONFIG_RT_GROUP_SCHED_DEFAULT_DISABLED=y

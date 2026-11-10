@@ -12,6 +12,7 @@ CONFIG_USB_DWC3_GADGET=y
 # CONFIG_USB_SERIAL is not set
 # CONFIG_USB_USBNET is not set
 # CONFIG_USB_RTL8152 is not set
+# CONFIG_USB_NET_AX88179_178A is not set
 # CONFIG_SCSI is not set
 # CONFIG_BLK_DEV_SD is not set
 # CONFIG_HID_SUPPORT is not set
