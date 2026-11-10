@@ -438,3 +438,6 @@ msgstr "安装新版本"
 msgid "no answer from the router"
 msgstr "设备无响应"
 
+msgid "Outline Theme"
+msgstr "Outline 主题"
+
