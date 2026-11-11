@@ -18,6 +18,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef DEVICE_ROOT
@@ -298,6 +299,213 @@ static J *storage_status(void)
 	return out;
 }
 
+/* --- status.latency -------------------------------------------------------
+ * ICMP round trip to one public IPv4 and one public IPv6 target, refreshed
+ * every LATENCY_INTERVAL seconds.
+ *
+ * rpcd spawns this adapter once per call and the process exits, so the cadence
+ * is kept by a short-lived detached child: each status call that finds the
+ * cached sample older than the interval starts one refresh and immediately
+ * returns the sample it already has. A probe failure is a *value* (null plus a
+ * reason string inside status.latency), never a service error: it must not set
+ * cell_error, must not become last_error and must not reach the event stream.
+ * The probe only ever mutates state inside the detached child.
+ */
+#define LATENCY_CACHE "/run/udx-device-latency.json"
+#define LATENCY_LOCK "/run/udx-device-latency.lock"
+#define LATENCY_INTERVAL 30
+#define LATENCY_PROBE_MS 4000
+#define LATENCY_LOCK_STALE 20
+static const char *const latency_v4_target = "223.5.5.5";
+static const char *const latency_v6_target = "2400:3200::1";
+static const char *const latency_interface = "wwan0";
+
+static int rooted_path(char out[PATH_MAX], const char *name)
+{
+	return snprintf(out, PATH_MAX, "%s%s", DEVICE_ROOT, name) >= PATH_MAX ? -1 : 0;
+}
+
+static const char *ping_binary(void)
+{
+	static const char *binary;
+	if (!binary)
+		binary = access("/bin/ping", X_OK) ? "/usr/bin/ping" : "/bin/ping";
+	return binary;
+}
+
+/* scope 0x00 is global: link-local (0x20) and host scopes cannot reach the
+ * public target, so an IPv6 result is only meaningful when one exists. */
+static bool global_ipv6(void)
+{
+	char *raw = read_file("/proc/net/if_inet6", 65536);
+	if (!raw)
+		return false;
+	bool found = false;
+	char *save = NULL;
+	for (char *line = strtok_r(raw, "\n", &save); line && !found;
+	     line = strtok_r(NULL, "\n", &save)) {
+		char name[32];
+		unsigned scope;
+		/* address, ifindex, ifname, prefix length, scope, flags */
+		if (sscanf(line, "%*39s %*x %31s %*x %x %*x", name, &scope) != 2)
+			continue;
+		found = !strcmp(name, latency_interface) && !scope;
+	}
+	free(raw);
+	return found;
+}
+
+/* Single packet, hard timeout. Returns 0 and the round trip in milliseconds. */
+static int ping_round_trip(const char *target, double *milliseconds)
+{
+	char timeout[8];
+	snprintf(timeout, sizeof(timeout), "%d", LATENCY_PROBE_MS / 1000);
+	const char *argv[] = {ping_binary(), "-c", "1", "-W", timeout, "-I", latency_interface,
+			      target,	   NULL};
+	char *raw = NULL;
+	int rc = command_run(argv, NULL, LATENCY_PROBE_MS, 8192, &raw);
+	if (rc < 0) {
+		free(raw);
+		return -1;
+	}
+	double value = NAN;
+	const char *mark = raw ? strstr(raw, "time=") : NULL;
+	if (mark) {
+		char *end = NULL;
+		value = strtod(mark + 5, &end);
+		if (end == mark + 5 || !isfinite(value) || value < 0)
+			value = NAN;
+	}
+	free(raw);
+	if (!isfinite(value))
+		return -1;
+	*milliseconds = value;
+	return 0;
+}
+
+/* Runs inside the detached child only. */
+static J *latency_sample(void)
+{
+	J *out = json_object_new_object();
+	double ipv4 = NAN, ipv6 = NAN;
+	bool has_v6 = global_ipv6();
+	/* A firmware image trimmed of busybox ping is a packaging fault, not a
+	 * network one: name it instead of letting it look like a dead uplink, and
+	 * skip the two fork/exec round trips that are certain to fail. */
+	bool have_ping = !access(ping_binary(), X_OK);
+	bool ipv4_ok = have_ping && !ping_round_trip(latency_v4_target, &ipv4);
+	bool ipv6_ok = have_ping && has_v6 && !ping_round_trip(latency_v6_target, &ipv6);
+	if (ipv4_ok)
+		real(out, "ipv4_ms", ipv4);
+	else
+		json_object_object_add(out, "ipv4_ms", NULL);
+	if (ipv6_ok)
+		real(out, "ipv6_ms", ipv6);
+	else
+		json_object_object_add(out, "ipv6_ms", NULL);
+	integer(out, "at", (int64_t)time(NULL));
+	const char *reason = NULL;
+	if (!have_ping)
+		reason = "ping is not installed";
+	else if (!ipv4_ok && !ipv6_ok)
+		reason = has_v6 ? "IPv4 and IPv6 probe failed" : "IPv4 probe failed; no IPv6 address";
+	else if (!ipv4_ok)
+		reason = "IPv4 probe failed";
+	else if (!ipv6_ok)
+		reason = has_v6 ? "IPv6 probe failed" : "No IPv6 address";
+	string(out, "error", reason);
+	return out;
+}
+
+static void latency_store(void)
+{
+	J *value = latency_sample();
+	char path[PATH_MAX];
+	/* A failed cache write only delays the next usable sample. */
+	if (!rooted_path(path, LATENCY_CACHE))
+		atomic_json(path, value, false);
+	json_object_put(value);
+}
+
+/* One refresher at a time. A crashed refresher cannot leave the lock behind
+ * forever, so a lock older than LATENCY_LOCK_STALE seconds is reclaimed. */
+static void latency_schedule(void)
+{
+	char path[PATH_MAX];
+	if (rooted_path(path, LATENCY_LOCK))
+		return;
+	int fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+	if (fd < 0) {
+		struct stat st;
+		if (errno != EEXIST || stat(path, &st) || time(NULL) - st.st_mtime < LATENCY_LOCK_STALE)
+			return;
+		unlink(path);
+		fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+		if (fd < 0)
+			return;
+	}
+	pid_t pid = fork();
+	if (pid < 0) {
+		close(fd);
+		unlink(path);
+		return;
+	}
+	if (pid) {
+		close(fd);
+		return;
+	}
+	/* Child: no rpcd pipes, no inherited alarm, no atexit handlers. */
+	setsid();
+	int null = open("/dev/null", O_RDWR);
+	if (null >= 0) {
+		dup2(null, STDIN_FILENO);
+		dup2(null, STDOUT_FILENO);
+		dup2(null, STDERR_FILENO);
+		if (null > STDERR_FILENO)
+			close(null);
+	}
+	alarm(LATENCY_LOCK_STALE);
+	latency_store();
+	unlink(path);
+	_exit(0);
+}
+
+/* Status is always exactly {ipv4_ms, ipv6_ms, at, error, age_seconds} so the
+ * renderer never has to guess which keys exist. */
+static J *latency_status(void)
+{
+	J *out = json_object_new_object();
+	char path[PATH_MAX];
+	char *raw = rooted_path(path, LATENCY_CACHE) < 0 ? NULL : read_text(path, 4096, false);
+	J *cached = raw ? parse_json(raw, strlen(raw)) : NULL;
+	free(raw);
+	J *v4 = get(cached, "ipv4_ms"), *v6 = get(cached, "ipv6_ms"), *at = get(cached, "at");
+	bool has = json_object_is_type(at, json_type_int);
+	double age = NAN;
+	if (has) {
+		age = difftime(time(NULL), (time_t)json_object_get_int64(at));
+		if (!(age >= 0) || age > 86400)
+			age = 0; /* Wall clock stepped; keep the sample usable. */
+	}
+	json_object_object_add(out, "ipv4_ms",
+			       json_object_is_type(v4, json_type_double) ||
+				       json_object_is_type(v4, json_type_int)
+				   ? json_object_get(v4)
+				   : NULL);
+	json_object_object_add(out, "ipv6_ms",
+			       json_object_is_type(v6, json_type_double) ||
+				       json_object_is_type(v6, json_type_int)
+				   ? json_object_get(v6)
+				   : NULL);
+	json_object_object_add(out, "at", has ? json_object_get(at) : NULL);
+	real(out, "age_seconds", age);
+	string(out, "error", has ? str(cached, "error") : "Not sampled yet");
+	if (!has || age >= LATENCY_INTERVAL)
+		latency_schedule();
+	json_object_put(cached);
+	return out;
+}
+
 static J *status(void)
 {
 	J *out = json_object_new_object();
@@ -307,6 +515,8 @@ static J *status(void)
 	text_file(boot, "target", "/sys/firmware/devicetree/base/chosen/udx,boot-target");
 	text_file(boot, "root_marker", "/etc/udx-openwrt-root");
 	json_object_object_add(out, "boot", boot);
+	/* Before runtime_status(), which arms a 3 s alarm for the ubus lookup. */
+	json_object_object_add(out, "latency", latency_status());
 	json_object_object_add(out, "runtime", runtime_status());
 	json_object_object_add(out, "thermal", sysfs_array("/sys/class/thermal/thermal_zone*", 0));
 	json_object_object_add(out, "ddr", sysfs_array("/sys/class/devfreq/*", 1));

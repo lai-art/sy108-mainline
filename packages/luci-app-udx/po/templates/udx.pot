@@ -2,7 +2,19 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
+msgid "(no answer)"
+msgstr ""
+
+msgid "15 digits. The last digit is a check digit and is verified before writing."
+msgstr ""
+
+msgid "4G LTE"
+msgstr ""
+
 msgid "4G LTE only"
+msgstr ""
+
+msgid "4G power amplifier"
 msgstr ""
 
 msgid "5G / 4G / 3G / 2G automatic"
@@ -11,13 +23,43 @@ msgstr ""
 msgid "5G / 4G automatic (SA + NSA)"
 msgstr ""
 
+msgid "5G NR"
+msgstr ""
+
 msgid "5G NSA"
 msgstr ""
 
 msgid "5G SA only"
 msgstr ""
 
+msgid "5G baseband"
+msgstr ""
+
+msgid "5G power amplifier"
+msgstr ""
+
+msgid "A data burn run is already in progress; stop it first."
+msgstr ""
+
+msgid "A data burn run is in progress. Stop it before measuring speed."
+msgstr ""
+
+msgid "A device with one slot has nothing to choose here."
+msgstr ""
+
 msgid "A previous send result needs checking"
+msgstr ""
+
+msgid "A speed test is already in progress; stop it first."
+msgstr ""
+
+msgid "A speed test is in progress. Stop it before burning data."
+msgstr ""
+
+msgid "A speed test is running, so status refresh may lag."
+msgstr ""
+
+msgid "A speed test or a data burn is running. Stop it before changing the connection, otherwise the result is meaningless."
 msgstr ""
 
 msgid "ACM console"
@@ -27,6 +69,21 @@ msgid "AMBR downlink"
 msgstr ""
 
 msgid "AMBR uplink"
+msgstr ""
+
+msgid "ANK core 0"
+msgstr ""
+
+msgid "ANK core 1"
+msgstr ""
+
+msgid "AP core 0"
+msgstr ""
+
+msgid "AP core 1"
+msgstr ""
+
+msgid "APN"
 msgstr ""
 
 msgid "APN mode"
@@ -44,13 +101,31 @@ msgstr ""
 msgid "AT terminal and IMEI"
 msgstr ""
 
+msgid "Aborted, the device got too hot"
+msgstr ""
+
 msgid "Action"
 msgstr ""
 
 msgid "Active SIM"
 msgstr ""
 
+msgid "Advanced"
+msgstr ""
+
 msgid "Airplane mode"
+msgstr ""
+
+msgid "All five steps finished."
+msgstr ""
+
+msgid "An IMEI is exactly 15 digits."
+msgstr ""
+
+msgid "Another test is running. Stop it first."
+msgstr ""
+
+msgid "Applied band limits"
 msgstr ""
 
 msgid "Applied bands"
@@ -62,19 +137,34 @@ msgstr ""
 msgid "Apply APN"
 msgstr ""
 
+msgid "Apply CPU frequency settings"
+msgstr ""
+
 msgid "Apply USB configuration"
 msgstr ""
 
 msgid "Apply bands"
 msgstr ""
 
+msgid "Apply changes"
+msgstr ""
+
 msgid "Apply network settings"
+msgstr ""
+
+msgid "Apply progress"
 msgstr ""
 
 msgid "Apply result"
 msgstr ""
 
 msgid "Apply settings"
+msgstr ""
+
+msgid "At roughly 1 yuan per GB that is about"
+msgstr ""
+
+msgid "At roughly 3 yuan per GB that is about"
 msgstr ""
 
 msgid "Authenticated ACM console"
@@ -86,25 +176,55 @@ msgstr ""
 msgid "Automatic"
 msgstr ""
 
+msgid "Automatic (best round trip)"
+msgstr ""
+
 msgid "Automatic operator selection"
 msgstr ""
 
 msgid "Available"
 msgstr ""
 
+msgid "Available frequencies"
+msgstr ""
+
 msgid "Available memory"
+msgstr ""
+
+msgid "Average"
+msgstr ""
+
+msgid "Bad"
 msgstr ""
 
 msgid "Band"
 msgstr ""
 
+msgid "Band / bandwidth"
+msgstr ""
+
 msgid "Band locking"
+msgstr ""
+
+msgid "Bands and cells"
 msgstr ""
 
 msgid "Bands, cells and APN"
 msgstr ""
 
 msgid "Bandwidth"
+msgstr ""
+
+msgid "Baseband"
+msgstr ""
+
+msgid "Bearer changed"
+msgstr ""
+
+msgid "Below 70% is normal, 70-85% is filling up, above 85% needs attention. Read-only volumes are listed but not coloured."
+msgstr ""
+
+msgid "Board"
 msgstr ""
 
 msgid "Board and system"
@@ -128,6 +248,12 @@ msgstr ""
 msgid "Buffered"
 msgstr ""
 
+msgid "Buffered streaming video, TCP"
+msgstr ""
+
+msgid "Busy"
+msgstr ""
+
 msgid "CDC-ECM mode"
 msgstr ""
 
@@ -135,6 +261,12 @@ msgid "CP/NV error"
 msgstr ""
 
 msgid "CPU clocks"
+msgstr ""
+
+msgid "CPU cluster 0"
+msgstr ""
+
+msgid "CPU frequency"
 msgstr ""
 
 msgid "CPU governor"
@@ -149,6 +281,27 @@ msgstr ""
 msgid "CPU policy"
 msgstr ""
 
+msgid "Cancel"
+msgstr ""
+
+msgid "Card blocked"
+msgstr ""
+
+msgid "Card error"
+msgstr ""
+
+msgid "Card identity and card activity. Everything else about the connection is on \"Overview\" and \"Mobile network\"."
+msgstr ""
+
+msgid "Card state"
+msgstr ""
+
+msgid "Carrier APNs"
+msgstr ""
+
+msgid "Cell ID"
+msgstr ""
+
 msgid "Cell locks"
 msgstr ""
 
@@ -156,6 +309,9 @@ msgid "Cellular settings"
 msgstr ""
 
 msgid "Changing USB mode restarts the device. Changing ACM reconnects USB."
+msgstr ""
+
+msgid "Changing the governor or the frequency range applies immediately and survives a reboot."
 msgstr ""
 
 msgid "Check send result"
@@ -176,7 +332,16 @@ msgstr ""
 msgid "China Unicom"
 msgstr ""
 
+msgid "Choose a template first."
+msgstr ""
+
 msgid "Clear folder"
+msgstr ""
+
+msgid "Collected while this page is open"
+msgstr ""
+
+msgid "Commands on this page are sent straight to the baseband. A wrong band, frequency or IMEI value can leave the device unable to register on any network, and rewriting an IMEI is illegal in many countries. There is no undo here."
 msgstr ""
 
 msgid "Completed"
@@ -191,10 +356,25 @@ msgstr ""
 msgid "Connection"
 msgstr ""
 
+msgid "Connection policy"
+msgstr ""
+
+msgid "Continue"
+msgstr ""
+
+msgid "Conversational video"
+msgstr ""
+
+msgid "Conversational voice (VoLTE)"
+msgstr ""
+
 msgid "Core service"
 msgstr ""
 
 msgid "Current"
+msgstr ""
+
+msgid "Current APN"
 msgstr ""
 
 msgid "Current frequency"
@@ -206,7 +386,34 @@ msgstr ""
 msgid "DDR clocks"
 msgstr ""
 
+msgid "DDR is managed automatically by firmware. Monitoring only."
+msgstr ""
+
+msgid "Data"
+msgstr ""
+
+msgid "Data burn"
+msgstr ""
+
+msgid "Data burn is running"
+msgstr ""
+
+msgid "Data burn parameters"
+msgstr ""
+
+msgid "Data burned"
+msgstr ""
+
+msgid "Data cap (GB)"
+msgstr ""
+
 msgid "Data connection"
+msgstr ""
+
+msgid "Data connection closed"
+msgstr ""
+
+msgid "Data connection established"
 msgstr ""
 
 msgid "Data roaming"
@@ -215,10 +422,19 @@ msgstr ""
 msgid "Data size"
 msgstr ""
 
+msgid "Data used"
+msgstr ""
+
+msgid "Default bearer, best effort"
+msgstr ""
+
 msgid "Delete selected"
 msgstr ""
 
 msgid "Delete template"
+msgstr ""
+
+msgid "Deleting a template only removes it from this device; the APN currently in use is not changed."
 msgstr ""
 
 msgid "Deletion incomplete"
@@ -230,13 +446,64 @@ msgstr ""
 msgid "Device MAC"
 msgstr ""
 
+msgid "Device temperature"
+msgstr ""
+
+msgid "Diagnostics that do not fit anywhere else. Nothing here is needed for normal use."
+msgstr ""
+
 msgid "Direct reception"
 msgstr ""
 
 msgid "Disconnected"
 msgstr ""
 
+msgid "Discrete automation"
+msgstr ""
+
+msgid "Disk space"
+msgstr ""
+
+msgid "Downlink"
+msgstr ""
+
+msgid "Duration (seconds)"
+msgstr ""
+
+msgid "Effective limit for this run"
+msgstr ""
+
+msgid "Elapsed"
+msgstr ""
+
 msgid "Enter a 15-digit IMEI"
+msgstr ""
+
+msgid "Enter a 5 or 6 digit MCC/MNC, for example 46000."
+msgstr ""
+
+msgid "Enter a data cap in GB greater than zero."
+msgstr ""
+
+msgid "Enter a duration of at least 30 seconds."
+msgstr ""
+
+msgid "Enter a template name before saving."
+msgstr ""
+
+msgid "Enter an APN name before applying a manual profile."
+msgstr ""
+
+msgid "Enter an AT command first."
+msgstr ""
+
+msgid "Estimated cost"
+msgstr ""
+
+msgid "Everything that changes how the device connects lives here. Status and diagnostics are on \"Overview\" and \"SIM card\"."
+msgstr ""
+
+msgid "Excellent"
 msgstr ""
 
 msgid "Execute AT command"
@@ -245,10 +512,28 @@ msgstr ""
 msgid "Execute quick command"
 msgstr ""
 
+msgid "Extended level"
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Fair"
+msgstr ""
+
+msgid "Fewer than 5 stable samples, so this result is indicative only."
+msgstr ""
+
 msgid "Filesystem"
 msgstr ""
 
 msgid "Filesystems"
+msgstr ""
+
+msgid "Finished"
+msgstr ""
+
+msgid "Finished, the planned duration elapsed"
 msgstr ""
 
 msgid "Firmware version"
@@ -260,13 +545,25 @@ msgstr ""
 msgid "Free"
 msgstr ""
 
+msgid "Frequency point"
+msgstr ""
+
+msgid "Frequency point (ARFCN)"
+msgstr ""
+
 msgid "GBR downlink"
 msgstr ""
 
 msgid "GBR uplink"
 msgstr ""
 
+msgid "Good"
+msgstr ""
+
 msgid "Governor"
+msgstr ""
+
+msgid "Hardware"
 msgstr ""
 
 msgid "Hardware acceleration"
@@ -275,10 +572,16 @@ msgstr ""
 msgid "Hardware and platform"
 msgstr ""
 
+msgid "Home network"
+msgstr ""
+
 msgid "Host MAC"
 msgstr ""
 
 msgid "Hostname"
+msgstr ""
+
+msgid "How long to wait for the modem before giving up."
 msgstr ""
 
 msgid "IMEI"
@@ -290,7 +593,31 @@ msgstr ""
 msgid "IMEI index"
 msgstr ""
 
+msgid "IMS signalling"
+msgstr ""
+
+msgid "IPv4 address changed"
+msgstr ""
+
+msgid "IPv4 latency"
+msgstr ""
+
+msgid "IPv6 latency"
+msgstr ""
+
+msgid "Identification result"
+msgstr ""
+
 msgid "Identity"
+msgstr ""
+
+msgid "Identity slot"
+msgstr ""
+
+msgid "Idle latency"
+msgstr ""
+
+msgid "In use"
 msgstr ""
 
 msgid "Inbox"
@@ -299,13 +626,43 @@ msgstr ""
 msgid "Inbox limit"
 msgstr ""
 
+msgid "Insert a SIM card into the slot printed on the label, then wait about ten seconds. If a card is already inserted, take it out and put it back in."
+msgstr ""
+
+msgid "Inserting or swapping a card does not always make the modem re-read it. Re-identifying would close the radio, re-read the card and open the radio again, which drops the network for about ten seconds."
+msgstr ""
+
+msgid "Intelligent transport systems"
+msgstr ""
+
+msgid "Interrupted, the mobile network went away"
+msgstr ""
+
+msgid "It had already stopped by itself; refreshing to show why."
+msgstr ""
+
+msgid "Keep the page open. Stop the run as soon as you have seen enough."
+msgstr ""
+
+msgid "Keep the page open; the result stays available after the run ends."
+msgstr ""
+
 msgid "Kernel"
 msgstr ""
 
 msgid "LTE bands"
 msgstr ""
 
+msgid "Last 20, this session only"
+msgstr ""
+
 msgid "Last error"
+msgstr ""
+
+msgid "Last identified"
+msgstr ""
+
+msgid "Latency under load"
 msgstr ""
 
 msgid "Leave empty for all bands."
@@ -317,7 +674,19 @@ msgstr ""
 msgid "Lock cell"
 msgstr ""
 
+msgid "Locked"
+msgstr ""
+
+msgid "Low-latency eMBB"
+msgstr ""
+
+msgid "Low-latency eMBB, TCP"
+msgstr ""
+
 msgid "MBR downlink"
+msgstr ""
+
+msgid "MBR peak up / down"
 msgstr ""
 
 msgid "MBR uplink"
@@ -326,7 +695,16 @@ msgstr ""
 msgid "Manual"
 msgstr ""
 
+msgid "Manual registration"
+msgstr ""
+
 msgid "Maximum frequency"
+msgstr ""
+
+msgid "Measurement node"
+msgstr ""
+
+msgid "Measuring"
 msgstr ""
 
 msgid "Memory"
@@ -341,7 +719,22 @@ msgstr ""
 msgid "Minimum frequency must not exceed maximum frequency."
 msgstr ""
 
+msgid "Mission-critical data"
+msgstr ""
+
+msgid "Mission-critical push to talk"
+msgstr ""
+
+msgid "Mission-critical signalling"
+msgstr ""
+
+msgid "Mission-critical video"
+msgstr ""
+
 msgid "Mobile data"
+msgstr ""
+
+msgid "Mobile network"
 msgstr ""
 
 msgid "Mode"
@@ -356,7 +749,13 @@ msgstr ""
 msgid "Modem service"
 msgstr ""
 
+msgid "Modem state unknown, refresh to confirm"
+msgstr ""
+
 msgid "Modem storage"
+msgstr ""
+
+msgid "More threads give a more accurate figure on fast links."
 msgstr ""
 
 msgid "Mount point"
@@ -371,7 +770,19 @@ msgstr ""
 msgid "NR bands"
 msgstr ""
 
+msgid "Name"
+msgstr ""
+
 msgid "Neighbor"
+msgstr ""
+
+msgid "Neighbour"
+msgstr ""
+
+msgid "Neighbour count"
+msgstr ""
+
+msgid "Network"
 msgstr ""
 
 msgid "Network control"
@@ -383,7 +794,40 @@ msgstr ""
 msgid "New template name"
 msgstr ""
 
+msgid "Ninety percent of samples are faster than this"
+msgstr ""
+
 msgid "No"
+msgstr ""
+
+msgid "No IPv6 address"
+msgstr ""
+
+msgid "No SIM card detected"
+msgstr ""
+
+msgid "No card"
+msgstr ""
+
+msgid "No card activity seen since this page was opened. Swapping the card now would show up here."
+msgstr ""
+
+msgid "No card detected"
+msgstr ""
+
+msgid "No data"
+msgstr ""
+
+msgid "No events yet. Network, SIM and cell changes will be listed here."
+msgstr ""
+
+msgid "No filesystem information available."
+msgstr ""
+
+msgid "No measurement node is reachable right now; the service picks one when the test starts."
+msgstr ""
+
+msgid "No messages in this folder."
 msgstr ""
 
 msgid "No messages selected"
@@ -392,7 +836,49 @@ msgstr ""
 msgid "No pending message"
 msgstr ""
 
+msgid "No ping tool"
+msgstr ""
+
+msgid "No samples yet."
+msgstr ""
+
+msgid "No scan results yet. Scan for operators to see what is available here."
+msgstr ""
+
+msgid "No test is running."
+msgstr ""
+
+msgid "No test was running."
+msgstr ""
+
+msgid "Non-conversational video"
+msgstr ""
+
+msgid "Non-mission-critical push to talk"
+msgstr ""
+
 msgid "None"
+msgstr ""
+
+msgid "Normal"
+msgstr ""
+
+msgid "Not available"
+msgstr ""
+
+msgid "Not enabled"
+msgstr ""
+
+msgid "Not measured"
+msgstr ""
+
+msgid "Not read yet"
+msgstr ""
+
+msgid "Not registered"
+msgstr ""
+
+msgid "Not started"
 msgstr ""
 
 msgid "Number"
@@ -407,6 +893,9 @@ msgstr ""
 msgid "Open network management"
 msgstr ""
 
+msgid "Open the mobile network page"
+msgstr ""
+
 msgid "Operation failed"
 msgstr ""
 
@@ -416,10 +905,31 @@ msgstr ""
 msgid "Operator"
 msgstr ""
 
+msgid "Operator changed"
+msgstr ""
+
+msgid "Operator scan"
+msgstr ""
+
 msgid "Operators"
 msgstr ""
 
+msgid "Overheating"
+msgstr ""
+
+msgid "Overview"
+msgstr ""
+
 msgid "Overview and network control"
+msgstr ""
+
+msgid "Overwrite this IMEI?"
+msgstr ""
+
+msgid "PCI"
+msgstr ""
+
+msgid "PCI / ARFCN"
 msgstr ""
 
 msgid "PDP type"
@@ -431,13 +941,55 @@ msgstr ""
 msgid "Password"
 msgstr ""
 
+msgid "Peak"
+msgstr ""
+
+msgid "Physical cell ID (PCI)"
+msgstr ""
+
 msgid "Platform services"
+msgstr ""
+
+msgid "Poor"
 msgstr ""
 
 msgid "Quick command"
 msgstr ""
 
+msgid "RNDIS hardware acceleration"
+msgstr ""
+
+msgid "RNDIS software mode"
+msgstr ""
+
+msgid "RSRP"
+msgstr ""
+
 msgid "Radio"
+msgstr ""
+
+msgid "Radio disabled"
+msgstr ""
+
+msgid "Radio enabled"
+msgstr ""
+
+msgid "Radio is off, waiting for it to be enabled"
+msgstr ""
+
+msgid "Radio state"
+msgstr ""
+
+msgid "Rate and class"
+msgstr ""
+
+msgid "Re-identification needs a modem re-attach entry point that this firmware build does not provide yet; the button will be enabled once that exists."
+msgstr ""
+
+msgid "Re-identify"
+msgstr ""
+
+msgid "Re-identify now"
 msgstr ""
 
 msgid "Read"
@@ -452,16 +1004,73 @@ msgstr ""
 msgid "Read band and cell locks"
 msgstr ""
 
+msgid "Read before writing; the readback is the safety net"
+msgstr ""
+
+msgid "Read from the card"
+msgstr ""
+
+msgid "Read from the device"
+msgstr ""
+
 msgid "Read messages"
 msgstr ""
 
 msgid "Read only"
 msgstr ""
 
+msgid "Read the APNs stored on the SIM to see the carrier defaults."
+msgstr ""
+
+msgid "Read the current IMEI first."
+msgstr ""
+
+msgid "Read the current IMEI first; writing without a readback risks putting a wrong value on the card slot."
+msgstr ""
+
+msgid "Read-only dashboard. Change settings in \"Mobile network\"; diagnose SIM problems in \"SIM card\"."
+msgstr ""
+
 msgid "Readback"
 msgstr ""
 
+msgid "Reading"
+msgstr ""
+
+msgid "Reading the card"
+msgstr ""
+
+msgid "Reading…"
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "Real-time gaming"
+msgstr ""
+
+msgid "Recent card activity"
+msgstr ""
+
+msgid "Recent events"
+msgstr ""
+
 msgid "Recipient number"
+msgstr ""
+
+msgid "Reconnect automatically"
+msgstr ""
+
+msgid "Reconnect data"
+msgstr ""
+
+msgid "Redial after boot or a dropped connection."
+msgstr ""
+
+msgid "Reference signal power (RSRP)"
+msgstr ""
+
+msgid "Reference signal quality (RSRQ)"
 msgstr ""
 
 msgid "Refresh"
@@ -470,13 +1079,28 @@ msgstr ""
 msgid "Refresh cells"
 msgstr ""
 
+msgid "Refresh neighbours"
+msgstr ""
+
 msgid "Refresh network information"
+msgstr ""
+
+msgid "Refresh serving cell"
 msgstr ""
 
 msgid "Register"
 msgstr ""
 
 msgid "Register manually"
+msgstr ""
+
+msgid "Registered"
+msgstr ""
+
+msgid "Registration"
+msgstr ""
+
+msgid "Remaining"
 msgstr ""
 
 msgid "Reserved eraseblocks"
@@ -488,10 +1112,7 @@ msgstr ""
 msgid "Restart modem"
 msgstr ""
 
-msgid "RNDIS hardware acceleration"
-msgstr ""
-
-msgid "RNDIS software mode"
+msgid "Roaming"
 msgstr ""
 
 msgid "Root filesystem"
@@ -500,16 +1121,43 @@ msgstr ""
 msgid "Root marker"
 msgstr ""
 
+msgid "Running"
+msgstr ""
+
 msgid "Running system"
 msgstr ""
 
+msgid "Runs for a fixed time; the service decides the data cap"
+msgstr ""
+
 msgid "Runtime error"
+msgstr ""
+
+msgid "SIM"
+msgstr ""
+
+msgid "SIM card"
+msgstr ""
+
+msgid "SIM card state"
+msgstr ""
+
+msgid "SIM card unavailable, waiting for a card"
+msgstr ""
+
+msgid "SIM problem? Go to diagnostics"
 msgstr ""
 
 msgid "SIM slot"
 msgstr ""
 
 msgid "SIM status"
+msgstr ""
+
+msgid "SINR"
+msgstr ""
+
+msgid "SMS"
 msgstr ""
 
 msgid "SMS management"
@@ -524,7 +1172,13 @@ msgstr ""
 msgid "Saved template"
 msgstr ""
 
+msgid "Scan finished."
+msgstr ""
+
 msgid "Scan operators"
+msgstr ""
+
+msgid "Searching"
 msgstr ""
 
 msgid "Searching for network"
@@ -542,7 +1196,13 @@ msgstr ""
 msgid "Send"
 msgstr ""
 
+msgid "Send command"
+msgstr ""
+
 msgid "Send message"
+msgstr ""
+
+msgid "Send quick command"
 msgstr ""
 
 msgid "Send result unavailable"
@@ -554,6 +1214,9 @@ msgstr ""
 msgid "Sensor"
 msgstr ""
 
+msgid "Sensors"
+msgstr ""
+
 msgid "Sensors and clocks"
 msgstr ""
 
@@ -561,6 +1224,9 @@ msgid "Sent"
 msgstr ""
 
 msgid "Sent limit"
+msgstr ""
+
+msgid "Sent verbatim, one command per click"
 msgstr ""
 
 msgid "Serial number"
@@ -572,13 +1238,40 @@ msgstr ""
 msgid "Serving and neighboring cells"
 msgstr ""
 
+msgid "Serving and neighbouring cells"
+msgstr ""
+
+msgid "Serving cell changed"
+msgstr ""
+
+msgid "Session-AMBR granted by the network. It usually equals the plan rate and shows the throttled value once throttling applies."
+msgstr ""
+
 msgid "Set the same minimum and maximum for a fixed CPU frequency."
 msgstr ""
 
 msgid "Settings"
 msgstr ""
 
+msgid "Settings and installed packages"
+msgstr ""
+
 msgid "Settings are saved and restored at startup."
+msgstr ""
+
+msgid "Signal"
+msgstr ""
+
+msgid "Signal to interference noise ratio (SINR)"
+msgstr ""
+
+msgid "Slot"
+msgstr ""
+
+msgid "Slot 1 is the identity the modem presents by default."
+msgstr ""
+
+msgid "SoC"
 msgstr ""
 
 msgid "Some messages were not deleted"
@@ -587,13 +1280,58 @@ msgstr ""
 msgid "Speed"
 msgstr ""
 
+msgid "Speed test"
+msgstr ""
+
+msgid "Speed test is running"
+msgstr ""
+
+msgid "Speed test parameters"
+msgstr ""
+
+msgid "Speed test result"
+msgstr ""
+
+msgid "Start and use data"
+msgstr ""
+
 msgid "Start another message"
+msgstr ""
+
+msgid "Start data burn"
+msgstr ""
+
+msgid "Start speed test"
+msgstr ""
+
+msgid "Start the data burn test?"
+msgstr ""
+
+msgid "State"
+msgstr ""
+
+msgid "State changed"
 msgstr ""
 
 msgid "Status"
 msgstr ""
 
 msgid "Status uncertain"
+msgstr ""
+
+msgid "Stop data burn"
+msgstr ""
+
+msgid "Stop speed test"
+msgstr ""
+
+msgid "Stopped by you"
+msgstr ""
+
+msgid "Stopped, the data cap for this run was reached"
+msgstr ""
+
+msgid "Stopped."
 msgstr ""
 
 msgid "Submitted to modem"
@@ -605,7 +1343,19 @@ msgstr ""
 msgid "Swap total"
 msgstr ""
 
+msgid "Switched to slot"
+msgstr ""
+
+msgid "Switching slots disconnects the network for about ten seconds."
+msgstr ""
+
 msgid "System"
+msgstr ""
+
+msgid "System partition"
+msgstr ""
+
+msgid "System partition, read-only image"
 msgstr ""
 
 msgid "Target"
@@ -620,25 +1370,142 @@ msgstr ""
 msgid "Temperatures"
 msgstr ""
 
+msgid "Templates"
+msgstr ""
+
+msgid "Temporary files"
+msgstr ""
+
+msgid "The IMEI check digit is wrong; copy it again from the label."
+msgstr ""
+
+msgid "The SIM card is not readable. Check that the card is seated the right way round and in the right slot; if it is, the card itself may have failed."
+msgstr ""
+
+msgid "The card is being read. Identity fields stay blank until the modem answers."
+msgstr ""
+
+msgid "The card is present but the modem cannot read its identity. Power the device off and reseat the card; if the problem persists the card itself may have failed."
+msgstr ""
+
+msgid "The data may be out of date; last updated"
+msgstr ""
+
+msgid "The data may be out of date; refresh to update it."
+msgstr ""
+
+msgid "The list covers the commands needed for diagnosis; type anything else above."
+msgstr ""
+
+msgid "The modem is reading the card. This normally takes a few seconds; the details appear here as soon as it finishes."
+msgstr ""
+
+msgid "The modem returned no identity slots, so there is nothing to select."
+msgstr ""
+
 msgid "The modem supplies the IP configuration. Manage the APN and radio settings in UDX710; netifd manages this network interface."
+msgstr ""
+
+msgid "The node list could not be read."
+msgstr ""
+
+msgid "The request finished but some changes were not applied."
+msgstr ""
+
+msgid "The result is unknown: the command was sent but no confirmation came back, so it may already have taken effect. The system will not retry automatically; refresh first and check the current state."
+msgstr ""
+
+msgid "The run stops at 20 seconds or 300 MB, whichever comes first. Above 120 Mbps the data cap ends it first, so a shorter run with fewer samples — and a rougher P90 — is normal there, not a fault."
+msgstr ""
+
+msgid "The selected SIM slot cannot be switched on this device; choose another slot."
+msgstr ""
+
+msgid "The test could not be stopped."
+msgstr ""
+
+msgid "The test could not start."
+msgstr ""
+
+msgid "The test ended for an unknown reason"
+msgstr ""
+
+msgid "The test failed"
+msgstr ""
+
+msgid "The timeout must be between 1 and 120 seconds."
+msgstr ""
+
+msgid "These five settings are sent to the modem as five separate commands, in the order shown below. Do not click twice; switching SIM slots drops the network for about ten seconds."
+msgstr ""
+
+msgid "This SIM slot cannot be switched; it is fixed by the hardware."
+msgstr ""
+
+msgid "This firmware build does not support this operation on the current hardware."
+msgstr ""
+
+msgid "This firmware build has no modem re-attach entry point yet, so re-identification cannot be triggered from the web interface. Remove and reinsert the card, or reboot the device."
+msgstr ""
+
+msgid "This firmware has no ping tool installed, so latency cannot be measured."
+msgstr ""
+
+msgid "This is an estimate, not the rate you are actually billed."
+msgstr ""
+
+msgid "This is not a speed test: it keeps using data on purpose"
+msgstr ""
+
+msgid "This page has moved to \"Mobile network\"."
+msgstr ""
+
+msgid "This uses mobile data on purpose: up to"
+msgstr ""
+
+msgid "Threads"
 msgstr ""
 
 msgid "Time"
 msgstr ""
 
+msgid "Timed out"
+msgstr ""
+
 msgid "Timeout"
+msgstr ""
+
+msgid "Timeout (seconds)"
+msgstr ""
+
+msgid "Top of the chart"
 msgstr ""
 
 msgid "Total"
 msgstr ""
 
+msgid "Total consumed since the run started"
+msgstr ""
+
+msgid "Tracking area code (TAC)"
+msgstr ""
+
+msgid "Turning this on shuts the radio down; every network service stops."
+msgstr ""
+
 msgid "Type"
+msgstr ""
+
+msgid "Type the command without a trailing carriage return."
 msgstr ""
 
 msgid "UBI volumes"
 msgstr ""
 
 msgid "UDX710 cellular"
+msgstr ""
+
+msgid "USB"
 msgstr ""
 
 msgid "USB configuration"
@@ -680,6 +1547,9 @@ msgstr ""
 msgid "Unrestricted"
 msgstr ""
 
+msgid "Uplink"
+msgstr ""
+
 msgid "Uptime"
 msgstr ""
 
@@ -692,7 +1562,16 @@ msgstr ""
 msgid "Use template"
 msgstr ""
 
+msgid "Used / cap"
+msgstr ""
+
 msgid "Username"
+msgstr ""
+
+msgid "V2X messages"
+msgstr ""
+
+msgid "Voice, video and interactive gaming"
 msgstr ""
 
 msgid "Volume"
@@ -710,87 +1589,75 @@ msgstr ""
 msgid "Waiting for radio"
 msgstr ""
 
+msgid "Waiting for the card"
+msgstr ""
+
+msgid "Warm"
+msgstr ""
+
+msgid "What happened"
+msgstr ""
+
+msgid "When off, the data connection is torn down but the radio stays on."
+msgstr ""
+
 msgid "Write IMEI"
+msgstr ""
+
+msgid "Write it"
+msgstr ""
+
+msgid "Writing an IMEI is permanent for this identity slot. If the value is wrong the modem may refuse to register on any network, and there is no undo from this page. Write"
+msgstr ""
+
+msgid "Written"
+msgstr ""
+
+msgid "Written. Read it back to confirm."
 msgstr ""
 
 msgid "Yes"
 msgstr ""
 
-
-msgid "Available frequencies"
+msgid "You asked for %s, but the service applied %s."
 msgstr ""
 
-msgid "DDR is managed automatically by firmware. Monitoring only."
+msgid "failed at step"
 msgstr ""
 
-msgid "Apply CPU frequency settings"
+msgid "for up to"
 msgstr ""
 
-msgid "Frequency point (ARFCN)"
+msgid "hours ago"
 msgstr ""
 
-msgid "Physical cell ID (PCI)"
+msgid "last sample: %s"
 msgstr ""
 
-msgid "Reference signal power (RSRP)"
+msgid "minutes ago"
 msgstr ""
 
-msgid "Reference signal quality (RSRQ)"
+msgid "no cap"
 msgstr ""
 
-msgid "Signal to interference noise ratio (SINR)"
+msgid "samples"
 msgstr ""
 
-msgid "Tracking area code (TAC)"
+msgid "seconds"
 msgstr ""
 
-msgid "Cell ID"
+msgid "seconds ago"
 msgstr ""
 
-msgid "Excellent"
+msgid "to IMEI"
 msgstr ""
 
-msgid "Good"
+msgid "unavailable"
 msgstr ""
 
-msgid "Fair"
+msgid "yuan"
 msgstr ""
 
-msgid "Poor"
+msgid "yuan of traffic. You can stop it at any time."
 msgstr ""
 
-msgid "Bad"
-msgstr ""
-
-msgid "AP core 0"
-msgstr ""
-
-msgid "AP core 1"
-msgstr ""
-
-msgid "5G baseband"
-msgstr ""
-
-msgid "ANK core 0"
-msgstr ""
-
-msgid "ANK core 1"
-msgstr ""
-
-msgid "CPU cluster 0"
-msgstr ""
-
-msgid "SoC"
-msgstr ""
-
-msgid "4G power amplifier"
-msgstr ""
-
-msgid "5G power amplifier"
-msgstr ""
-
-msgid "Board"
-msgstr ""
-
-msgid "Frequency point"
-msgstr ""

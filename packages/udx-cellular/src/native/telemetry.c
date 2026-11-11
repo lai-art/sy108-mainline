@@ -45,8 +45,25 @@ int telemetry_step(struct controller *c)
 		sim = "";
 	if (!text_equal(sim, c->telemetry_sim)) {
 		snprintf(c->telemetry_sim, sizeof(c->telemetry_sim), "%s", sim ? sim : "");
-		c->telemetry_due[0] = 0;
-		c->telemetry_due[5] = 0;
+		/* The card changed; the field list lives in
+		 * controller_invalidate_card() so there is one copy of it. This branch
+		 * cannot fire before sim_refresh(), which is what writes
+		 * status.sim.state, so it is a safety net rather than the primary
+		 * detector: it catches a state written directly by a slot switch
+		 * without waiting for the next 10 s refresh, and costs a no-op delete
+		 * when sim_refresh() has already run.
+		 * Indices follow operations[] above. Resetting only [0] and [5] left
+		 * status.qos on the previous card's QCI and AMBR for up to 300 s, and
+		 * the serving cell / neighbours / band limits for 15-120 s.
+		 * signal_refresh (10 s) and apn_templates (120 s) are deliberately not
+		 * reset: one ages out within two polls, the other is configuration. */
+		controller_invalidate_card(c);
+		c->telemetry_due[0] = 0; /* modem_info */
+		c->telemetry_due[2] = 0; /* serving_refresh */
+		c->telemetry_due[3] = 0; /* neighbors_refresh */
+		c->telemetry_due[4] = 0; /* advanced_refresh */
+		c->telemetry_due[5] = 0; /* radio_options */
+		c->telemetry_due[6] = 0; /* qos_refresh */
 	}
 	double now = mono();
 	for (size_t i = 0; i < CELL_TELEMETRY_TASKS; i++) {

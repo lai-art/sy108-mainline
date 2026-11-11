@@ -24,6 +24,10 @@
     ],
     "network.interface.wan6": [
      "status"
+    ],
+    "udx.speedtest": [
+     "status",
+     "nodes"
     ]
    },
    "uci": [
@@ -93,6 +97,10 @@
      "max_count",
      "id",
      "unlock"
+    ],
+    "udx.speedtest": [
+     "start",
+     "stop"
     ]
    },
    "uci": [

@@ -12,43 +12,105 @@
   }
  },
  "admin/udx/overview": {
-  "title": "Overview and network control",
+  "title": "Overview",
   "order": 10,
   "action": {
    "type": "view",
    "path": "udx/overview"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
   }
  },
- "admin/udx/cellular": {
-  "title": "Bands, cells and APN",
+ "admin/udx/network": {
+  "title": "Mobile network",
   "order": 20,
   "action": {
    "type": "view",
-   "path": "udx/cellular"
+   "path": "udx/network"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
   }
  },
- "admin/udx/sms": {
-  "title": "SMS management",
+ "admin/udx/sim": {
+  "title": "SIM card",
   "order": 30,
   "action": {
    "type": "view",
-   "path": "udx/sms"
+   "path": "udx/sim"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
   }
  },
- "admin/udx/at": {
-  "title": "AT terminal and IMEI",
+ "admin/udx/sms": {
+  "title": "SMS",
   "order": 40,
   "action": {
    "type": "view",
-   "path": "udx/at"
+   "path": "udx/sms"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
   }
  },
  "admin/udx/hardware": {
-  "title": "Hardware and platform",
+  "title": "Hardware",
   "order": 50,
   "action": {
    "type": "view",
-   "path": "udx/hardware2"
+   "path": "udx/hardware"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
+  }
+ },
+ "admin/udx/advanced": {
+  "title": "Advanced",
+  "order": 60,
+  "action": {
+   "type": "view",
+   "path": "udx/advanced"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
+  }
+ },
+ "admin/udx/at": {
+  "title": "",
+  "action": {
+   "type": "alias",
+   "path": "admin/udx/advanced"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
+  }
+ },
+ "admin/udx/cellular": {
+  "title": "",
+  "action": {
+   "type": "view",
+   "path": "udx/cellular"
+  },
+  "depends": {
+   "acl": [
+    "luci-app-udx"
+   ]
   }
  }
 }

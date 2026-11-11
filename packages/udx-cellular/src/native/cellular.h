@@ -83,6 +83,7 @@ J *controller_disconnect(struct controller *c, bool quiesce);
 J *controller_connect(struct controller *c, unsigned wait_seconds);
 int controller_refresh(struct controller *c);
 int controller_radio_on(struct controller *c);
+void controller_invalidate_card(struct controller *c);
 
 struct radio_change {
 	bool active, enabled, wanted;

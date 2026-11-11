@@ -324,6 +324,32 @@ J *info_signal(struct controller *c)
 	return out;
 }
 
+/* TS 27.007 +CGEQOSRDP reports the bearer class in one field: EPC calls it QCI,
+ * the 5G core in SA calls the same position 5QI. Nothing in the response says
+ * which vocabulary is in use, so the RAT decides:
+ *   - NR capability limited to NSA            -> QCI (the bearer is the LTE anchor)
+ *   - SA permitted and the serving cell is NR -> 5QI
+ *   - anything else, including "not sampled yet" -> QCI (the frontend default)
+ * No extra AT command: both inputs are already polled (radio_options 300 s,
+ * serving_refresh 15 s). */
+static const char *qos_kind(struct controller *c)
+{
+	const char *capability = str(get(c->status, "nr_capability"), "mode");
+	if (!text_equal(capability, "sa_nsa") && !text_equal(capability, "sa_only"))
+		return "qci";
+	J *cells = get(c->status, "cells");
+	size_t count =
+	    json_object_is_type(cells, json_type_array) ? json_object_array_length(cells) : 0;
+	for (size_t i = 0; i < count; i++) {
+		J *row = json_object_array_get_idx(cells, i);
+		J *serving = get(row, "serving");
+		if (json_object_is_type(serving, json_type_boolean) &&
+		    json_object_get_boolean(serving) && text_equal(str(row, "rat"), "nr"))
+			return "5qi";
+	}
+	return "qci";
+}
+
 J *info_execute(struct controller *c, const char *operation)
 {
 	if (transport_admit(&c->transport) < 0)
@@ -357,6 +383,8 @@ J *info_execute(struct controller *c, const char *operation)
 		J *qos = json_object_new_object();
 		integer(qos, "cid", 1);
 		integer(qos, "qci", qci);
+		/* Only the field *name* is ambiguous; the value stays in "qci". */
+		string(qos, "kind", qos_kind(c));
 		const char *rates[] = {"gbr_downlink_kbps",  "gbr_uplink_kbps",
 				       "mbr_downlink_kbps",  "mbr_uplink_kbps",
 				       "ambr_downlink_kbps", "ambr_uplink_kbps"};

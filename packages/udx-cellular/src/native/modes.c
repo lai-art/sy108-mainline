@@ -199,9 +199,19 @@ static int invalidate_sim(struct controller *c)
 	json_object_put(c->fallback_profile);
 	c->fallback_profile = NULL;
 	json_object_object_del(c->status, "automatic_apn");
+	/* A slot switch replaces the subscription, and it is the one path where
+	 * sim.state goes READY -> REFRESHING -> READY, so neither sim_refresh() nor
+	 * telemetry_step() ever sees a *different* READY and would never invalidate
+	 * on its own. The empty containers and null placeholders below are then
+	 * re-created on purpose: a switching device reports a known-empty snapshot
+	 * rather than an unknown one. */
+	controller_invalidate_card(c);
 	c->telemetry_due[0] = 0;
 	c->telemetry_due[2] = 0;
 	c->telemetry_due[3] = 0;
+	/* qos was just dropped, so poll the new card's bearer immediately instead
+	 * of showing "unknown" for a full 300 s interval. */
+	c->telemetry_due[6] = 0;
 	const char *names[] = {"iccid",	       "imsi",	  "operator", "modem_info_uptime",
 			       "cells_uptime", "attached"};
 	for (size_t i = 0; i < 6; i++)

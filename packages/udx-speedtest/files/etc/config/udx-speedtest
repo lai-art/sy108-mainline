@@ -1,0 +1,83 @@
+# udx-speedtest defaults and download targets.
+# Used by /usr/sbin/udx-speedtestd (ubus object udx.speedtest).
+# Node measurements and the "dead" flags come from
+# docs/plans/测速功能方案.md §1.5.4 (2026-11-11, 3 MB range request).
+
+config defaults 'defaults'
+	option interface 'wwan0'
+	option latency_target '223.5.5.5'
+	option curl '/usr/bin/curl'
+	option ping '/bin/ping'
+	# Hottest thermal_zone above this value aborts a running task.
+	option temperature_limit '70'
+	option threads '4'
+	# Speed test: stops at 20 s or 300 MB, whichever comes first. 300 MB over
+	# 20 s is 120 Mbps, so above that the byte cap binds and the run ends early
+	# (still valid, the last bucket is scaled by its real span). The cap is not
+	# lower: 150 MB at 500 Mbps ends the run at 2.4 s, inside the 3 s
+	# slow-start discard, leaving nothing to take a P90 of.
+	# Clamped by the service to 10-30 s / 10-300 MB.
+	option speed_seconds '20'
+	option speed_bytes '300000000'
+	# Traffic burner: user adjustable, clamped to 100 MB-10 GB / 30-1800 s.
+	option burn_seconds '300'
+	option burn_bytes '1000000000'
+
+# The five nodes that answered on 2026-11-11 are listed first. The two that did
+# not are kept with enabled '0' so the reason stays visible in the UI.
+
+config node 'cloudflare'
+	option name 'Cloudflare Speed'
+	option group 'global'
+	option group_label '全球'
+	option url 'https://speed.cloudflare.com/__down?bytes=99614720'
+	option enabled '1'
+	option note '2026-11-11: 200 OK, 99.6 MB, 26.9 MB/s - fastest and most stable'
+
+config node 'hecaiyun'
+	option name '和彩云'
+	option group 'carrier'
+	option group_label '运营商'
+	option url 'https://img.mcloud.139.com/material_prod/material_media/20221128/1669626861087.png'
+	option enabled '1'
+	option note '2026-11-11: 206, 1.1 MB, 2.20 MB/s'
+
+config node 'tianyi'
+	option name '天翼云桌面'
+	option group 'carrier'
+	option group_label '运营商'
+	option url 'https://desk.ctyun.cn:8999/desktop-prod/software/windows_tob_client/15/64/202030001/CtyunClouddeskUniversal_2.3.0_202030001_x86_20240327104015_Setup.exe'
+	option enabled '1'
+	option note '2026-11-11: 206, 3.45 MB/s'
+
+config node 'steam-cloudflare'
+	option name 'Steam Cloudflare'
+	option group 'global'
+	option group_label '全球'
+	option url 'https://cdn.cloudflare.steamstatic.com/steam/apps/1063730/extras/NW_Sword_Sorcery_2.gif'
+	option enabled '1'
+	option note '2026-11-11: 206, 1.94 MB/s'
+
+config node 'steam-akamai'
+	option name 'Steam Akamai'
+	option group 'global'
+	option group_label '全球'
+	option url 'https://cdn.akamai.steamstatic.com/steam/apps/1063730/extras/NW_Sword_Sorcery_2.gif'
+	option enabled '1'
+	option note '2026-11-11: 206, 1.77 MB/s'
+
+config node 'cachefly'
+	option name 'Cachefly'
+	option group 'global'
+	option group_label '全球'
+	option url 'https://web1.cachefly.net/speedtest/downloading'
+	option enabled '0'
+	option note 'DEAD 2026-11-11: 502 Bad Gateway. Entry kept for reference.'
+
+config node 'microsoft-akamai'
+	option name 'Microsoft Akamai'
+	option group 'global'
+	option group_label '全球'
+	option url 'https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RW16Ptm'
+	option enabled '0'
+	option note 'DEAD 2026-11-11: connection dropped after 0.3 s. Entry kept for reference.'

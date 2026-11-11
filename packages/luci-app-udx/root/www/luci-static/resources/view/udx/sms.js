@@ -39,10 +39,12 @@ return view.extend({
                                  _('SMS management'));
         var s = m.section(form.NamedSection, 'main', 'main');
         s.anonymous = true;
+        /* Reading first, writing second: sending a message is the action people
+         * come here for often enough that it should not be the fourth tab. */
         s.tab('inbox', _('Inbox'));
+        s.tab('compose', _('Send message'));
         s.tab('sent', _('Sent'));
         s.tab('storage', _('Modem storage'));
-        s.tab('compose', _('Send message'));
         s.tab('settings', _('Settings'));
         function embed(tab, key, node) {
             var o = s.taboption(tab, form.DummyValue, key, '');
@@ -93,41 +95,76 @@ return view.extend({
         var stored = udx.list(columns, function(r) {
             return r.index + ':' + r.pdu_sha256;
         }, true);
+        /* One wording for all three lists. Three different ways of saying "there
+         * is nothing here" reads like three different features. */
+        var EMPTY_TEXT = _('No messages in this folder.');
+        function emptyNote() {
+            return E('div', {class : 'udx-empty'}, EMPTY_TEXT);
+        }
         function reload() {
             return Promise.all([ udx.getHistory(), udx.getSMS() ]).then(update);
         }
+        /* Deleting 120 messages sends three batches. A failure in the first one
+         * must not silently skip the other two, and the user has to be told
+         * exactly which messages are still there — "deletion incomplete" on its
+         * own leaves them clicking the button again. */
         function remove(list, folder, all) {
-            var items = list.selected(all).map(function(r) {
-                return folder ? {folder : folder, id : r.id}
-                              : {index : r.index, pdu_sha256 : r.pdu_sha256};
+            var picked = list.selected(all).map(function(r) {
+                return {
+                    row : r,
+                    args : folder ? {folder : folder, id : r.id}
+                                  : {index : r.index, pdu_sha256 : r.pdu_sha256}
+                };
             });
-            if (!items.length)
+            if (!picked.length)
                 throw new Error(_('No messages selected'));
-            function batch() {
-                if (!items.length)
-                    return reload();
-                return udx.execute('sms_delete_batch', {items : items.splice(0, 50)})
-                    .then(function(r) {
-                        if (!r.complete) {
-                            var e = new Error((r.items || [])
-                                                  .filter(function(x) {
-                                                      return !x.deleted;
-                                                  })
-                                                  .map(function(x) {
-                                                      return x.error;
-                                                  })
-                                                  .join('; ') ||
-                                              _('Deletion incomplete'));
-                            throw e;
-                        }
-                        return batch();
-                    });
+            var left = [];
+            function label(entry) {
+                var r = entry.row;
+                return (r.peer || r.number || ('#' + (r.index + 1)));
             }
-            return batch();
+            function note(entry, reason) {
+                left.push(label(entry) + (reason ? ' (' + reason + ')' : ''));
+            }
+            function batch() {
+                if (!picked.length)
+                    return reload();
+                var chunk = picked.splice(0, 50);
+                return udx.execute('sms_delete_batch', {
+                    items : chunk.map(function(x) {
+                        return x.args;
+                    })
+                }).then(function(r) {
+                    var results = r.items || [];
+                    chunk.forEach(function(entry, i) {
+                        var res = results[i] || {};
+                        if (!res.deleted)
+                            note(entry, res.error);
+                    });
+                    return batch();
+                }, function(e) {
+                    /* The whole batch was rejected: every message in it is still
+                     * there, so name all of them and carry on with the next one. */
+                    chunk.forEach(function(entry) {
+                        note(entry, e && e.message);
+                    });
+                    return batch();
+                });
+            }
+            return batch().then(function(r) {
+                if (!left.length)
+                    return r;
+                var e = new Error(_('Some messages were not deleted') + ' (' + left.length + '): ' +
+                                  left.join('; '));
+                e.items = left;
+                throw e;
+            });
         }
+        var emptyNotes = {};
         [[ 'inbox', inbox, 'inbox' ], [ 'sent', sent, 'sent' ], [ 'storage', stored, null ]]
             .forEach(function(spec) {
-                embed(spec[0], '_' + spec[0], spec[1].node);
+                emptyNotes[spec[0]] = emptyNote();
+                embed(spec[0], '_' + spec[0], E('div', {}, [ emptyNotes[spec[0]], spec[1].node ]));
                 action(spec[0], '_delete_' + spec[0], _('Delete selected'), function() {
                     return remove(spec[1], spec[2], false);
                 });
@@ -201,10 +238,16 @@ return view.extend({
                 direct_receive : direct.formvalue('main') === '1'
             });
         });
+        function fill(list, note, data) {
+            list.update(data);
+            /* An empty table with only headings looks like a failed load. */
+            note.hidden = data.length > 0;
+            list.node.hidden = data.length === 0;
+        }
         function update(rows) {
-            inbox.update(rows[0].inbox || []);
-            sent.update(rows[0].sent || []);
-            stored.update(rows[1].messages || []);
+            fill(inbox, emptyNotes.inbox, rows[0].inbox || []);
+            fill(sent, emptyNotes.sent, rows[0].sent || []);
+            fill(stored, emptyNotes.storage, rows[1].messages || []);
         }
         var error = udx.watch(function() {
             return Promise.all([ udx.getHistory(), udx.getSMS() ]);

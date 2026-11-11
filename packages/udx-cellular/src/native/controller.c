@@ -429,6 +429,38 @@ char *controller_sim(struct controller *c)
 	return result;
 }
 
+/* The card changed, so every field that describes *that card* is void. Absent
+ * is not the same as empty: a missing key reads as "unknown" to every consumer
+ * and matches the pre-first-sample state, whereas qos:null would force each
+ * reader to special-case null. Without this, qos_refresh() failing on the dead
+ * card leaves the previous QCI and AMBR in the snapshot for good, because the
+ * only writer is the branch that just stopped succeeding.
+ *
+ * Deliberately kept:
+ *   - nr_capability, physical_sim: hardware capability, not subscription;
+ *   - registration, nr_registration, cfun, attached: radio-chain state that
+ *     controller_publish() derives the overall state from, and that the very
+ *     refresh which detected the change rewrites — dropping them mid-transition
+ *     would report waiting_registration during a reconnect;
+ *   - workmode, band_limits, cell_locks: user configuration still in force in
+ *     the modem after a swap (invalidate_sim() clears band_limits only because
+ *     a slot switch resets the modem's own copy);
+ *   - signal: AT+CSQ answers without a card too (99,99 -> rssi_dbm null), so it
+ *     overwrites itself within one 10 s poll instead of going stale. */
+void controller_invalidate_card(struct controller *c)
+{
+	static const char *const names[] = {
+		"qos",
+		"cells",
+		"cells_uptime",
+		"cell_query_errors",
+		"operator",
+		"default_bearer",
+	};
+	for (size_t i = 0; i < sizeof(names) / sizeof(*names); i++)
+		json_object_object_del(c->status, names[i]);
+}
+
 static int sim_refresh(struct controller *c)
 {
 	char *state = controller_sim(c);
@@ -440,6 +472,11 @@ static int sim_refresh(struct controller *c)
 		json_object_put(c->fallback_profile);
 		c->fallback_profile = NULL;
 		json_object_object_del(c->status, "automatic_apn");
+		/* Reached only on a *successful* AT+CPIN? read that reports a different
+		 * state: a failed query returns NULL above, so an ordinary AT timeout
+		 * cannot drop a good QCI/AMBR. That distinction is the whole reason the
+		 * invalidation lives here and not inside qos_refresh(). */
+		controller_invalidate_card(c);
 		string(c->status, "iccid", NULL);
 		string(c->status, "imsi", NULL);
 		json_object_object_del(c->status, "modem_info_uptime");

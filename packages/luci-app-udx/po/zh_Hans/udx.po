@@ -3,8 +3,20 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: zh_CN\n"
 
+msgid "(no answer)"
+msgstr "（无应答）"
+
+msgid "15 digits. The last digit is a check digit and is verified before writing."
+msgstr "15 位数字。最后一位是校验位，写入前会校验。"
+
+msgid "4G LTE"
+msgstr "4G LTE"
+
 msgid "4G LTE only"
 msgstr "仅 4G LTE"
+
+msgid "4G power amplifier"
+msgstr "4G 功放"
 
 msgid "5G / 4G / 3G / 2G automatic"
 msgstr "5G / 4G / 3G / 2G 自动"
@@ -12,14 +24,44 @@ msgstr "5G / 4G / 3G / 2G 自动"
 msgid "5G / 4G automatic (SA + NSA)"
 msgstr "5G / 4G 自动（SA + NSA）"
 
+msgid "5G NR"
+msgstr "5G NR"
+
 msgid "5G NSA"
 msgstr "5G NSA"
 
 msgid "5G SA only"
 msgstr "仅 5G SA"
 
+msgid "5G baseband"
+msgstr "5G 基带"
+
+msgid "5G power amplifier"
+msgstr "5G 功放"
+
+msgid "A data burn run is already in progress; stop it first."
+msgstr "流量消耗正在进行中，请先停止。"
+
+msgid "A data burn run is in progress. Stop it before measuring speed."
+msgstr "流量消耗正在进行中，请先停止再测速。"
+
+msgid "A device with one slot has nothing to choose here."
+msgstr "只有一个槽位的设备在这里无需选择。"
+
 msgid "A previous send result needs checking"
 msgstr "请查看上次发送结果"
+
+msgid "A speed test is already in progress; stop it first."
+msgstr "测速正在进行中，请先停止。"
+
+msgid "A speed test is in progress. Stop it before burning data."
+msgstr "测速正在进行中，请先停止再消耗流量。"
+
+msgid "A speed test is running, so status refresh may lag."
+msgstr "测速中，状态刷新可能延迟。"
+
+msgid "A speed test or a data burn is running. Stop it before changing the connection, otherwise the result is meaningless."
+msgstr "测速或流量消耗正在进行中，请先停止。否则测出来的结果没有意义。"
 
 msgid "ACM console"
 msgstr "ACM 控制台"
@@ -29,6 +71,21 @@ msgstr "AMBR 下行速率"
 
 msgid "AMBR uplink"
 msgstr "AMBR 上行速率"
+
+msgid "ANK core 0"
+msgstr "ANK 核心 0"
+
+msgid "ANK core 1"
+msgstr "ANK 核心 1"
+
+msgid "AP core 0"
+msgstr "AP 核心 0"
+
+msgid "AP core 1"
+msgstr "AP 核心 1"
+
+msgid "APN"
+msgstr "APN"
 
 msgid "APN mode"
 msgstr "APN 模式"
@@ -45,14 +102,32 @@ msgstr "AT 终端"
 msgid "AT terminal and IMEI"
 msgstr "AT 终端与 IMEI"
 
+msgid "Aborted, the device got too hot"
+msgstr "设备温度过高，已中止"
+
 msgid "Action"
 msgstr "操作"
 
 msgid "Active SIM"
 msgstr "当前 SIM"
 
+msgid "Advanced"
+msgstr "高级"
+
 msgid "Airplane mode"
 msgstr "飞行模式"
+
+msgid "All five steps finished."
+msgstr "五个步骤全部完成。"
+
+msgid "An IMEI is exactly 15 digits."
+msgstr "IMEI 固定为 15 位数字。"
+
+msgid "Another test is running. Stop it first."
+msgstr "另一个测试正在运行，请先停止。"
+
+msgid "Applied band limits"
+msgstr "当前频段限制"
 
 msgid "Applied bands"
 msgstr "当前频段限制"
@@ -63,20 +138,35 @@ msgstr "应用"
 msgid "Apply APN"
 msgstr "应用 APN"
 
+msgid "Apply CPU frequency settings"
+msgstr "应用 CPU 频率设置"
+
 msgid "Apply USB configuration"
 msgstr "应用 USB 组合"
 
 msgid "Apply bands"
 msgstr "应用频段"
 
+msgid "Apply changes"
+msgstr "应用变更"
+
 msgid "Apply network settings"
 msgstr "应用网络设置"
+
+msgid "Apply progress"
+msgstr "应用进度"
 
 msgid "Apply result"
 msgstr "应用结果"
 
 msgid "Apply settings"
 msgstr "应用设置"
+
+msgid "At roughly 1 yuan per GB that is about"
+msgstr "按每 GB 约 1 元估算，大约"
+
+msgid "At roughly 3 yuan per GB that is about"
+msgstr "按每 GB 约 3 元估算，约合"
 
 msgid "Authenticated ACM console"
 msgstr "ACM 认证终端"
@@ -87,26 +177,56 @@ msgstr "认证"
 msgid "Automatic"
 msgstr "自动"
 
+msgid "Automatic (best round trip)"
+msgstr "自动（选往返最快的节点）"
+
 msgid "Automatic operator selection"
 msgstr "自动选网"
 
 msgid "Available"
 msgstr "可用"
 
+msgid "Available frequencies"
+msgstr "支持的频率"
+
 msgid "Available memory"
 msgstr "可用内存"
+
+msgid "Average"
+msgstr "平均"
+
+msgid "Bad"
+msgstr "极差"
 
 msgid "Band"
 msgstr "频段"
 
+msgid "Band / bandwidth"
+msgstr "频段 / 带宽"
+
 msgid "Band locking"
 msgstr "频段锁定"
+
+msgid "Bands and cells"
+msgstr "频段与小区"
 
 msgid "Bands, cells and APN"
 msgstr "频段、小区与 APN"
 
 msgid "Bandwidth"
 msgstr "带宽"
+
+msgid "Baseband"
+msgstr "基带"
+
+msgid "Bearer changed"
+msgstr "承载等级变更"
+
+msgid "Below 70% is normal, 70-85% is filling up, above 85% needs attention. Read-only volumes are listed but not coloured."
+msgstr "低于 70% 为正常，70–85% 开始吃紧，高于 85% 需要处理。只读卷只列出，不按占用率着色。"
+
+msgid "Board"
+msgstr "主板"
 
 msgid "Board and system"
 msgstr "板级与系统"
@@ -129,6 +249,12 @@ msgstr "启动策略"
 msgid "Buffered"
 msgstr "缓冲区"
 
+msgid "Buffered streaming video, TCP"
+msgstr "缓冲流视频（TCP）"
+
+msgid "Busy"
+msgstr "占用中"
+
 msgid "CDC-ECM mode"
 msgstr "CDC-ECM 模式"
 
@@ -137,6 +263,12 @@ msgstr "CP/NV 错误"
 
 msgid "CPU clocks"
 msgstr "CPU 时钟"
+
+msgid "CPU cluster 0"
+msgstr "CPU 集群 0"
+
+msgid "CPU frequency"
+msgstr "CPU 频率"
 
 msgid "CPU governor"
 msgstr "CPU 调频策略"
@@ -150,6 +282,27 @@ msgstr "CPU 最低频率"
 msgid "CPU policy"
 msgstr "CPU 策略"
 
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Card blocked"
+msgstr "卡被锁定"
+
+msgid "Card error"
+msgstr "卡异常"
+
+msgid "Card identity and card activity. Everything else about the connection is on \"Overview\" and \"Mobile network\"."
+msgstr "SIM 卡身份与读卡记录。连接相关的其他内容在「概览」与「移动网络」。"
+
+msgid "Card state"
+msgstr "卡状态"
+
+msgid "Carrier APNs"
+msgstr "运营商 APN"
+
+msgid "Cell ID"
+msgstr "小区标识"
+
 msgid "Cell locks"
 msgstr "小区锁定"
 
@@ -158,6 +311,9 @@ msgstr "蜂窝设置"
 
 msgid "Changing USB mode restarts the device. Changing ACM reconnects USB."
 msgstr "切换 USB 模式会重启设备；切换 ACM 会重新连接 USB。"
+
+msgid "Changing the governor or the frequency range applies immediately and survives a reboot."
+msgstr "修改调频策略或频率范围会立即生效，并在重启后保留。"
 
 msgid "Check send result"
 msgstr "查看发送结果"
@@ -177,8 +333,17 @@ msgstr "中国电信"
 msgid "China Unicom"
 msgstr "中国联通"
 
+msgid "Choose a template first."
+msgstr "请先选择一个模板。"
+
 msgid "Clear folder"
 msgstr "清空"
+
+msgid "Collected while this page is open"
+msgstr "仅在页面打开期间收集"
+
+msgid "Commands on this page are sent straight to the baseband. A wrong band, frequency or IMEI value can leave the device unable to register on any network, and rewriting an IMEI is illegal in many countries. There is no undo here."
+msgstr "本页的指令直接下发到基带。频段、频点或 IMEI 填错，设备可能再也无法注册到任何网络；改写 IMEI 在多数国家属于违法行为。这里没有撤销。"
 
 msgid "Completed"
 msgstr "已完成"
@@ -192,11 +357,26 @@ msgstr "正在连接"
 msgid "Connection"
 msgstr "连接"
 
+msgid "Connection policy"
+msgstr "自动连接策略"
+
+msgid "Continue"
+msgstr "继续"
+
+msgid "Conversational video"
+msgstr "会话视频"
+
+msgid "Conversational voice (VoLTE)"
+msgstr "会话语音（VoLTE）"
+
 msgid "Core service"
 msgstr "核心服务"
 
 msgid "Current"
 msgstr "当前"
+
+msgid "Current APN"
+msgstr "当前 APN"
 
 msgid "Current frequency"
 msgstr "当前频率"
@@ -207,8 +387,35 @@ msgstr "当前网络"
 msgid "DDR clocks"
 msgstr "DDR 时钟"
 
+msgid "DDR is managed automatically by firmware. Monitoring only."
+msgstr "DDR 由固件自动调频，此处仅显示监测数据。"
+
+msgid "Data"
+msgstr "数据"
+
+msgid "Data burn"
+msgstr "流量消耗"
+
+msgid "Data burn is running"
+msgstr "流量消耗进行中"
+
+msgid "Data burn parameters"
+msgstr "流量消耗参数"
+
+msgid "Data burned"
+msgstr "已消耗流量"
+
+msgid "Data cap (GB)"
+msgstr "流量上限（GB）"
+
 msgid "Data connection"
 msgstr "数据连接"
+
+msgid "Data connection closed"
+msgstr "数据连接已断开"
+
+msgid "Data connection established"
+msgstr "数据连接已建立"
 
 msgid "Data roaming"
 msgstr "数据漫游"
@@ -216,11 +423,20 @@ msgstr "数据漫游"
 msgid "Data size"
 msgstr "数据大小"
 
+msgid "Data used"
+msgstr "已用流量"
+
+msgid "Default bearer, best effort"
+msgstr "默认承载 · 尽力而为"
+
 msgid "Delete selected"
 msgstr "删除所选"
 
 msgid "Delete template"
 msgstr "删除模板"
+
+msgid "Deleting a template only removes it from this device; the APN currently in use is not changed."
+msgstr "删除模板只是从本机移除，不会改变当前正在使用的 APN。"
 
 msgid "Deletion incomplete"
 msgstr "部分短信未删除"
@@ -231,14 +447,65 @@ msgstr "设备"
 msgid "Device MAC"
 msgstr "设备 MAC"
 
+msgid "Device temperature"
+msgstr "整机温度"
+
+msgid "Diagnostics that do not fit anywhere else. Nothing here is needed for normal use."
+msgstr "放不进其他页面的诊断工具。日常使用完全不需要这一页。"
+
 msgid "Direct reception"
 msgstr "直接接收"
 
 msgid "Disconnected"
 msgstr "未连接"
 
+msgid "Discrete automation"
+msgstr "工业离散自动化"
+
+msgid "Disk space"
+msgstr "磁盘空间"
+
+msgid "Downlink"
+msgstr "下行"
+
+msgid "Duration (seconds)"
+msgstr "时长（秒）"
+
+msgid "Effective limit for this run"
+msgstr "本轮实际上限"
+
+msgid "Elapsed"
+msgstr "已用时长"
+
 msgid "Enter a 15-digit IMEI"
 msgstr "请输入 15 位 IMEI"
+
+msgid "Enter a 5 or 6 digit MCC/MNC, for example 46000."
+msgstr "请输入 5 位或 6 位的 MCC/MNC，例如 46000。"
+
+msgid "Enter a data cap in GB greater than zero."
+msgstr "请输入大于 0 的流量上限（GB）。"
+
+msgid "Enter a duration of at least 30 seconds."
+msgstr "时长至少 30 秒。"
+
+msgid "Enter a template name before saving."
+msgstr "保存模板前请先填模板名称。"
+
+msgid "Enter an APN name before applying a manual profile."
+msgstr "手动配置至少要填一个 APN 名称。"
+
+msgid "Enter an AT command first."
+msgstr "请先输入一条 AT 指令。"
+
+msgid "Estimated cost"
+msgstr "预估费用"
+
+msgid "Everything that changes how the device connects lives here. Status and diagnostics are on \"Overview\" and \"SIM card\"."
+msgstr "所有改变设备连接方式的项目都在这一页。状态与诊断在「概览」和「SIM 卡」。"
+
+msgid "Excellent"
+msgstr "优秀"
 
 msgid "Execute AT command"
 msgstr "执行 AT 指令"
@@ -246,11 +513,29 @@ msgstr "执行 AT 指令"
 msgid "Execute quick command"
 msgstr "执行快捷指令"
 
+msgid "Extended level"
+msgstr "扩展等级"
+
+msgid "Failed"
+msgstr "失败"
+
+msgid "Fair"
+msgstr "一般"
+
+msgid "Fewer than 5 stable samples, so this result is indicative only."
+msgstr "稳定样本不足 5 个，结果仅供参考。"
+
 msgid "Filesystem"
 msgstr "文件系统"
 
 msgid "Filesystems"
 msgstr "文件系统"
+
+msgid "Finished"
+msgstr "已结束"
+
+msgid "Finished, the planned duration elapsed"
+msgstr "已跑满计划时长，正常结束"
 
 msgid "Firmware version"
 msgstr "固件版本"
@@ -261,14 +546,26 @@ msgstr "不可注册"
 msgid "Free"
 msgstr "空闲"
 
+msgid "Frequency point"
+msgstr "频点"
+
+msgid "Frequency point (ARFCN)"
+msgstr "频点 (ARFCN)"
+
 msgid "GBR downlink"
 msgstr "GBR 下行速率"
 
 msgid "GBR uplink"
 msgstr "GBR 上行速率"
 
+msgid "Good"
+msgstr "良好"
+
 msgid "Governor"
 msgstr "调频策略"
+
+msgid "Hardware"
+msgstr "硬件"
 
 msgid "Hardware acceleration"
 msgstr "硬件加速"
@@ -276,11 +573,17 @@ msgstr "硬件加速"
 msgid "Hardware and platform"
 msgstr "硬件与平台"
 
+msgid "Home network"
+msgstr "归属网络"
+
 msgid "Host MAC"
 msgstr "主机 MAC"
 
 msgid "Hostname"
 msgstr "主机名"
+
+msgid "How long to wait for the modem before giving up."
+msgstr "等待基带应答的最长时间。"
 
 msgid "IMEI"
 msgstr "IMEI"
@@ -291,8 +594,32 @@ msgstr "IMEI 校验位错误"
 msgid "IMEI index"
 msgstr "IMEI 编号"
 
+msgid "IMS signalling"
+msgstr "IMS 信令"
+
+msgid "IPv4 address changed"
+msgstr "IPv4 地址变更"
+
+msgid "IPv4 latency"
+msgstr "IPv4 延时"
+
+msgid "IPv6 latency"
+msgstr "IPv6 延时"
+
+msgid "Identification result"
+msgstr "识别结果"
+
 msgid "Identity"
 msgstr "编号"
+
+msgid "Identity slot"
+msgstr "身份槽位"
+
+msgid "Idle latency"
+msgstr "空闲延时"
+
+msgid "In use"
+msgstr "当前生效"
 
 msgid "Inbox"
 msgstr "收件箱"
@@ -300,14 +627,44 @@ msgstr "收件箱"
 msgid "Inbox limit"
 msgstr "收件箱上限"
 
+msgid "Insert a SIM card into the slot printed on the label, then wait about ten seconds. If a card is already inserted, take it out and put it back in."
+msgstr "按标签上的方向把 SIM 卡插入卡槽，等待约 10 秒。如果已经插了卡，请取出后重新插好。"
+
+msgid "Inserting or swapping a card does not always make the modem re-read it. Re-identifying would close the radio, re-read the card and open the radio again, which drops the network for about ten seconds."
+msgstr "插卡或换卡后，基带不一定自动重读。重新识别会关闭射频、重新读卡、再打开射频，网络会中断约 10 秒。"
+
+msgid "Intelligent transport systems"
+msgstr "智能交通系统"
+
+msgid "Interrupted, the mobile network went away"
+msgstr "移动网络断开，已中断"
+
+msgid "It had already stopped by itself; refreshing to show why."
+msgstr "测试已自行结束，正在刷新以显示结束原因。"
+
+msgid "Keep the page open. Stop the run as soon as you have seen enough."
+msgstr "请保持页面打开。看够了随时停止。"
+
+msgid "Keep the page open; the result stays available after the run ends."
+msgstr "请保持页面打开；测试结束后结果仍会留在本页。"
+
 msgid "Kernel"
 msgstr "内核"
 
 msgid "LTE bands"
 msgstr "LTE 频段"
 
+msgid "Last 20, this session only"
+msgstr "最近 20 条，仅本次会话"
+
 msgid "Last error"
 msgstr "最近错误"
+
+msgid "Last identified"
+msgstr "最近识别"
+
+msgid "Latency under load"
+msgstr "负载延时"
 
 msgid "Leave empty for all bands."
 msgstr "留空表示不限制频段。"
@@ -318,8 +675,20 @@ msgstr "平均负载"
 msgid "Lock cell"
 msgstr "锁定小区"
 
+msgid "Locked"
+msgstr "已锁定"
+
+msgid "Low-latency eMBB"
+msgstr "低延时 eMBB"
+
+msgid "Low-latency eMBB, TCP"
+msgstr "低延时 eMBB（TCP）"
+
 msgid "MBR downlink"
 msgstr "MBR 下行速率"
+
+msgid "MBR peak up / down"
+msgstr "MBR 峰值 上 / 下"
 
 msgid "MBR uplink"
 msgstr "MBR 上行速率"
@@ -327,8 +696,17 @@ msgstr "MBR 上行速率"
 msgid "Manual"
 msgstr "手动"
 
+msgid "Manual registration"
+msgstr "手动注册"
+
 msgid "Maximum frequency"
 msgstr "最高频率"
+
+msgid "Measurement node"
+msgstr "测速节点"
+
+msgid "Measuring"
+msgstr "测量中"
 
 msgid "Memory"
 msgstr "内存"
@@ -342,8 +720,23 @@ msgstr "最低频率"
 msgid "Minimum frequency must not exceed maximum frequency."
 msgstr "最低频率不能高于最高频率。"
 
+msgid "Mission-critical data"
+msgstr "关键任务数据"
+
+msgid "Mission-critical push to talk"
+msgstr "关键任务一键通"
+
+msgid "Mission-critical signalling"
+msgstr "关键任务信令"
+
+msgid "Mission-critical video"
+msgstr "关键任务视频"
+
 msgid "Mobile data"
 msgstr "移动数据"
+
+msgid "Mobile network"
+msgstr "移动网络"
 
 msgid "Mode"
 msgstr "模式"
@@ -357,8 +750,14 @@ msgstr "当前版本暂不支持基带复位。"
 msgid "Modem service"
 msgstr "基带服务"
 
+msgid "Modem state unknown, refresh to confirm"
+msgstr "基带状态未知，请刷新确认"
+
 msgid "Modem storage"
 msgstr "基带存储"
+
+msgid "More threads give a more accurate figure on fast links."
+msgstr "链路很快时，线程多一点结果更准。"
 
 msgid "Mount point"
 msgstr "挂载点"
@@ -372,8 +771,20 @@ msgstr "NCM 软件模式"
 msgid "NR bands"
 msgstr "NR 频段"
 
+msgid "Name"
+msgstr "名称"
+
 msgid "Neighbor"
 msgstr "邻区"
+
+msgid "Neighbour"
+msgstr "邻区"
+
+msgid "Neighbour count"
+msgstr "邻区数量"
+
+msgid "Network"
+msgstr "网络"
 
 msgid "Network control"
 msgstr "网络控制"
@@ -384,8 +795,41 @@ msgstr "网络模式"
 msgid "New template name"
 msgstr "新模板名称"
 
+msgid "Ninety percent of samples are faster than this"
+msgstr "90% 的采样点快于该值（P90）"
+
 msgid "No"
 msgstr "否"
+
+msgid "No IPv6 address"
+msgstr "IPv6 无地址"
+
+msgid "No SIM card detected"
+msgstr "未检测到 SIM 卡"
+
+msgid "No card"
+msgstr "无卡"
+
+msgid "No card activity seen since this page was opened. Swapping the card now would show up here."
+msgstr "打开本页后还没有看到读卡动作。现在换卡会记录在这里。"
+
+msgid "No card detected"
+msgstr "未检测到 SIM 卡"
+
+msgid "No data"
+msgstr "无数据"
+
+msgid "No events yet. Network, SIM and cell changes will be listed here."
+msgstr "暂无事件。网络、SIM 与小区变化会记录在这里。"
+
+msgid "No filesystem information available."
+msgstr "未获取到文件系统信息。"
+
+msgid "No measurement node is reachable right now; the service picks one when the test starts."
+msgstr "当前没有可达的测速节点；开始测速时由服务自行选择。"
+
+msgid "No messages in this folder."
+msgstr "这个文件夹里没有短信。"
 
 msgid "No messages selected"
 msgstr "未选择短信"
@@ -393,8 +837,50 @@ msgstr "未选择短信"
 msgid "No pending message"
 msgstr "没有待确认的短信"
 
+msgid "No ping tool"
+msgstr "缺少 ping 工具"
+
+msgid "No samples yet."
+msgstr "还没有采样点。"
+
+msgid "No scan results yet. Scan for operators to see what is available here."
+msgstr "还没有扫描结果。点「扫描运营商」看看本地有哪些网络。"
+
+msgid "No test is running."
+msgstr "当前没有正在运行的测试。"
+
+msgid "No test was running."
+msgstr "当时没有正在运行的测试。"
+
+msgid "Non-conversational video"
+msgstr "非会话视频（流媒体）"
+
+msgid "Non-mission-critical push to talk"
+msgstr "非关键任务一键通"
+
 msgid "None"
 msgstr "无"
+
+msgid "Normal"
+msgstr "正常"
+
+msgid "Not available"
+msgstr "不可用"
+
+msgid "Not enabled"
+msgstr "未启用"
+
+msgid "Not measured"
+msgstr "未测"
+
+msgid "Not read yet"
+msgstr "尚未读取"
+
+msgid "Not registered"
+msgstr "未注册"
+
+msgid "Not started"
+msgstr "未开始"
 
 msgid "Number"
 msgstr "号码"
@@ -408,6 +894,9 @@ msgstr "已开启"
 msgid "Open network management"
 msgstr "打开网络管理"
 
+msgid "Open the mobile network page"
+msgstr "打开移动网络页面"
+
 msgid "Operation failed"
 msgstr "操作失败"
 
@@ -417,11 +906,32 @@ msgstr "操作等待超时，未重复提交"
 msgid "Operator"
 msgstr "运营商"
 
+msgid "Operator changed"
+msgstr "运营商变更"
+
+msgid "Operator scan"
+msgstr "运营商扫描"
+
 msgid "Operators"
 msgstr "运营商"
 
+msgid "Overheating"
+msgstr "过热"
+
+msgid "Overview"
+msgstr "概览"
+
 msgid "Overview and network control"
 msgstr "总览与网络控制"
+
+msgid "Overwrite this IMEI?"
+msgstr "要覆盖这个 IMEI 吗？"
+
+msgid "PCI"
+msgstr "PCI"
+
+msgid "PCI / ARFCN"
+msgstr "PCI / 频点"
 
 msgid "PDP type"
 msgstr "PDP 类型"
@@ -432,14 +942,56 @@ msgstr "页缓存"
 msgid "Password"
 msgstr "密码"
 
+msgid "Peak"
+msgstr "峰值"
+
+msgid "Physical cell ID (PCI)"
+msgstr "物理小区标识 (PCI)"
+
 msgid "Platform services"
 msgstr "平台服务"
+
+msgid "Poor"
+msgstr "较差"
 
 msgid "Quick command"
 msgstr "快捷指令"
 
+msgid "RNDIS hardware acceleration"
+msgstr "RNDIS 硬件加速"
+
+msgid "RNDIS software mode"
+msgstr "RNDIS 软件模式"
+
+msgid "RSRP"
+msgstr "RSRP"
+
 msgid "Radio"
 msgstr "射频"
+
+msgid "Radio disabled"
+msgstr "射频已关闭"
+
+msgid "Radio enabled"
+msgstr "射频已开启"
+
+msgid "Radio is off, waiting for it to be enabled"
+msgstr "射频已关闭，等待开启"
+
+msgid "Radio state"
+msgstr "射频开关"
+
+msgid "Rate and class"
+msgstr "速率与等级"
+
+msgid "Re-identification needs a modem re-attach entry point that this firmware build does not provide yet; the button will be enabled once that exists."
+msgstr "重新识别需要基带重新附着入口，当前固件版本尚未提供；该入口就绪后按钮会自动启用。"
+
+msgid "Re-identify"
+msgstr "重新识别"
+
+msgid "Re-identify now"
+msgstr "立即重新识别"
 
 msgid "Read"
 msgstr "已读"
@@ -453,17 +1005,74 @@ msgstr "读取 SIM 运营商 APN"
 msgid "Read band and cell locks"
 msgstr "读取频段与小区锁定"
 
+msgid "Read before writing; the readback is the safety net"
+msgstr "先读后写，读回值是唯一的保险"
+
+msgid "Read from the card"
+msgstr "读取自 SIM 卡"
+
+msgid "Read from the device"
+msgstr "从设备读取"
+
 msgid "Read messages"
 msgstr "读取短信"
 
 msgid "Read only"
 msgstr "只读"
 
+msgid "Read the APNs stored on the SIM to see the carrier defaults."
+msgstr "读取卡内保存的 APN，查看运营商默认配置。"
+
+msgid "Read the current IMEI first."
+msgstr "请先读取当前 IMEI。"
+
+msgid "Read the current IMEI first; writing without a readback risks putting a wrong value on the card slot."
+msgstr "请先读取当前 IMEI；没有读回值就写入，可能把错误的号码写进卡槽。"
+
+msgid "Read-only dashboard. Change settings in \"Mobile network\"; diagnose SIM problems in \"SIM card\"."
+msgstr "只读看板。改配置请去「移动网络」，SIM 异常请去「SIM 卡」。"
+
 msgid "Readback"
 msgstr "回读结果"
 
+msgid "Reading"
+msgstr "正在读取"
+
+msgid "Reading the card"
+msgstr "读卡中"
+
+msgid "Reading…"
+msgstr "读取中…"
+
+msgid "Ready"
+msgstr "已就绪"
+
+msgid "Real-time gaming"
+msgstr "实时游戏"
+
+msgid "Recent card activity"
+msgstr "最近读卡记录"
+
+msgid "Recent events"
+msgstr "最近事件"
+
 msgid "Recipient number"
 msgstr "收件号码"
+
+msgid "Reconnect automatically"
+msgstr "自动连接"
+
+msgid "Reconnect data"
+msgstr "重连数据"
+
+msgid "Redial after boot or a dropped connection."
+msgstr "开机或掉线后自动重新拨号。"
+
+msgid "Reference signal power (RSRP)"
+msgstr "参考信号功率 (RSRP)"
+
+msgid "Reference signal quality (RSRQ)"
+msgstr "参考信号质量 (RSRQ)"
 
 msgid "Refresh"
 msgstr "刷新"
@@ -471,14 +1080,29 @@ msgstr "刷新"
 msgid "Refresh cells"
 msgstr "刷新小区"
 
+msgid "Refresh neighbours"
+msgstr "刷新邻区"
+
 msgid "Refresh network information"
 msgstr "刷新网络信息"
+
+msgid "Refresh serving cell"
+msgstr "刷新主小区"
 
 msgid "Register"
 msgstr "注册"
 
 msgid "Register manually"
 msgstr "手动注册"
+
+msgid "Registered"
+msgstr "已注册"
+
+msgid "Registration"
+msgstr "注册状态"
+
+msgid "Remaining"
+msgstr "剩余"
 
 msgid "Reserved eraseblocks"
 msgstr "预留擦除块"
@@ -489,11 +1113,8 @@ msgstr "返回结果"
 msgid "Restart modem"
 msgstr "重启基带"
 
-msgid "RNDIS hardware acceleration"
-msgstr "RNDIS 硬件加速"
-
-msgid "RNDIS software mode"
-msgstr "RNDIS 软件模式"
+msgid "Roaming"
+msgstr "漫游"
 
 msgid "Root filesystem"
 msgstr "根文件系统"
@@ -501,17 +1122,44 @@ msgstr "根文件系统"
 msgid "Root marker"
 msgstr "根分区标识"
 
+msgid "Running"
+msgstr "进行中"
+
 msgid "Running system"
 msgstr "当前系统"
 
+msgid "Runs for a fixed time; the service decides the data cap"
+msgstr "按固定时长运行，流量上限由服务控制"
+
 msgid "Runtime error"
 msgstr "平台运行错误"
+
+msgid "SIM"
+msgstr "SIM"
+
+msgid "SIM card"
+msgstr "SIM 卡"
+
+msgid "SIM card state"
+msgstr "SIM 卡状态"
+
+msgid "SIM card unavailable, waiting for a card"
+msgstr "SIM 卡不可用，等待插卡"
+
+msgid "SIM problem? Go to diagnostics"
+msgstr "SIM 有问题？去诊断"
 
 msgid "SIM slot"
 msgstr "SIM 卡槽"
 
 msgid "SIM status"
 msgstr "SIM 状态"
+
+msgid "SINR"
+msgstr "SINR"
+
+msgid "SMS"
+msgstr "短信"
 
 msgid "SMS management"
 msgstr "短信管理"
@@ -525,8 +1173,14 @@ msgstr "保存为模板"
 msgid "Saved template"
 msgstr "已保存模板"
 
+msgid "Scan finished."
+msgstr "扫描完成。"
+
 msgid "Scan operators"
 msgstr "扫描运营商"
+
+msgid "Searching"
+msgstr "搜索中"
 
 msgid "Searching for network"
 msgstr "正在搜网"
@@ -543,8 +1197,14 @@ msgstr "选择短信"
 msgid "Send"
 msgstr "发送"
 
+msgid "Send command"
+msgstr "发送指令"
+
 msgid "Send message"
 msgstr "发送短信"
+
+msgid "Send quick command"
+msgstr "发送快捷指令"
 
 msgid "Send result unavailable"
 msgstr "未获得发送结果"
@@ -553,6 +1213,9 @@ msgid "Sending"
 msgstr "正在发送"
 
 msgid "Sensor"
+msgstr "传感器"
+
+msgid "Sensors"
 msgstr "传感器"
 
 msgid "Sensors and clocks"
@@ -564,6 +1227,9 @@ msgstr "已发送"
 msgid "Sent limit"
 msgstr "已发送保留数量"
 
+msgid "Sent verbatim, one command per click"
+msgstr "原样下发，一次一条"
+
 msgid "Serial number"
 msgstr "序列号"
 
@@ -573,14 +1239,41 @@ msgstr "主小区"
 msgid "Serving and neighboring cells"
 msgstr "主小区与邻区"
 
+msgid "Serving and neighbouring cells"
+msgstr "主小区与邻区"
+
+msgid "Serving cell changed"
+msgstr "小区切换"
+
+msgid "Session-AMBR granted by the network. It usually equals the plan rate and shows the throttled value once throttling applies."
+msgstr "网络授予的 Session-AMBR。通常等于套餐签约速率，被限速时显示的是限速后的值。"
+
 msgid "Set the same minimum and maximum for a fixed CPU frequency."
 msgstr "将最低与最高频率设为同一值，可固定 CPU 频率。"
 
 msgid "Settings"
 msgstr "设置"
 
+msgid "Settings and installed packages"
+msgstr "配置与已安装软件"
+
 msgid "Settings are saved and restored at startup."
 msgstr "设置会保存，并在开机时恢复。"
+
+msgid "Signal"
+msgstr "信号"
+
+msgid "Signal to interference noise ratio (SINR)"
+msgstr "信干噪比 (SINR)"
+
+msgid "Slot"
+msgstr "槽位"
+
+msgid "Slot 1 is the identity the modem presents by default."
+msgstr "槽位 1 是基带默认对外呈现的身份。"
+
+msgid "SoC"
+msgstr "芯片整体 (SoC)"
 
 msgid "Some messages were not deleted"
 msgstr "部分短信未删除"
@@ -588,14 +1281,59 @@ msgstr "部分短信未删除"
 msgid "Speed"
 msgstr "速率"
 
+msgid "Speed test"
+msgstr "测速"
+
+msgid "Speed test is running"
+msgstr "测速进行中"
+
+msgid "Speed test parameters"
+msgstr "测速参数"
+
+msgid "Speed test result"
+msgstr "测速结果"
+
+msgid "Start and use data"
+msgstr "开始并消耗流量"
+
 msgid "Start another message"
 msgstr "开始新消息"
+
+msgid "Start data burn"
+msgstr "开始消耗"
+
+msgid "Start speed test"
+msgstr "开始测速"
+
+msgid "Start the data burn test?"
+msgstr "要开始流量消耗吗？"
+
+msgid "State"
+msgstr "状态"
+
+msgid "State changed"
+msgstr "状态已变化"
 
 msgid "Status"
 msgstr "状态"
 
 msgid "Status uncertain"
 msgstr "状态待确认"
+
+msgid "Stop data burn"
+msgstr "停止消耗"
+
+msgid "Stop speed test"
+msgstr "停止测速"
+
+msgid "Stopped by you"
+msgstr "你已手动停止"
+
+msgid "Stopped, the data cap for this run was reached"
+msgstr "已达本轮流量上限，自动停止"
+
+msgid "Stopped."
+msgstr "已停止。"
 
 msgid "Submitted to modem"
 msgstr "已提交到基带"
@@ -606,8 +1344,20 @@ msgstr "交换空间空闲"
 msgid "Swap total"
 msgstr "交换空间总量"
 
+msgid "Switched to slot"
+msgstr "已切换到卡槽"
+
+msgid "Switching slots disconnects the network for about ten seconds."
+msgstr "切换卡槽会让网络断开约 10 秒。"
+
 msgid "System"
 msgstr "系统"
+
+msgid "System partition"
+msgstr "系统分区"
+
+msgid "System partition, read-only image"
+msgstr "系统分区（只读镜像）"
 
 msgid "Target"
 msgstr "目标平台"
@@ -621,26 +1371,143 @@ msgstr "温度"
 msgid "Temperatures"
 msgstr "温度"
 
+msgid "Templates"
+msgstr "模板"
+
+msgid "Temporary files"
+msgstr "临时文件"
+
+msgid "The IMEI check digit is wrong; copy it again from the label."
+msgstr "IMEI 校验位不对，请照着标签再抄一次。"
+
+msgid "The SIM card is not readable. Check that the card is seated the right way round and in the right slot; if it is, the card itself may have failed."
+msgstr "SIM 卡无法读取。请确认卡的方向与卡槽是否正确；如果都没问题，可能是卡本身已损坏。"
+
+msgid "The card is being read. Identity fields stay blank until the modem answers."
+msgstr "正在读卡。基带返回结果前，身份字段留空。"
+
+msgid "The card is present but the modem cannot read its identity. Power the device off and reseat the card; if the problem persists the card itself may have failed."
+msgstr "卡在卡槽里，但基带读不到它的身份信息。请断电后重新插卡；如果仍然不行，可能是卡本身已损坏。"
+
+msgid "The data may be out of date; last updated"
+msgstr "数据可能已过期，上次更新"
+
+msgid "The data may be out of date; refresh to update it."
+msgstr "数据可能已过期，请刷新以获取最新状态。"
+
+msgid "The list covers the commands needed for diagnosis; type anything else above."
+msgstr "列表里是诊断常用指令，其他指令请在上方手动输入。"
+
+msgid "The modem is reading the card. This normally takes a few seconds; the details appear here as soon as it finishes."
+msgstr "基带正在读卡，通常几秒钟；读完后详情会立刻出现在这里。"
+
+msgid "The modem returned no identity slots, so there is nothing to select."
+msgstr "基带没有返回任何身份槽位，无可选项。"
+
 msgid "The modem supplies the IP configuration. Manage the APN and radio settings in UDX710; netifd manages this network interface."
 msgstr "IP 配置由基带提供。请在 UDX710 页面管理 APN 和射频设置；网络接口由 netifd 管理。"
+
+msgid "The node list could not be read."
+msgstr "读取节点列表失败。"
+
+msgid "The request finished but some changes were not applied."
+msgstr "请求已结束，但部分变更没有生效。"
+
+msgid "The result is unknown: the command was sent but no confirmation came back, so it may already have taken effect. The system will not retry automatically; refresh first and check the current state."
+msgstr "结果未知：指令已下发但没有收到回执，可能已经生效。系统不会自动重试，请先刷新看当前状态。"
+
+msgid "The run stops at 20 seconds or 300 MB, whichever comes first. Above 120 Mbps the data cap ends it first, so a shorter run with fewer samples — and a rougher P90 — is normal there, not a fault."
+msgstr "本轮跑满 20 秒或 300 MB 即停，以先到者为准。速率高于 120 Mbps 时会先撞上流量上限，因此样本更少、P90 更粗，属正常现象，不是故障。"
+
+msgid "The selected SIM slot cannot be switched on this device; choose another slot."
+msgstr "所选卡槽不支持切换，请换一个槽位。"
+
+msgid "The test could not be stopped."
+msgstr "测试无法停止。"
+
+msgid "The test could not start."
+msgstr "测试无法启动。"
+
+msgid "The test ended for an unknown reason"
+msgstr "测试因未知原因结束"
+
+msgid "The test failed"
+msgstr "测试失败"
+
+msgid "The timeout must be between 1 and 120 seconds."
+msgstr "超时时间必须在 1 到 120 秒之间。"
+
+msgid "These five settings are sent to the modem as five separate commands, in the order shown below. Do not click twice; switching SIM slots drops the network for about ten seconds."
+msgstr "以下 5 项会按顺序下发 5 条指令，期间不要重复点击。切卡槽会让网络断开约 10 秒。"
+
+msgid "This SIM slot cannot be switched; it is fixed by the hardware."
+msgstr "该卡槽不支持切换，由硬件固定。"
+
+msgid "This firmware build does not support this operation on the current hardware."
+msgstr "当前固件版本不支持在此硬件上执行该操作。"
+
+msgid "This firmware build has no modem re-attach entry point yet, so re-identification cannot be triggered from the web interface. Remove and reinsert the card, or reboot the device."
+msgstr "当前固件还没有提供基带重新附着的入口，无法从网页触发重新识别。请取出卡再插回，或重启设备。"
+
+msgid "This firmware has no ping tool installed, so latency cannot be measured."
+msgstr "本固件未安装 ping 工具，无法测量延时。"
+
+msgid "This is an estimate, not the rate you are actually billed."
+msgstr "这只是估算，不是你的实际资费。"
+
+msgid "This is not a speed test: it keeps using data on purpose"
+msgstr "这不是测速：它的目的就是把流量用掉"
+
+msgid "This page has moved to \"Mobile network\"."
+msgstr "该页面已迁移到「移动网络」。"
+
+msgid "This uses mobile data on purpose: up to"
+msgstr "这是故意消耗移动数据：最多"
+
+msgid "Threads"
+msgstr "并发线程"
 
 msgid "Time"
 msgstr "时间"
 
+msgid "Timed out"
+msgstr "超时"
+
 msgid "Timeout"
 msgstr "超时秒数"
+
+msgid "Timeout (seconds)"
+msgstr "超时时间（秒）"
+
+msgid "Top of the chart"
+msgstr "纵轴上限"
 
 msgid "Total"
 msgstr "总量"
 
+msgid "Total consumed since the run started"
+msgstr "本次已累计消耗"
+
+msgid "Tracking area code (TAC)"
+msgstr "跟踪区码 (TAC)"
+
+msgid "Turning this on shuts the radio down; every network service stops."
+msgstr "打开后射频关闭，所有网络业务停止。"
+
 msgid "Type"
 msgstr "类型"
+
+msgid "Type the command without a trailing carriage return."
+msgstr "直接输入指令，结尾不需要回车。"
 
 msgid "UBI volumes"
 msgstr "UBI 卷"
 
 msgid "UDX710 cellular"
 msgstr "UDX710 蜂窝网络"
+
+msgid "USB"
+msgstr "USB"
 
 msgid "USB configuration"
 msgstr "USB 网络组合"
@@ -681,6 +1548,9 @@ msgstr "未读"
 msgid "Unrestricted"
 msgstr "不限制"
 
+msgid "Uplink"
+msgstr "上行"
+
 msgid "Uptime"
 msgstr "运行时间"
 
@@ -693,8 +1563,17 @@ msgstr "网关跃点"
 msgid "Use template"
 msgstr "使用模板"
 
+msgid "Used / cap"
+msgstr "已用 / 上限"
+
 msgid "Username"
 msgstr "用户名"
+
+msgid "V2X messages"
+msgstr "车联网消息（V2X）"
+
+msgid "Voice, video and interactive gaming"
+msgstr "语音、视频与互动游戏"
 
 msgid "Volume"
 msgstr "卷名"
@@ -711,87 +1590,75 @@ msgstr "等待数据网络附着"
 msgid "Waiting for radio"
 msgstr "等待射频开启"
 
+msgid "Waiting for the card"
+msgstr "等待读卡"
+
+msgid "Warm"
+msgstr "偏热"
+
+msgid "What happened"
+msgstr "发生了什么"
+
+msgid "When off, the data connection is torn down but the radio stays on."
+msgstr "关闭后断开数据连接，但射频保持开启。"
+
 msgid "Write IMEI"
 msgstr "写入 IMEI"
+
+msgid "Write it"
+msgstr "确认写入"
+
+msgid "Writing an IMEI is permanent for this identity slot. If the value is wrong the modem may refuse to register on any network, and there is no undo from this page. Write"
+msgstr "写入 IMEI 对该身份槽位是永久的。号码写错，基带可能再也无法注册到任何网络，本页也无法撤销。即将把"
+
+msgid "Written"
+msgstr "已写入"
+
+msgid "Written. Read it back to confirm."
+msgstr "已写入。请再读一次确认。"
 
 msgid "Yes"
 msgstr "是"
 
+msgid "You asked for %s, but the service applied %s."
+msgstr "你填写的是 %s，服务实际按 %s 执行。"
 
-msgid "Available frequencies"
-msgstr "支持的频率"
+msgid "failed at step"
+msgstr "失败于步骤"
 
-msgid "DDR is managed automatically by firmware. Monitoring only."
-msgstr "DDR 由固件自动调频，此处仅显示监测数据。"
+msgid "for up to"
+msgstr "最长"
 
-msgid "Apply CPU frequency settings"
-msgstr "应用 CPU 频率设置"
+msgid "hours ago"
+msgstr "小时前"
 
-msgid "Frequency point (ARFCN)"
-msgstr "频点 (ARFCN)"
+msgid "last sample: %s"
+msgstr "最近采样：%s"
 
-msgid "Physical cell ID (PCI)"
-msgstr "物理小区标识 (PCI)"
+msgid "minutes ago"
+msgstr "分钟前"
 
-msgid "Reference signal power (RSRP)"
-msgstr "参考信号功率 (RSRP)"
+msgid "no cap"
+msgstr "无上限"
 
-msgid "Reference signal quality (RSRQ)"
-msgstr "参考信号质量 (RSRQ)"
+msgid "samples"
+msgstr "个采样点"
 
-msgid "Signal to interference noise ratio (SINR)"
-msgstr "信干噪比 (SINR)"
+msgid "seconds"
+msgstr "秒"
 
-msgid "Tracking area code (TAC)"
-msgstr "跟踪区码 (TAC)"
+msgid "seconds ago"
+msgstr "秒前"
 
-msgid "Cell ID"
-msgstr "小区标识"
+msgid "to IMEI"
+msgstr "写入 IMEI 槽位"
 
-msgid "Excellent"
-msgstr "优秀"
+msgid "unavailable"
+msgstr "不可用"
 
-msgid "Good"
-msgstr "良好"
+msgid "yuan"
+msgstr "元"
 
-msgid "Fair"
-msgstr "一般"
+msgid "yuan of traffic. You can stop it at any time."
+msgstr "元流量费。随时可以停止。"
 
-msgid "Poor"
-msgstr "较差"
-
-msgid "Bad"
-msgstr "极差"
-
-msgid "AP core 0"
-msgstr "AP 核心 0"
-
-msgid "AP core 1"
-msgstr "AP 核心 1"
-
-msgid "5G baseband"
-msgstr "5G 基带"
-
-msgid "ANK core 0"
-msgstr "ANK 核心 0"
-
-msgid "ANK core 1"
-msgstr "ANK 核心 1"
-
-msgid "CPU cluster 0"
-msgstr "CPU 集群 0"
-
-msgid "SoC"
-msgstr "芯片整体 (SoC)"
-
-msgid "4G power amplifier"
-msgstr "4G 功放"
-
-msgid "5G power amplifier"
-msgstr "5G 功放"
-
-msgid "Board"
-msgstr "主板"
-
-msgid "Frequency point"
-msgstr "频点"
