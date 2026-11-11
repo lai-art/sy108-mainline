@@ -71,6 +71,16 @@ def main():
     subprocess.run([sys.executable, str(PROJECT / 'tools/build/kernel-source.py')], check=True)
     run(['sh', '-c', 'test -e dl || ln -s /downloads dl; ./scripts/feeds update -a'])
     run(['./scripts/feeds', 'install', '-a'])
+    # The CI cache restores tmp/.packageinfo from the previous build. `make
+    # defconfig` reads it without regenerating, so a package newly added under
+    # packages/ is invisible to Kconfig: its CONFIG_PACKAGE_<name>=y line is
+    # silently dropped and the package never reaches the image — even though
+    # `feeds install` above just indexed it. Drop the stale index so the next
+    # defconfig rescans package/feeds and picks the new package up.
+    for stale in ('tmp/.packageinfo', 'tmp/.packagedeps'):
+        p = OPENWRT / stale
+        if p.exists():
+            p.unlink()
     expected = {
         'upstream_commit': lock['upstream_commit'],
         'integration_sha256': digest.hexdigest(),
