@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SY108 前端 B 方案 · 可点击样板</title>
+<style>
+:root{
+  --bg:#eef0f3; --shell:#fff; --side:#fafbfc; --line:#e3e6ea; --line2:#ccd2d9;
+  --tx:#1f2328; --tx2:#5b6472; --tx3:#8a929e;
+  --teal:#0f6e56; --teal-bg:#e8f5f0; --teal-line:#9fd4c4;
+  --amber:#8a5308; --amber-bg:#fdf4e3; --amber-line:#e9c78f;
+  --red:#a32d2d; --red-bg:#fcedec; --red-line:#efb7b5;
+  --blue:#185fa5; --blue-bg:#e9f1fb;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--tx);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+code{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;background:#f0f2f4;padding:1px 5px;border-radius:4px}
+
+.demo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 20px;
+  background:#1f2328;color:#c9ced6;font-size:12.5px}
+.demo b{color:#fff;font-weight:600}
+.demo .seg{display:flex;gap:0;border:1px solid #3a414b;border-radius:7px;overflow:hidden}
+.demo .seg button{appearance:none;border:0;background:transparent;color:#c9ced6;padding:5px 12px;
+  font:inherit;font-size:12.5px;cursor:pointer;border-right:1px solid #3a414b}
+.demo .seg button:last-child{border-right:0}
+.demo .seg button.on{background:#3a414b;color:#fff}
+.demo .hint{margin-left:auto;color:#7d858f}
+
+.shell{display:grid;grid-template-columns:216px 1fr;max-width:1180px;margin:22px auto 60px;
+  background:var(--shell);border:1px solid var(--line2);border-radius:12px;overflow:hidden;
+  box-shadow:0 1px 3px rgba(20,28,40,.06);min-height:720px}
+.sidebar{background:var(--side);border-right:1px solid var(--line);padding:18px 0 12px;display:flex;flex-direction:column}
+.brand{padding:0 18px 16px;font-size:13px;font-weight:600;letter-spacing:.4px;color:var(--tx)}
+.brand span{display:block;font-size:11px;font-weight:400;color:var(--tx3);letter-spacing:0;margin-top:2px}
+.nav a{display:block;padding:8px 18px;color:var(--tx2);text-decoration:none;font-size:13.5px;
+  border-left:2px solid transparent;cursor:pointer}
+.nav a small{display:block;font-size:11px;color:var(--tx3);line-height:1.4}
+.nav a:hover{background:#f2f4f6;color:var(--tx)}
+.nav a.on{color:var(--teal);border-left-color:var(--teal);background:var(--teal-bg);font-weight:600}
+.nav a.on small{color:#3f8a76}
+.side-foot{margin-top:auto;padding:14px 18px 0;font-size:11px;color:var(--tx3);border-top:1px solid var(--line)}
+
+main{padding:20px 26px 34px;min-width:0}
+.crumb{font-size:12px;color:var(--tx3);margin-bottom:2px}
+.h1{margin:0 0 4px;font-size:20px;font-weight:600}
+.lede{margin:0 0 18px;color:var(--tx2);font-size:13px}
+
+.banner{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border-radius:9px;
+  font-size:13px;margin-bottom:16px;border:1px solid}
+.banner .ic{flex:0 0 auto;font-weight:700;font-size:12px;border-radius:50%;width:18px;height:18px;
+  display:flex;align-items:center;justify-content:center;color:#fff;margin-top:1px}
+.b-warn{background:var(--amber-bg);border-color:var(--amber-line);color:var(--amber)}
+.b-warn .ic{background:var(--amber)}
+.b-ok{background:var(--teal-bg);border-color:var(--teal-line);color:var(--teal)}
+.b-ok .ic{background:var(--teal)}
+.b-bad{background:var(--red-bg);border-color:var(--red-line);color:var(--red)}
+.b-bad .ic{background:var(--red)}
+
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+@media (max-width:980px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi.wide{grid-column:1/-1}
+.sp{display:flex;gap:12px;align-items:flex-end;margin-bottom:3px}
+.sp>div{flex:1;min-width:0}
+.sp .lb{font-size:10.5px;color:var(--tx3);margin-bottom:1px;letter-spacing:.3px}
+.sp .kv-main{font-size:19px}
+.sp .kv-main em{font-size:11.5px;margin-left:3px}
+.qci-line{font-size:11.5px;color:var(--tx2);margin:3px 0 7px;padding-bottom:7px;
+  border-bottom:1px solid #f4f6f8;line-height:1.3}
+.qci-line b{color:var(--tx);font-weight:600}
+.src-note{font-size:10px;color:var(--tx3);margin-top:7px;line-height:1.35;letter-spacing:.1px}
+.spd{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;padding:15px 16px 4px}
+.spd .lb{font-size:10.5px;color:var(--tx3);letter-spacing:.35px;margin-bottom:2px}
+.spd-main{font-size:33px;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums;
+  transition:color .3s}
+.spd-main em{font-style:normal;font-size:13px;font-weight:400;color:var(--tx2);margin-left:5px}
+.spd-side{flex:0 0 42%;padding-bottom:3px}
+.chart{padding:6px 16px 0}
+.chart svg{width:100%;height:84px;display:block}
+.chart .grid{stroke:#eef0f3;stroke-width:1}
+.chart .ln{fill:none;stroke:#0f6e56;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .ln.hot{stroke:#b91c1c}
+.kv-row{display:flex;gap:12px;padding:2px 16px 0}
+.kv-row .kv{flex:1}
+.prog{height:4px;background:#eceef1;margin:8px 16px 0;border-radius:2px;overflow:hidden}
+.prog i{display:block;height:100%;background:#0f6e56;border-radius:2px;
+  transition:width .3s ease,background .3s}
+.disk{display:flex;align-items:center;gap:12px;padding:5px 0}
+.disk + .disk{border-top:1px solid #f4f6f8;margin-top:4px;padding-top:9px}
+.disk .nm{flex:0 0 112px;font-size:12.5px;color:var(--tx2)}
+.disk .nm b{display:block;color:var(--tx);font-weight:600;font-size:12.5px}
+.disk .nm span{font-size:11px;color:var(--tx3)}
+.disk .bd{flex:1;min-width:0}
+.disk .bd .bar{margin:0}
+.disk .vl{flex:0 0 132px;text-align:right;font-size:12px;color:var(--tx2);font-variant-numeric:tabular-nums}
+.disk .vl b{color:var(--tx);font-weight:600}
+.kpi{border:1px solid var(--line);border-radius:11px;padding:14px 16px;background:#fff}
+.kpi .kh{font-size:11.5px;font-weight:600;color:var(--tx3);letter-spacing:.4px;margin-bottom:9px;
+  display:flex;justify-content:space-between;align-items:center}
+.kpi .kv-main{font-size:23px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi .kv-main em{font-style:normal;font-size:14px;font-weight:400;color:var(--tx2);margin-left:6px}
+.bar{height:4px;border-radius:2px;background:#eceef1;margin:12px 0 10px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:2px;transition:width .35s ease}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;color:var(--tx2);padding:3px 0}
+.kv b{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.g{color:#0f6e56}.a{color:#b45309}.r{color:#b91c1c}
+
+.panel{border:1px solid var(--line);border-radius:11px;margin-bottom:16px;overflow:hidden;background:#fff}
+.panel-h{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:11px 16px;background:#f8f9fa;border-bottom:1px solid var(--line);
+  font-size:12.5px;font-weight:600;color:var(--tx2)}
+.panel-b{padding:0}
+.row{display:flex;align-items:center;gap:14px;padding:11px 16px;border-bottom:1px solid #f0f2f4}
+.row:last-child{border-bottom:0}
+.row .lab{flex:0 0 132px;font-size:13px;color:var(--tx2)}
+.row .ctl{flex:1;min-width:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row .hint{font-size:11.5px;color:var(--tx3)}
+
+select,input[type=text],textarea{font:inherit;font-size:13px;color:var(--tx);background:#fff;
+  border:1px solid var(--line2);border-radius:7px;padding:6px 10px;min-width:0}
+select:focus,input:focus,textarea:focus{outline:2px solid var(--teal-line);outline-offset:-1px;border-color:var(--teal)}
+textarea{width:100%;min-height:74px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+
+.sw{width:44px;height:24px;border-radius:12px;background:#cfd5dc;position:relative;cursor:pointer;
+  transition:background .18s;flex:0 0 auto}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;
+  background:#fff;transition:left .18s;box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.sw.on{background:var(--teal)}
+.sw.on::after{left:23px}
+
+.btn{appearance:none;font:inherit;font-size:13px;padding:7px 15px;border-radius:7px;cursor:pointer;
+  border:1px solid var(--line2);background:#fff;color:var(--tx);transition:background .15s,border-color .15s}
+.btn:hover{background:#f4f6f8;border-color:#b9c0c8}
+.btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+.btn.pri:hover{background:#0c5c48}
+.btn.ghost{border-color:transparent;color:var(--teal);padding-left:6px;padding-right:6px}
+.btn.ghost:hover{background:var(--teal-bg)}
+.btn.danger{color:var(--red);border-color:var(--red-line)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btnrow{display:flex;gap:9px;flex-wrap:wrap;padding:13px 16px;background:#fafbfc;border-top:1px solid var(--line)}
+.btnrow .right{margin-left:auto;display:flex;gap:9px}
+
+.steps{display:flex;gap:7px;flex-wrap:wrap;padding:0 16px 14px;background:#fafbfc}
+.step{font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line2);
+  color:var(--tx2);background:#fff;transition:all .2s}
+.step.done{border-color:var(--teal-line);background:var(--teal-bg);color:var(--teal)}
+.step.cur{border-color:var(--amber-line);background:var(--amber-bg);color:var(--amber);font-weight:600}
+.step.fail{border-color:var(--red-line);background:var(--red-bg);color:var(--red);font-weight:600}
+
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 18px}
+.tabs button{appearance:none;border:1px solid transparent;border-bottom:0;background:transparent;
+  font:inherit;font-size:13px;padding:9px 15px;color:var(--tx2);cursor:pointer;
+  border-radius:8px 8px 0 0;margin-bottom:-1px}
+.tabs button:hover{color:var(--tx);background:#f6f7f9}
+.tabs button.on{background:#fff;border-color:var(--line);color:var(--teal);font-weight:600}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:600;color:var(--tx3);font-size:11.5px;letter-spacing:.3px;
+  padding:8px 16px;border-bottom:1px solid var(--line);background:#fbfcfd;white-space:nowrap}
+td{padding:8px 16px;border-bottom:1px solid #f2f4f6;vertical-align:top}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#fbfcfd}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+td.mut{color:var(--tx2)}
+tr.unread td:nth-child(3){font-weight:600}
+
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:11.5px;
+  border:1px solid var(--line2);color:var(--tx2);background:#fff;white-space:nowrap}
+.pill.teal{border-color:var(--teal-line);background:var(--teal-bg);color:var(--teal)}
+.pill.amber{border-color:var(--amber-line);background:var(--amber-bg);color:var(--amber)}
+.pill.red{border-color:var(--red-line);background:var(--red-bg);color:var(--red)}
+
+.evt{display:flex;gap:12px;padding:8px 16px;border-bottom:1px solid #f2f4f6;font-size:12.5px}
+.evt:last-child{border-bottom:0}
+.evt time{flex:0 0 52px;color:var(--tx3);font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+.toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);
+  background:#1f2328;color:#fff;font-size:13px;padding:10px 18px;border-radius:9px;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:50;max-width:80vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.bad{background:#7f1d1d}
+.page{display:none}
+.page.on{display:block}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--tx2)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.split > div:first-child{border-right:1px solid var(--line)}
+</style>
+</head>
+<body>
+
+<div class="demo">
+  <b>演示状态</b>
+  <div class="seg" id="states">
+    <button data-s="ok" class="on">一切正常</button>
+    <button data-s="nodata">数据断开</button>
+    <button data-s="nosim">SIM 拔出</button>
+    <button data-s="uncertain">结果未知</button>
+  </div>
+  <span class="hint">样板只演示交互与信息结构，数据为示例值；颜色/字体以 Outline 主题实际产出为准</span>
+</div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">SY108<span>5G 通信壳 · 管理控制台</span></div>
+    <nav class="nav" id="nav">
+      <a data-p="overview" class="on">概览</a>
+      <a data-p="network">移动网络</a>
+      <a data-p="sim">SIM 卡<small>状态 · 重新识别</small></a>
+      <a data-p="sms">短信</a>
+      <a data-p="hardware">硬件</a>
+      <a data-p="advanced">高级<small>AT · IMEI</small></a>
+    </nav>
+    <div class="side-foot">样板 · 对应 B 方案<br>基于 19049a3 代码</div>
+  </aside>
+
+  <main>
+    <!-- ================= 概览 ================= -->
+    <section class="page on" id="page-overview">
+      <div class="crumb">SY108 / 概览</div>
+      <h1 class="h1">当前状态</h1>
+      <p class="lede">只读看板。改配置请去「移动网络」，SIM 异常请去「SIM 卡」。</p>
+
+      <div id="ov-banner"></div>
+
+      <div class="cards">
+        <div class="kpi">
+          <div class="kh"><span>信号</span><span class="pill" id="ov-sig-pill">良好</span></div>
+          <div class="kv-main"><span id="ov-rsrp">-95</span><em>dBm</em></div>
+          <div class="bar"><i id="ov-sig-bar" style="width:72%;background:#0f6e56"></i></div>
+          <div class="kv"><span>RSRQ</span><b id="ov-rsrq">-11 dB</b></div>
+          <div class="kv"><span>SINR</span><b id="ov-sinr">18 dB</b></div>
+        </div>
+        <div class="kpi">
+          <div class="kh"><span>网络</span><span class="pill teal" id="ov-rat">5G SA</span></div>
+          <div class="kv-main"><span id="ov-op">中国移动</span></div>
+          <div class="kv"><span>频段 / 带宽</span><b id="ov-band">n78 · 100 MHz</b></div>
+          <div class="kv"><span>PCI / ARFCN</span><b id="ov-pci">312 · 627264</b></div>
+        </div>
+        <div class="kpi">
+          <div class="kh"><span>SIM</span><span class="pill teal" id="ov-sim-pill">READY</span></div>
+          <div class="kv-main">槽位 <span id="ov-slot">1</span></div>
+          <div class="kv"><span>ICCID</span><b class="mono">8986 0115 ···· 4821</b></div>
+          <div class="kv"><span>最近识别</span><b id="ov-sim-age">3 分钟前</b></div>
+        </div>
+        <div class="kpi">
+          <div class="kh"><span>数据</span><span class="pill teal" id="ov-data-pill">已连接</span></div>
+          <div class="kv-main"><span id="ov-uptime">00:12:34</span></div>
+          <div class="kv"><span>IPv4</span><b class="mono" id="ov-ipv4">10.42.13.7</b></div>
+          <div class="kv"><span>IPv6</span><b class="mono" id="ov-ipv6">240e:· ···:7f21</b></div>
+        </div>
+
+        <div class="kpi">
+          <div class="kh"><span>速率与等级</span><span class="pill" id="ov-qci-pill">QCI 9</span></div>
+          <div class="sp">
+            <div>
+              <div class="lb">↓ 下行</div>
+              <div class="kv-main"><span id="ov-dl">300</span><em id="ov-dl-u">Mbps</em></div>
+            </div>
+            <div>
+              <div class="lb">↑ 上行</div>
+              <div class="kv-main"><span id="ov-ul">100</span><em id="ov-ul-u">Mbps</em></div>
+            </div>
+          </div>
+          <div class="qci-line"><b id="ov-qci-desc">默认承载 · 尽力而为</b></div>
+          <div class="kv"><span>MBR 峰值 上 / 下</span><b id="ov-mbr">100 / 300 Mbps</b></div>
+          <div class="kv"><span>IPv4 延时</span><b id="ov-ping4">23 ms</b></div>
+          <div class="kv"><span>IPv6 延时</span><b id="ov-ping6">31 ms</b></div>
+          <div class="src-note">网络授予的 Session-AMBR，通常等于套餐签约速率，被限速时显示限速值</div>
+        </div>
+
+        <div class="kpi">
+          <div class="kh"><span>整机温度</span><span class="pill teal" id="ov-temp-pill">正常</span></div>
+          <div class="kv-main"><span id="ov-temp">47.3</span><em>℃</em></div>
+          <div class="bar"><i id="ov-temp-bar" style="width:47%;background:#0f6e56"></i></div>
+          <div class="kv"><span>SoC</span><b id="ov-temp-soc">46.2 ℃</b></div>
+          <div class="kv"><span>基带</span><b id="ov-temp-mdm">48.7 ℃</b></div>
+        </div>
+
+        <div class="kpi wide">
+          <div class="kh"><span>磁盘空间</span>
+            <span style="font-weight:400;color:var(--tx3);font-size:11px">低于 70% 绿 · 70–85% 黄 · 高于 85% 红</span></div>
+          <div class="disk">
+            <div class="nm"><b>overlay</b><span>/overlay</span></div>
+            <div class="bd"><div class="bar"><i style="width:5%;background:#0f6e56"></i></div></div>
+            <div class="vl"><b>1.2</b> / 24.0 MB</div>
+          </div>
+          <div class="disk">
+            <div class="nm"><b>tmpfs</b><span>/tmp</span></div>
+            <div class="bd"><div class="bar"><i style="width:72%;background:#d97706"></i></div></div>
+            <div class="vl"><b>46.1</b> / 64.0 MB</div>
+          </div>
+          <div class="disk">
+            <div class="nm"><b>rootfs</b><span>/ 只读</span></div>
+            <div class="bd"><div class="bar"><i style="width:100%;background:#c3c9d1"></i></div></div>
+            <div class="vl">18.4 MB · 只读</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span>最近事件</span><span style="font-weight:400;color:var(--tx3)">最近 20 条</span></div>
+        <div id="ov-events">
+          <div class="evt"><time>22:41</time><span>数据连接建立（PDP 3），地址 10.42.13.7</span></div>
+          <div class="evt"><time>22:38</time><span>小区切换：PCI 318 → 312</span></div>
+          <div class="evt"><time>22:30</time><span>SIM 卡重新识别完成，用时约 9 秒</span></div>
+        </div>
+        <div class="btnrow">
+          <button class="btn" onclick="toast('已刷新（示例）')">刷新</button>
+          <button class="btn" onclick="toast('已重新拨号（示例）')">重连数据</button>
+          <div class="right"><button class="btn ghost" onclick="go('sim')">SIM 有问题？去诊断 →</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 移动网络 ================= -->
+    <section class="page" id="page-network">
+      <div class="crumb">SY108 / 移动网络</div>
+      <h1 class="h1">移动网络</h1>
+      <p class="lede">连接、频段、小区、运营商、APN 都在这一页，不用再跨页找。</p>
+
+      <div class="tabs" id="net-tabs">
+        <button data-t="conn" class="on">连接</button>
+        <button data-t="radio">频段与小区</button>
+        <button data-t="ops">运营商</button>
+        <button data-t="apn">APN</button>
+        <button data-t="speed">测速</button>
+        <button data-t="burn">流量消耗</button>
+      </div>
+
+      <div class="tp" id="tp-conn">
+        <div class="panel">
+          <div class="panel-h"><span>SIM 与制式</span></div>
+          <div class="row"><div class="lab">飞机模式</div><div class="ctl"><div class="sw" id="sw-air" onclick="tog(this)"></div><span class="hint">打开后射频关闭，所有网络业务停止</span></div></div>
+          <div class="row"><div class="lab">SIM 卡槽</div><div class="ctl">
+            <select><option>SIM 1（当前）</option><option>SIM 2</option></select>
+            <span class="hint">共 3 个物理槽位，可用 2 个</span></div></div>
+          <div class="row"><div class="lab">网络模式</div><div class="ctl">
+            <select><option>5G / 4G 自动（SA + NSA）</option><option>仅 5G SA</option><option>5G NSA</option><option>仅 4G LTE</option><option>5G / 4G / 3G / 2G 自动</option></select></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span>数据</span></div>
+          <div class="row"><div class="lab">移动数据</div><div class="ctl"><div class="sw on" onclick="tog(this)"></div></div></div>
+          <div class="row"><div class="lab">数据漫游</div><div class="ctl"><div class="sw" onclick="tog(this)"></div></div></div>
+          <div class="row"><div class="lab">自动连接</div><div class="ctl"><div class="sw on" onclick="tog(this)"></div><span class="hint">开机或掉线后自动重新拨号</span></div></div>
+        </div>
+
+        <div class="banner b-warn"><span class="ic">!</span>
+          <span>这几项会按顺序下发 5 条指令，期间不要重复点击。切卡槽会让网络断开约 10 秒。</span></div>
+
+        <div class="panel">
+          <div class="btnrow" style="border-top:0">
+            <button class="btn pri" id="apply-btn" onclick="applyChanges()">应用变更</button>
+            <button class="btn" onclick="resetSteps()">全部还原</button>
+            <div class="right"><span class="hint" style="align-self:center">上次应用：22:41，成功 5/5</span></div>
+          </div>
+          <div class="steps" id="apply-steps">
+            <span class="step">1 自动连接策略</span>
+            <span class="step">2 射频开关</span>
+            <span class="step">3 卡槽切换</span>
+            <span class="step">4 制式配置</span>
+            <span class="step">5 重新拨号</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-radio" style="display:none">
+        <div class="panel">
+          <div class="panel-h"><span>频段锁定</span><span style="font-weight:400;color:var(--tx3)">勾选 = 允许使用</span></div>
+          <table>
+            <thead><tr><th style="width:70px">启用</th><th>频段</th><th>制式</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td><div class="sw on" onclick="tog(this)"></div></td><td class="num">n78</td><td>5G NR</td><td class="mut">3.5 GHz，当前服务频段</td></tr>
+              <tr><td><div class="sw on" onclick="tog(this)"></div></td><td class="num">n41</td><td>5G NR</td><td class="mut">2.6 GHz</td></tr>
+              <tr><td><div class="sw on" onclick="tog(this)"></div></td><td class="num">B3</td><td>LTE</td><td class="mut">1.8 GHz</td></tr>
+              <tr><td><div class="sw" onclick="tog(this)"></div></td><td class="num">B8</td><td>LTE</td><td class="mut">900 MHz，覆盖优先</td></tr>
+            </tbody>
+          </table>
+          <div class="btnrow"><button class="btn pri" onclick="toast('频段锁定已下发（示例）')">应用频段</button>
+            <button class="btn" onclick="toast('已恢复全部频段（示例）')">恢复全部</button></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span>服务小区</span><span class="pill teal">5G SA · n78</span></div>
+          <div class="split">
+            <div>
+              <table>
+                <tr><td class="mut">PCI</td><td class="num">312</td></tr>
+                <tr><td class="mut">ARFCN</td><td class="num">627264</td></tr>
+                <tr><td class="mut">TAC</td><td class="num">57120</td></tr>
+                <tr><td class="mut">Cell ID</td><td class="num">128451073</td></tr>
+              </table>
+            </div>
+            <div>
+              <table>
+                <tr><td class="mut">RSRP</td><td class="num"><span class="g">良好</span> -95 dBm</td></tr>
+                <tr><td class="mut">RSRQ</td><td class="num">-11 dB</td></tr>
+                <tr><td class="mut">SINR</td><td class="num"><span class="g">优秀</span> 18 dB</td></tr>
+                <tr><td class="mut">带宽</td><td class="num">100 MHz</td></tr>
+              </table>
+            </div>
+          </div>
+          <div class="btnrow"><button class="btn" onclick="toast('正在测量邻区…（示例）')">刷新测量</button></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span>邻区</span><span style="font-weight:400;color:var(--tx3)">按信号强度</span></div>
+          <table>
+            <thead><tr><th>制式</th><th>频段</th><th>PCI</th><th>RSRP</th><th>RSRQ</th></tr></thead>
+            <tbody>
+              <tr><td>5G NR</td><td class="num">n78</td><td class="num">318</td><td class="num"><span class="a">一般</span> -103 dBm</td><td class="num">-13 dB</td></tr>
+              <tr><td>LTE</td><td class="num">B3</td><td class="num">102</td><td class="num"><span class="a">一般</span> -108 dBm</td><td class="num">-14 dB</td></tr>
+              <tr><td>LTE</td><td class="num">B8</td><td class="num">47</td><td class="num"><span class="r">差</span> -118 dBm</td><td class="num">-18 dB</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-ops" style="display:none">
+        <div class="panel">
+          <div class="panel-h"><span>运营商</span>
+            <button class="btn" style="padding:4px 11px;font-size:12.5px" onclick="toast('正在扫描，约需 40 秒（示例）')">扫描网络</button></div>
+          <table>
+            <thead><tr><th>运营商</th><th>制式</th><th>状态</th><th style="width:110px"></th></tr></thead>
+            <tbody>
+              <tr><td>中国移动<br><span class="mono">46000</span></td><td>5G / 4G</td><td><span class="pill teal">当前注册</span></td><td></td></tr>
+              <tr><td>中国联通<br><span class="mono">46001</span></td><td>5G / 4G</td><td><span class="pill">可用</span></td><td><button class="btn" style="padding:4px 11px;font-size:12.5px" onclick="toast('已请求注册（示例）')">注册</button></td></tr>
+              <tr><td>中国电信<br><span class="mono">46011</span></td><td>5G / 4G</td><td><span class="pill">可用</span></td><td><button class="btn" style="padding:4px 11px;font-size:12.5px" onclick="toast('已请求注册（示例）')">注册</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><span>选网方式</span></div>
+          <div class="row"><div class="lab">自动选网</div><div class="ctl"><div class="sw on" onclick="tog(this)"></div><span class="hint">关闭后需手动从上面列表选一个</span></div></div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-apn" style="display:none">
+        <div class="panel">
+          <div class="panel-h"><span>APN 配置</span>
+            <button class="btn" style="padding:4px 11px;font-size:12.5px" onclick="toast('打开新建表单（示例）')">新建</button></div>
+          <table>
+            <thead><tr><th>名称</th><th>APN</th><th>协议</th><th>CID</th><th style="width:130px"></th></tr></thead>
+            <tbody>
+              <tr><td>中国移动 CMNET</td><td class="mono">cmnet</td><td>IPv4v6</td><td class="num">1</td>
+                <td><button class="btn" style="padding:4px 10px;font-size:12px" onclick="toast('设为当前（示例）')">启用</button>
+                    <button class="btn ghost" style="font-size:12px" onclick="toast('编辑（示例）')">编辑</button></td></tr>
+              <tr><td>中国移动 CMIOT</td><td class="mono">cmiot</td><td>IPv4</td><td class="num">2</td>
+                <td><button class="btn" style="padding:4px 10px;font-size:12px" onclick="toast('设为当前（示例）')">启用</button>
+                    <button class="btn ghost" style="font-size:12px" onclick="toast('编辑（示例）')">编辑</button></td></tr>
+            </tbody>
+          </table>
+          <div class="btnrow"><span class="hint">切换 APN 会重建数据连接，当前会话会中断。</span></div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-speed" style="display:none">
+        <div class="banner b-ok"><span class="ic">i</span>
+          <span><b>自动测速</b>：约 30 秒、最多 150 MB，达到测量可信度就自动停止。
+          前 3 秒爬坡样本不参与计算，结果取 <b>P90</b>（不是平均值，也不是峰值）。</span></div>
+
+        <div class="panel">
+          <div class="panel-h"><span>测速设置</span></div>
+          <div class="row"><div class="lab">测速节点</div><div class="ctl">
+            <select id="st-node">
+              <option>自动优选 · Cloudflare Speed（RTT 23 ms）</option>
+              <option>中国移动 · 和彩云（RTT 31 ms）</option>
+              <option>中国电信 · 天翼云桌面（RTT 44 ms）</option>
+              <option>通用 · Steam Akamai（RTT 58 ms）</option>
+            </select>
+            <span class="hint">按连接耗时自动优选，也可手动改</span></div></div>
+          <div class="row"><div class="lab">测量参数</div><div class="ctl">
+            <span class="hint">时长 ≤30 s · 流量 ≤150 MB · 线程自动爬坡 · 无需填写</span></div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span>测量结果</span><span class="pill" id="st-pill">待机</span></div>
+          <div class="spd">
+            <div>
+              <div class="lb">P90 下行带宽</div>
+              <div class="spd-main"><span id="st-now">—</span><em>Mbps</em></div>
+            </div>
+            <div class="spd-side">
+              <div class="kv"><span>峰值</span><b id="st-peak">—</b></div>
+              <div class="kv"><span>平均</span><b id="st-avg">—</b></div>
+              <div class="kv"><span>本次消耗</span><b id="st-used">—</b></div>
+            </div>
+          </div>
+          <div class="chart">
+            <svg id="st-chart" viewBox="0 0 600 84" preserveAspectRatio="none">
+              <line class="grid" x1="0" y1="28" x2="600" y2="28"/>
+              <line class="grid" x1="0" y1="56" x2="600" y2="56"/>
+              <polyline class="ln" id="st-line" points=""/>
+            </svg>
+          </div>
+          <div class="kv-row">
+            <div class="kv"><span>空闲延迟</span><b id="st-idle">—</b></div>
+            <div class="kv"><span>负载延迟</span><b id="st-load">—</b></div>
+            <div class="kv"><span>抖动</span><b id="st-jit">—</b></div>
+            <div class="kv"><span>测量可信</span><b id="st-trust">—</b></div>
+          </div>
+          <div class="banner b-warn" id="st-warn" style="display:none;margin-top:10px"><span class="ic">!</span>
+            <span>负载延迟明显高于空闲延迟，可能存在<b>缓冲膨胀</b>：带宽数字好看，但游戏和通话仍会卡。</span></div>
+          <div class="btnrow">
+            <button class="btn pri" id="st-btn" onclick="stToggle()">开始测速</button>
+            <button class="btn ghost" onclick="stReset()">重置</button>
+            <div class="right"><span class="hint" id="st-note">约 30 秒后自动出结果</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span>最近 3 次 · 本次会话</span></div>
+          <div class="kv-row" style="padding:10px 16px 14px">
+            <div class="kv"><span>08:12</span><b>142.6 Mbps</b></div>
+            <div class="kv"><span>07:58</span><b>138.4 Mbps</b></div>
+            <div class="kv"><span>07:42</span><b>129.1 Mbps</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-burn" style="display:none">
+        <div class="banner b-warn"><span class="ic">!</span>
+          <span><b>本功能会持续消耗移动数据，直到手动停止或达到上限。</b>当前上限 <b id="sp-cap">1 GB</b>。
+          开始前需二次确认。运行期间状态刷新会变慢，概览不会再报"数据已过期"。</span></div>
+
+        <div class="panel">
+          <div class="panel-h"><span>消耗设置</span></div>
+          <div class="row"><div class="lab">消耗节点</div><div class="ctl">
+            <select id="sp-node">
+              <option>中国移动 · 咪咕快游</option>
+              <option>中国移动 · 和彩云</option>
+              <option>中国电信 · 天翼云盘</option>
+              <option>中国联通 · 联通云盘</option>
+              <option>通用 · Cloudflare</option>
+            </select>
+            <span class="hint">已按当前运营商（中国移动）推荐</span></div></div>
+          <div class="row"><div class="lab">并发线程</div><div class="ctl">
+            <select id="sp-threads"><option>1</option><option>2</option><option selected>4</option><option>8</option></select>
+            <span class="hint">受 CPU 限制，通常 4 线程即可跑满</span></div></div>
+          <div class="row"><div class="lab">流量上限</div><div class="ctl">
+            <select id="sp-limit" onchange="spSetCap()">
+              <option>100 MB</option><option selected>1 GB</option><option>3 GB</option><option>10 GB</option>
+            </select>
+            <span class="hint">达到上限立即停止，不可续跑</span></div></div>
+          <div class="row"><div class="lab">时长上限</div><div class="ctl">
+            <select><option>60 秒</option><option selected>300 秒</option><option>900 秒</option><option>1800 秒</option></select>
+            <span class="hint">即使没跑满流量也会停</span></div></div>
+        </div>
+
+        <div class="banner b-warn" id="bn-confirm" style="display:none"><span class="ic">!</span>
+          <span><b>将使用移动数据，上限 <span id="bn-cap">1 GB</span>，按 1 元/GB 约 ¥1.00。</b><br>
+            <button class="btn pri" style="margin-top:8px" onclick="bnConfirm()">确认开始</button>
+            <button class="btn ghost" style="margin-top:8px" onclick="bnCancel()">取消</button>
+          </span></div>
+
+        <div class="panel">
+          <div class="panel-h"><span>实时</span><span class="pill" id="sp-pill">待机</span></div>
+          <div class="spd">
+            <div>
+              <div class="lb">累计消耗</div>
+              <div class="spd-main"><span id="sp-now">—</span><em>MB</em></div>
+            </div>
+            <div class="spd-side">
+              <div class="kv"><span>峰值</span><b id="sp-peak">—</b></div>
+              <div class="kv"><span>平均</span><b id="sp-avg">—</b></div>
+              <div class="kv"><span>延迟</span><b id="sp-lat">37 ms</b></div>
+            </div>
+          </div>
+          <div class="prog"><i id="sp-prog" style="width:0"></i></div>
+          <div class="chart">
+            <svg id="sp-chart" viewBox="0 0 600 84" preserveAspectRatio="none">
+              <line class="grid" x1="0" y1="28" x2="600" y2="28"/>
+              <line class="grid" x1="0" y1="56" x2="600" y2="56"/>
+              <polyline class="ln" id="sp-line" points=""/>
+            </svg>
+          </div>
+          <div class="kv-row">
+            <div class="kv"><span>已用流量</span><b id="sp-used">0 B</b></div>
+            <div class="kv"><span>运行时长</span><b id="sp-time">00:00</b></div>
+            <div class="kv"><span>出口</span><b class="mono">10.42.13.7</b></div>
+          </div>
+          <div class="btnrow">
+            <button class="btn pri" id="sp-btn" onclick="spToggle()">开始消耗</button>
+            <button class="btn ghost" onclick="spReset()">重置</button>
+            <div class="right"><span class="hint" id="sp-note">将使用移动数据，上限 1 GB</span></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><span>上次会话</span><span class="hint" style="font-weight:400">11-11 07:42</span></div>
+          <div class="kv-row" style="padding:10px 16px 14px">
+            <div class="kv"><span>平均</span><b>138.4 Mbps</b></div>
+            <div class="kv"><span>峰值</span><b>186.2 Mbps</b></div>
+            <div class="kv"><span>流量</span><b>1.00 GB</b></div>
+            <div class="kv"><span>时长</span><b>04:52</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SIM ================= -->
+    <section class="page" id="page-sim">
+      <div class="crumb">SY108 / SIM 卡</div>
+      <h1 class="h1">SIM 卡</h1>
+      <p class="lede">只做诊断和救急。切卡槽这类配置在「移动网络 → 连接」里。</p>
+
+      <div id="sim-banner"></div>
+
+      <div class="panel">
+        <div class="panel-h"><span>识别结果</span><span class="pill teal" id="sim-pill">READY</span></div>
+        <table>
+          <tr><td class="mut" style="width:34%">ICCID</td><td class="num mono">8986 0115 2345 6789 4821</td></tr>
+          <tr><td class="mut">IMSI</td><td class="num mono">460 00 ···· 8421</td></tr>
+          <tr><td class="mut">运营商</td><td>中国移动</td></tr>
+          <tr><td class="mut">物理槽位</td><td>槽位 1（共 3 个，可切换 2 个）</td></tr>
+          <tr><td class="mut">卡在位</td><td id="sim-present">是</td></tr>
+          <tr><td class="mut">最近一次识别</td><td>22:30，用时 9 秒，结果正常</td></tr>
+        </table>
+      </div>
+
+      <div class="banner b-warn"><span class="ic">!</span>
+        <span>重新识别会关闭射频、重新读卡、再打开射频，全程约 10 秒，期间断网。只在拔插卡后状态不对时使用；不要连续点。</span></div>
+
+      <div class="panel">
+        <div class="btnrow" style="border-top:0">
+          <button class="btn pri" id="resim-btn" onclick="reidentify()">重新识别</button>
+          <button class="btn" onclick="toast('打开最近 5 次记录（示例）')">查看识别记录</button>
+        </div>
+        <div class="steps" id="resim-steps">
+          <span class="step">1 关闭射频</span>
+          <span class="step">2 重新读卡</span>
+          <span class="step">3 打开射频</span>
+          <span class="step">4 校验身份</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 短信 ================= -->
+    <section class="page" id="page-sms">
+      <div class="crumb">SY108 / 短信</div>
+      <h1 class="h1">短信</h1>
+      <p class="lede">结构与现在一致，只统一了标题和空态文案。</p>
+
+      <div class="tabs" id="sms-tabs">
+        <button data-t="inbox" class="on">收件箱</button>
+        <button data-t="sent">已发送</button>
+        <button data-t="compose">写短信</button>
+        <button data-t="store">模组存储</button>
+        <button data-t="set">设置</button>
+      </div>
+
+      <div class="tp" id="tp-inbox">
+        <div class="panel">
+          <div class="panel-h"><span>收件箱</span><span style="font-weight:400;color:var(--tx3)">12 条，2 条未读</span></div>
+          <table>
+            <thead><tr><th style="width:110px">时间</th><th style="width:130px">号码</th><th>内容</th></tr></thead>
+            <tbody>
+              <tr class="unread"><td class="num mut">今天 21:04</td><td class="mono">10086</td><td>您本月流量已使用 8.2GB，剩余 21.8GB。</td></tr>
+              <tr class="unread"><td class="num mut">今天 18:22</td><td class="mono">1069******</td><td>验证码 481920，5 分钟内有效。</td></tr>
+              <tr><td class="num mut">昨天 09:15</td><td class="mono">10086</td><td>套餐变更成功。</td></tr>
+            </tbody>
+          </table>
+          <div class="btnrow"><span class="hint">批量删除失败时会逐条说明哪几条没删掉，而不是只给一句笼统提示。</span></div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-sent" style="display:none">
+        <div class="panel"><div class="panel-h"><span>已发送</span><span style="font-weight:400;color:var(--tx3)">4 条</span></div>
+          <table><thead><tr><th style="width:110px">时间</th><th style="width:130px">号码</th><th>内容</th></tr></thead>
+            <tbody><tr><td class="num mut">昨天 14:02</td><td class="mono">10086</td><td>CXLL</td></tr></tbody></table></div>
+      </div>
+
+      <div class="tp" id="tp-compose" style="display:none">
+        <div class="panel">
+          <div class="panel-h"><span>写短信</span></div>
+          <div class="row"><div class="lab">收件号码</div><div class="ctl"><input type="text" placeholder="例如 10086" style="width:220px"></div></div>
+          <div class="row" style="align-items:flex-start"><div class="lab" style="padding-top:6px">内容</div>
+            <div class="ctl"><textarea placeholder="最多 70 个字符按单条计费"></textarea></div></div>
+          <div class="btnrow"><button class="btn pri" onclick="toast('已提交发送（示例）')">发送</button>
+            <span class="hint" style="align-self:center">发送失败会明确区分「未发出」和「已发出但没收到回执」。</span></div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-store" style="display:none">
+        <div class="panel"><div class="panel-h"><span>模组存储</span></div>
+          <div class="row"><div class="lab">收件箱</div><div class="ctl" style="display:block">
+            <div class="bar" style="margin:2px 0 4px"><i style="width:24%;background:#0f6e56"></i></div>
+            <span class="hint">12 / 50 条</span></div></div>
+          <div class="row"><div class="lab">已发送</div><div class="ctl" style="display:block">
+            <div class="bar" style="margin:2px 0 4px"><i style="width:8%;background:#0f6e56"></i></div>
+            <span class="hint">4 / 50 条</span></div></div>
+        </div>
+      </div>
+
+      <div class="tp" id="tp-set" style="display:none">
+        <div class="panel"><div class="panel-h"><span>设置</span></div>
+          <div class="row"><div class="lab">收件箱上限</div><div class="ctl"><input type="text" value="50" style="width:90px"><span class="hint">条</span></div></div>
+          <div class="row"><div class="lab">已发送上限</div><div class="ctl"><input type="text" value="50" style="width:90px"><span class="hint">条</span></div></div>
+          <div class="row"><div class="lab">直接接收</div><div class="ctl"><div class="sw" onclick="tog(this)"></div><span class="hint">新短信直接推给前端，不留在模组里</span></div></div>
+          <div class="btnrow"><button class="btn pri" onclick="toast('已保存（示例）')">保存</button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 硬件 ================= -->
+    <section class="page" id="page-hardware">
+      <div class="crumb">SY108 / 硬件</div>
+      <h1 class="h1">硬件</h1>
+      <p class="lede">每块面板独立，顺序按固定表来，不再靠代码里的数组插入决定。</p>
+
+      <div class="panel">
+        <div class="panel-h"><span>板卡与系统</span><span class="pill">UDX710</span></div>
+        <div class="split">
+          <div><table>
+            <tr><td class="mut">型号</td><td>SY108 5G 通信壳</td></tr>
+            <tr><td class="mut">SoC</td><td>UNISOC UDX710</td></tr>
+            <tr><td class="mut">固件</td><td class="mono">OpenWrt 25.12</td></tr>
+          </table></div>
+          <div><table>
+            <tr><td class="mut">运行时间</td><td class="num">2 天 4 小时</td></tr>
+            <tr><td class="mut">内存</td><td class="num">已用 118 / 256 MB</td></tr>
+            <tr><td class="mut">负载</td><td class="num">0.14 / 0.21 / 0.18</td></tr>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span>传感器与时钟</span></div>
+        <table>
+          <tr><td class="mut" style="width:34%">SoC 温度</td><td class="num">46.2 ℃</td></tr>
+          <tr><td class="mut">基带温度</td><td class="num">48.7 ℃</td></tr>
+          <tr><td class="mut">DDR 频率</td><td class="num">1600 MHz</td></tr>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span>CPU 频率</span></div>
+        <div class="row"><div class="lab">调频策略</div><div class="ctl">
+          <select><option>ondemand</option><option>performance</option><option>powersave</option></select></div></div>
+        <div class="row"><div class="lab">最小 / 最大</div><div class="ctl">
+          <select style="width:130px"><option>400 MHz</option><option>800 MHz</option></select>
+          <span class="hint">/</span>
+          <select style="width:130px"><option>1.6 GHz</option><option>2.0 GHz</option></select></div></div>
+        <div class="btnrow"><button class="btn pri" onclick="toast('频率设置已下发（示例）')">应用</button></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span>启动与存储</span></div>
+        <table>
+          <tr><td class="mut" style="width:34%">启动分区</td><td>boot（动态卷）</td></tr>
+          <tr><td class="mut">根文件系统</td><td>squashfs + overlay</td></tr>
+          <tr><td class="mut">overlay 占用</td><td class="num">1.2 / 24 MB</td></tr>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span>USB 配置</span></div>
+        <div class="row"><div class="lab">USB 模式</div><div class="ctl">
+          <select><option>RNDIS + ACM（管理口）</option><option>仅 RNDIS</option><option>主机模式（接网卡）</option></select></div></div>
+        <div class="row"><div class="lab">ACM 控制台</div><div class="ctl"><div class="sw" onclick="tog(this)"></div>
+          <span class="hint">改完需要重新插拔 USB 线</span></div></div>
+        <div class="btnrow"><button class="btn pri" onclick="toast('USB 配置已应用，请重新插拔（示例）')">应用</button></div>
+      </div>
+    </section>
+
+    <!-- ================= 高级 ================= -->
+    <section class="page" id="page-advanced">
+      <div class="crumb">SY108 / 高级</div>
+      <h1 class="h1">高级</h1>
+      <p class="lede">默认折叠在最后一页。这里能做的事会直接影响设备，请确认后再操作。</p>
+
+      <div class="banner b-bad"><span class="ic">!</span>
+        <span>以下功能直接向基带下发指令。发错命令可能导致设备离线，需要断电重启才能恢复。</span></div>
+
+      <div class="panel">
+        <div class="panel-h"><span>AT 终端</span><span class="pill amber">直连基带</span></div>
+        <div class="row" style="align-items:flex-start"><div class="lab" style="padding-top:6px">命令</div>
+          <div class="ctl" style="display:block">
+            <textarea id="at-cmd">AT+CPIN?</textarea>
+            <div style="display:flex;gap:9px;margin-top:9px;align-items:center">
+              <button class="btn pri" onclick="atSend()">发送</button>
+              <select style="width:150px"><option>超时 10 秒</option><option>超时 30 秒</option><option>超时 120 秒</option></select>
+              <span class="hint">只支持单行 AT 命令</span>
+            </div>
+          </div></div>
+        <div class="row" style="align-items:flex-start;background:#fbfcfd"><div class="lab" style="padding-top:6px">返回</div>
+          <div class="ctl" style="display:block">
+            <pre id="at-out" class="mono" style="margin:0;white-space:pre-wrap;min-height:54px">（尚未发送）</pre>
+          </div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h"><span>IMEI 写入</span><span class="pill red">不可逆</span></div>
+        <div class="row"><div class="lab">卡槽序号</div><div class="ctl"><select><option>1</option></select></div></div>
+        <div class="row"><div class="lab">当前 IMEI</div><div class="ctl"><span class="mono">861234567890123</span></div></div>
+        <div class="row"><div class="lab">写入新值</div><div class="ctl"><input type="text" placeholder="15 位数字" style="width:240px"></div></div>
+        <div class="btnrow">
+          <button class="btn danger" onclick="toast('需要二次确认（示例）', true)">写入 IMEI</button>
+          <span class="hint" style="align-self:center">写入后无法通过本页面还原</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var state = 'ok';
+
+document.getElementById('nav').addEventListener('click', function(e){
+  var a = e.target.closest('a[data-p]');
+  if (a) go(a.dataset.p);
+});
+function go(p){
+  document.querySelectorAll('.nav a').forEach(function(x){ x.classList.toggle('on', x.dataset.p === p); });
+  document.querySelectorAll('.page').forEach(function(x){ x.classList.toggle('on', x.id === 'page-' + p); });
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+document.getElementById('net-tabs').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-t]'); if (!b) return;
+  this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
+  ['conn','radio','ops','apn','speed','burn'].forEach(function(k){
+    document.getElementById('tp-' + k).style.display = (k === b.dataset.t) ? '' : 'none';
+  });
+});
+document.getElementById('sms-tabs').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-t]'); if (!b) return;
+  this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
+  ['inbox','sent','compose','store','set'].forEach(function(k){
+    document.getElementById('tp-' + k).style.display = (k === b.dataset.t) ? '' : 'none';
+  });
+});
+function tog(el){ el.classList.toggle('on'); }
+
+var t;
+function toast(msg, bad){
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (bad ? ' bad' : '');
+  clearTimeout(t);
+  t = setTimeout(function(){ el.className = 'toast'; }, 2200);
+}
+
+var steps = ['自动连接策略','射频开关','卡槽切换','制式配置','重新拨号'];
+function resetSteps(){
+  document.querySelectorAll('#apply-steps .step').forEach(function(s, i){
+    s.className = 'step'; s.textContent = (i+1) + ' ' + steps[i];
+  });
+  document.getElementById('apply-btn').disabled = false;
+  document.getElementById('apply-btn').textContent = '应用变更';
+}
+function applyChanges(){
+  var btn = document.getElementById('apply-btn');
+  btn.disabled = true; btn.textContent = '执行中…';
+  var nodes = document.querySelectorAll('#apply-steps .step');
+  var i = 0;
+  (function tick(){
+    if (i > 0) nodes[i-1].className = 'step done';
+    if (i >= nodes.length) {
+      btn.disabled = false; btn.textContent = '应用变更';
+      toast('5 项变更已全部生效');
+      return;
+    }
+    nodes[i].className = 'step cur';
+    i++;
+    setTimeout(tick, 700);
+  })();
+}
+
+var rsteps = ['关闭射频','重新读卡','打开射频','校验身份'];
+function reidentify(){
+  var btn = document.getElementById('resim-btn');
+  btn.disabled = true; btn.textContent = '识别中…';
+  var nodes = document.querySelectorAll('#resim-steps .step');
+  var i = 0;
+  (function tick(){
+    if (i > 0) nodes[i-1].className = 'step done';
+    if (i >= nodes.length) {
+      btn.disabled = false; btn.textContent = '重新识别';
+      toast('识别完成，用时 9 秒，读卡正常');
+      setState('ok');
+      return;
+    }
+    nodes[i].className = 'step cur';
+    i++;
+    setTimeout(tick, 900);
+  })();
+}
+
+function atSend(){
+  var cmd = document.getElementById('at-cmd').value.trim();
+  var out = document.getElementById('at-out');
+  if (!cmd) { out.textContent = '（请输入命令）'; return; }
+  out.textContent = '发送中…';
+  setTimeout(function(){
+    if (state === 'nosim') out.textContent = 'AT+CPIN?\r\n+CME ERROR: 10';
+    else if (state === 'uncertain') out.textContent = '（未收到回执）\n本次操作结果未知，命令可能已生效，请勿直接重发。';
+    else out.textContent = 'AT+CPIN?\r\n+CPIN: READY\r\n\r\nOK  （耗时 42 ms）';
+  }, 600);
+}
+
+document.getElementById('states').addEventListener('click', function(e){
+  var b = e.target.closest('button[data-s]'); if (!b) return;
+  this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on', x === b); });
+  setState(b.dataset.s);
+});
+
+function setState(s){
+  state = s;
+  var b1 = document.getElementById('ov-banner');
+  var b2 = document.getElementById('sim-banner');
+  var g = function(id){ return document.getElementById(id); };
+
+  if (s === 'ok') {
+    b1.innerHTML = ''; b2.innerHTML = '';
+    g('ov-sig-pill').className = 'pill'; g('ov-sig-pill').textContent = '良好';
+    g('ov-rsrp').textContent = '-95'; g('ov-sig-bar').style.width = '72%';
+    g('ov-sig-bar').style.background = '#0f6e56';
+    g('ov-rsrq').textContent = '-11 dB'; g('ov-sinr').textContent = '18 dB';
+    g('ov-sim-pill').className = 'pill teal'; g('ov-sim-pill').textContent = 'READY';
+    g('ov-data-pill').className = 'pill teal'; g('ov-data-pill').textContent = '已连接';
+    g('ov-ipv4').textContent = '10.42.13.7'; g('ov-uptime').textContent = '00:12:34';
+    g('sim-pill').className = 'pill teal'; g('sim-pill').textContent = 'READY';
+    g('sim-present').textContent = '是';
+    g('ov-sim-age').textContent = '3 分钟前';
+  }
+  if (s === 'nodata') {
+    b1.innerHTML = '<div class="banner b-warn"><span class="ic">!</span><span>数据连接已断开。信号正常，但数据业务没起来，点「重连数据」可重试。</span></div>';
+    b2.innerHTML = '';
+    g('ov-sig-pill').className = 'pill'; g('ov-sig-pill').textContent = '良好';
+    g('ov-rsrp').textContent = '-97'; g('ov-sig-bar').style.width = '68%';
+    g('ov-sig-bar').style.background = '#0f6e56';
+    g('ov-rsrq').textContent = '-12 dB'; g('ov-sinr').textContent = '15 dB';
+    g('ov-sim-pill').className = 'pill teal'; g('ov-sim-pill').textContent = 'READY';
+    g('ov-data-pill').className = 'pill amber'; g('ov-data-pill').textContent = '未连接';
+    g('ov-ipv4').textContent = '—'; g('ov-uptime').textContent = '00:00:00';
+    g('sim-pill').className = 'pill teal'; g('sim-pill').textContent = 'READY';
+    g('sim-present').textContent = '是';
+  }
+  if (s === 'nosim') {
+    b1.innerHTML = '<div class="banner b-bad"><span class="ic">!</span><span>读不到 SIM 卡。如果刚插过卡，去「SIM 卡」做一次重新识别；如果确实没卡，插卡后设备会自动重读。</span></div>';
+    b2.innerHTML = '<div class="banner b-bad"><span class="ic">!</span><span>卡不在位或无法读取。先确认卡的方向和卡槽，再点「重新识别」。</span></div>';
+    g('ov-sig-pill').className = 'pill red'; g('ov-sig-pill').textContent = '不可用';
+    g('ov-rsrp').textContent = '—'; g('ov-sig-bar').style.width = '0%';
+    g('ov-rsrq').textContent = '—'; g('ov-sinr').textContent = '—';
+    g('ov-sim-pill').className = 'pill red'; g('ov-sim-pill').textContent = '缺失';
+    g('ov-data-pill').className = 'pill amber'; g('ov-data-pill').textContent = '等待 SIM';
+    g('ov-ipv4').textContent = '—'; g('ov-uptime').textContent = '00:00:00';
+    g('sim-pill').className = 'pill red'; g('sim-pill').textContent = 'NOT READY';
+    g('sim-present').textContent = '否';
+    g('ov-sim-age').textContent = '——';
+  }
+  if (s === 'uncertain') {
+    b1.innerHTML = '<div class="banner b-warn"><span class="ic">!</span><span><b>上一次操作结果未知。</b>指令已下发但没收到基带回执，可能已经生效，也可能没有。系统不会自动重试——请先刷新看当前状态，确认没生效再操作一次。</span></div>';
+    b2.innerHTML = '<div class="banner b-warn"><span class="ic">!</span><span>上一次重新识别没有拿到回执，结果未知。先点「刷新」看状态，不要直接重复点击。</span></div>';
+    g('ov-sig-pill').className = 'pill'; g('ov-sig-pill').textContent = '未知';
+    g('ov-rsrp').textContent = '—'; g('ov-sig-bar').style.width = '0%';
+    g('ov-rsrq').textContent = '—'; g('ov-sinr').textContent = '—';
+    g('ov-sim-pill').className = 'pill amber'; g('ov-sim-pill').textContent = '未知';
+    g('ov-data-pill').className = 'pill amber'; g('ov-data-pill').textContent = '状态未知';
+    g('ov-ipv4').textContent = '—'; g('ov-uptime').textContent = '——';
+    g('sim-pill').className = 'pill amber'; g('sim-pill').textContent = '未知';
+    g('sim-present').textContent = '未知';
+  }
+
+  metrics(s);
+}
+
+var QCI = {
+  1:'会话语音 · VoLTE',2:'会话视频',3:'实时游戏',4:'缓冲视频',
+  5:'IMS 信令',6:'视频流（非保证）',7:'语音 / 游戏（非保证）',8:'视频流（非保证）',
+  9:'默认承载 · 尽力而为',
+  65:'关键任务 PTT 语音',66:'关键任务 PTT 数据',67:'关键任务视频',
+  69:'关键任务时延敏感信令',70:'关键任务数据',75:'V2X 车联网',
+  79:'低时延 eMBB',80:'低时延 eMBB（增强）',
+  82:'离散自动化',83:'离散自动化',84:'智能交通',85:'智能交通',
+  86:'V2X',87:'V2X',88:'V2X',89:'V2X',90:'V2X'
+};
+/* GBR (有保证速率) 的等级：徽章才用 teal。非 GBR 一律中性灰，
+   避免把最常见的 QCI 9 渲染成警告色。 */
+var GBR = {1:1,2:1,3:1,4:1,65:1,66:1,67:1,75:1,82:1,83:1,84:1,85:1,
+           86:1,87:1,88:1,89:1,90:1};
+
+function metrics(s){
+  var g = function(id){ return document.getElementById(id); };
+  var tbar = g('ov-temp-bar'), tpill = g('ov-temp-pill');
+
+  function qci(n){
+    var p = g('ov-qci-pill'), d = g('ov-qci-desc');
+    if (!n) { p.className = 'pill amber'; p.textContent = '未知';
+              d.textContent = '尚未取到承载等级'; return; }
+    p.textContent = 'QCI ' + n;
+    p.className = 'pill' + (GBR[n] ? ' teal' : '');
+    d.textContent = QCI[n] || ('运营商自定义等级 ' + n);
+  }
+  function rate(dl, ul, mbr){
+    g('ov-dl').textContent = dl == null ? '—' : dl;
+    g('ov-ul').textContent = ul == null ? '—' : ul;
+    g('ov-dl-u').textContent = dl == null ? '' : 'Mbps';
+    g('ov-ul-u').textContent = ul == null ? '' : 'Mbps';
+    g('ov-mbr').textContent = mbr || '—';
+  }
+  function ping(a, b, bad){
+    g('ov-ping4').innerHTML = bad ? '<span class="r">' + a + '</span>' : a;
+    g('ov-ping6').innerHTML = bad ? '<span class="r">' + b + '</span>' : b;
+  }
+  function temp(v, soc, mdm){
+    g('ov-temp').textContent = v.toFixed(1);
+    g('ov-temp-soc').textContent = soc.toFixed(1) + ' ℃';
+    g('ov-temp-mdm').textContent = mdm.toFixed(1) + ' ℃';
+    tbar.style.width = Math.min(100, v) + '%';
+    if (v < 55)      { tbar.style.background = '#0f6e56'; tpill.className = 'pill teal';  tpill.textContent = '正常'; }
+    else if (v < 70) { tbar.style.background = '#d97706'; tpill.className = 'pill amber'; tpill.textContent = '偏高'; }
+    else             { tbar.style.background = '#dc2626'; tpill.className = 'pill red';   tpill.textContent = '过热'; }
+  }
+
+  if (s === 'ok')        { rate(300,100,'100 / 300 Mbps'); qci(9);  ping('23 ms','31 ms',false);  temp(47.3,46.2,48.7); }
+  if (s === 'nodata')    { rate(300,100,'100 / 300 Mbps'); qci(9);  ping('超时','超时',true);     temp(58.6,56.1,60.4); }
+  if (s === 'nosim')     { rate(null,null,null);           qci(null); ping('不可达','不可达',true); temp(44.8,43.5,45.9); }
+  if (s === 'uncertain') { rate(null,null,null);           qci(null); ping('未知','未知',false);  temp(71.4,69.8,72.9); }
+}
+
+/* ================= 测速（演示） ================= */
+var spRun = false, spTimer = null, spSec = 0, spMB = 0, spPeak = 0, spPts = [], spDemo = 0;
+
+function spEl(id){ return document.getElementById(id); }
+
+function spFmt(mb){
+  if (mb < 0.01) return '0 MB';
+  if (mb < 1) return (mb * 1024).toFixed(0) + ' KB';
+  if (mb < 1024) return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + ' MB';
+  return (mb / 1024).toFixed(2) + ' GB';
+}
+
+function spSetCap(){
+  var v = spEl('sp-limit').value;
+  spEl('sp-cap').textContent = v;
+  spEl('sp-note').textContent = '将使用移动数据，上限 ' + v + '（开始时需确认）';
+  spEl('sp-used').textContent = spFmt(spMB) + ' / ' + v;
+}
+
+function spDraw(){
+  var max = 1;
+  spPts.forEach(function(v){ if (v > max) max = v; });
+  var pts = spPts.map(function(v, i){
+    var x = i / 59 * 600;
+    var y = 82 - (v / max) * 76;
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  spEl('sp-line').setAttribute('points', pts);
+}
+
+function spTick(){
+  spSec += 0.15;
+  var v = 156 + Math.sin(spSec / 2.6) * 18 + Math.sin(spSec / 1.1) * 8
+        + (Math.random() * 16 - 8);
+  if (v < 0) v = 0;
+  spMB += v * 0.15 / 8;
+  if (v > spPeak) spPeak = v;
+  spPts.push(v);
+  if (spPts.length > 60) spPts.shift();
+
+  spEl('sp-now').textContent = spMB.toFixed(1);
+  spEl('sp-peak').textContent = spPeak.toFixed(1) + ' Mbps';
+  var avg = spSec > 0.3 ? (spMB * 8 / spSec) : 0;
+  spEl('sp-avg').textContent = avg.toFixed(1) + ' Mbps';
+  spEl('sp-used').textContent = spFmt(spMB) + ' / ' + spEl('sp-limit').value;
+  var mm = Math.floor(spSec / 60), ss = Math.floor(spSec % 60);
+  spEl('sp-time').textContent = ('0' + mm).slice(-2) + ':' + ('0' + ss).slice(-2);
+  spEl('sp-prog').style.width = Math.min(100, spMB / 10.24) + '%';
+  spDraw();
+
+  if (spSec >= 8) spStop(spDemo === 1 ? 'limit' : 'hot');
+}
+
+function spStop(reason){
+  spRun = false;
+  if (spTimer) { clearInterval(spTimer); spTimer = null; }
+  spEl('sp-btn').textContent = '开始消耗';
+  spEl('sp-now').textContent = '—';
+  spEl('sp-now').style.color = '';
+  var p = spEl('sp-pill');
+  if (reason === 'limit') {
+    p.className = 'pill amber'; p.textContent = '已达上限';
+    spEl('sp-used').textContent = '1.00 GB / 1 GB';
+    spEl('sp-prog').style.width = '100%';
+    spEl('sp-prog').style.background = '#d97706';
+    spEl('sp-note').textContent = '已达 1 GB 上限，已自动停止（演示）';
+  } else if (reason === 'hot') {
+    p.className = 'pill red'; p.textContent = '过热中止';
+    spEl('sp-prog').style.background = '#dc2626';
+    spEl('sp-note').textContent = '基带 72.4 ℃，超过 70 ℃ 已中止（演示）';
+    spEl('sp-lat').innerHTML = '<span class="r">超时</span>';
+  } else {
+    p.className = 'pill'; p.textContent = '已停止';
+    spEl('sp-note').textContent = '已手动停止';
+  }
+}
+
+function spToggle(){
+  if (spRun) { spStop('stop'); return; }
+  if (stRun) { spEl('sp-note').textContent = '已有任务在运行（测速），请先停止'; return; }
+  spEl('bn-cap').textContent = spEl('sp-limit').value;
+  spEl('bn-confirm').style.display = 'flex';
+}
+
+function bnCancel(){
+  spEl('bn-confirm').style.display = 'none';
+  spEl('sp-note').textContent = '已取消，未产生任何流量';
+}
+
+function bnConfirm(){
+  spEl('bn-confirm').style.display = 'none';
+  spRun = true; spSec = 0; spMB = 0; spPeak = 0; spPts = [];
+  spDemo = (spDemo + 1) % 2;
+  spEl('sp-btn').textContent = '停止';
+  spEl('sp-pill').className = 'pill teal';
+  spEl('sp-pill').textContent = '消耗中';
+  spEl('sp-lat').textContent = '37 ms';
+  spEl('sp-note').textContent = '演示：约 8 秒后模拟' + (spDemo === 1 ? '达上限' : '过热中止');
+  spEl('sp-prog').style.width = '0';
+  spEl('sp-prog').style.background = '#0f6e56';
+  spEl('sp-line').setAttribute('points', '');
+  spTimer = setInterval(spTick, 150);
+}
+
+function spReset(){
+  spRun = false;
+  if (spTimer) { clearInterval(spTimer); spTimer = null; }
+  spSec = 0; spMB = 0; spPeak = 0; spPts = [];
+  spEl('sp-btn').textContent = '开始消耗';
+  spEl('sp-now').textContent = '—';
+  spEl('sp-now').style.color = '';
+  spEl('sp-peak').textContent = '—';
+  spEl('sp-avg').textContent = '—';
+  spEl('sp-time').textContent = '00:00';
+  spEl('sp-line').setAttribute('points', '');
+  spEl('sp-prog').style.width = '0';
+  spEl('sp-prog').style.background = '#0f6e56';
+  spEl('sp-pill').className = 'pill';
+  spEl('sp-pill').textContent = '待机';
+  spEl('sp-lat').textContent = '37 ms';
+  spSetCap();
+}
+
+/* ============ 测速模式（与流量消耗共享 busy 守卫，互不干扰） ============ */
+var stRun = false, stTimer = null, stSec = 0, stPts = [], stPeak = 0, stDemo = 0;
+function stEl(id){ return document.getElementById(id); }
+
+function stDraw(){
+  var max = 1;
+  stPts.forEach(function(v){ if (v > max) max = v; });
+  stEl('st-line').setAttribute('points', stPts.map(function(v, i){
+    return (i / 59 * 600).toFixed(1) + ',' + (82 - (v / max) * 76).toFixed(1);
+  }).join(' '));
+}
+
+function stTick(){
+  stSec += 0.15;
+  var ramp = Math.min(1, stSec / 3);              /* 前 3 秒爬坡，不计入 P90 */
+  var v = (132 + Math.sin(stSec / 2.2) * 14 + Math.random() * 10 - 5) * ramp;
+  if (v < 0) v = 0;
+  if (v > stPeak) stPeak = v;
+  stPts.push(v);
+  if (stPts.length > 60) stPts.shift();
+  stEl('st-now').textContent = stSec < 3 ? '爬坡中' : (132 + Math.sin(stSec / 2.2) * 8).toFixed(1);
+  stEl('st-note').textContent = stSec < 3
+    ? '前 3 秒爬坡样本不参与 P90 计算'
+    : '正在采集稳定期样本…';
+  stDraw();
+  if (stSec >= 7) stStop('done');
+}
+
+function stStop(reason){
+  stRun = false;
+  if (stTimer) { clearInterval(stTimer); stTimer = null; }
+  stEl('st-btn').textContent = '重新测速';
+  if (reason === 'done') {
+    stEl('st-pill').className = 'pill teal';
+    stEl('st-pill').textContent = '已完成';
+    stEl('st-now').textContent = '142.6';
+    stEl('st-peak').textContent = '186.2 Mbps';
+    stEl('st-avg').textContent = '138.4 Mbps';
+    stEl('st-used').textContent = '96 MB';
+    stEl('st-idle').textContent = '25 ms';
+    stEl('st-jit').textContent = '3 ms';
+    stEl('st-trust').textContent = '✓ 可信';
+    if (stDemo === 1) {
+      stEl('st-load').textContent = '284 ms';
+      stEl('st-warn').style.display = 'flex';
+      stEl('st-note').textContent = '自动停止 · 检测到负载延迟异常（缓冲膨胀）';
+    } else {
+      stEl('st-load').textContent = '41 ms';
+      stEl('st-warn').style.display = 'none';
+      stEl('st-note').textContent = '自动停止 · 结果取 P90，本次消耗 96 MB';
+    }
+  } else {
+    stEl('st-pill').className = 'pill';
+    stEl('st-pill').textContent = '已停止';
+    stEl('st-note').textContent = '已手动停止';
+  }
+}
+
+function stToggle(){
+  if (stRun) { stStop('stop'); return; }
+  if (spRun) { stEl('st-note').textContent = '已有任务在运行（流量消耗），请先停止'; return; }
+  stDemo = (stDemo + 1) % 2;
+  stRun = true; stSec = 0; stPts = []; stPeak = 0;
+  stEl('st-btn').textContent = '停止';
+  stEl('st-pill').className = 'pill teal';
+  stEl('st-pill').textContent = '测速中';
+  stEl('st-line').setAttribute('points', '');
+  stEl('st-now').textContent = '爬坡中';
+  stEl('st-warn').style.display = 'none';
+  stTimer = setInterval(stTick, 150);
+}
+
+function stReset(){
+  if (stTimer) { clearInterval(stTimer); stTimer = null; }
+  stRun = false; stSec = 0; stPts = []; stPeak = 0;
+  ['st-now','st-peak','st-avg','st-used','st-idle','st-load','st-jit','st-trust'].forEach(function(id){
+    stEl(id).textContent = '—';
+  });
+  stEl('st-btn').textContent = '开始测速';
+  stEl('st-pill').className = 'pill';
+  stEl('st-pill').textContent = '待机';
+  stEl('st-line').setAttribute('points', '');
+  stEl('st-warn').style.display = 'none';
+  stEl('st-note').textContent = '约 30 秒后自动出结果';
+}
+
+setState('ok');
+spSetCap();
+</script>
+</body>
+</html>

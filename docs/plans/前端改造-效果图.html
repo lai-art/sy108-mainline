@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SY108 LuCI 前端改造 · 效果图（线框示意）</title>
+<style>
+  :root{
+    --bg:#eef0f3; --card:#fff; --line:#e2e5e9; --line2:#cbd0d6;
+    --tx:#1f2328; --tx2:#5b6472; --tx3:#8a929e;
+    --teal:#0f6e56; --teal-bg:#e8f5f0; --teal-line:#9fd4c4;
+    --amber:#854f0b; --amber-bg:#fdf3e2; --amber-line:#e8c48a;
+    --red:#a32d2d; --red-bg:#fceceb; --red-line:#f0b6b4;
+    --gray-bg:#f4f5f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px 20px 60px;background:var(--bg);color:var(--tx);
+       font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto}
+  .hd{margin:0 0 6px;font-size:20px;font-weight:600}
+  .sub{color:var(--tx2);font-size:13px;margin:0 0 4px}
+  .note{display:inline-block;margin:10px 0 26px;padding:8px 12px;border-radius:8px;
+        background:var(--amber-bg);border:1px solid var(--amber-line);color:var(--amber);font-size:12.5px}
+  .panel{margin-bottom:34px}
+  .plabel{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+  .pnum{width:22px;height:22px;border-radius:6px;background:var(--tx);color:#fff;
+        font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .ptitle{font-size:15px;font-weight:600}
+  .pdesc{color:var(--tx2);font-size:12.5px}
+  .frame{background:var(--card);border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+  .chrome{display:flex;align-items:center;gap:8px;padding:9px 14px;background:#f7f8f9;border-bottom:1px solid var(--line)}
+  .dot{width:9px;height:9px;border-radius:50%;background:#d6dae0}
+  .url{margin-left:8px;font-size:12px;color:var(--tx3);font-family:ui-monospace,Consolas,monospace}
+  .app{display:grid;grid-template-columns:206px 1fr;min-height:420px}
+  .side{background:#fafbfc;border-right:1px solid var(--line);padding:14px 0}
+  .brand{padding:0 16px 12px;font-weight:600;font-size:13px;letter-spacing:.2px}
+  .mi{padding:7px 16px;font-size:13px;color:var(--tx2);border-left:2px solid transparent}
+  .mi.on{color:var(--teal);border-left-color:var(--teal);background:var(--teal-bg);font-weight:600}
+  .mi small{display:block;color:var(--tx3);font-size:11px;font-weight:400}
+  .main{padding:18px 20px 24px;min-width:0}
+  .crumb{font-size:12px;color:var(--tx3);margin-bottom:4px}
+  .h2{margin:0 0 14px;font-size:17px;font-weight:600}
+  .sec{border:1px solid var(--line);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  .sec-h{padding:9px 14px;background:#f7f8f9;border-bottom:1px solid var(--line);
+         font-size:12.5px;font-weight:600;color:var(--tx2);display:flex;justify-content:space-between}
+  .row{display:flex;align-items:center;gap:12px;padding:9px 14px;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .lab{flex:0 0 128px;font-size:13px;color:var(--tx2)}
+  .ctl{flex:1;min-width:0}
+  .inp{display:block;height:30px;border:1px solid var(--line2);border-radius:6px;background:#fff;
+       padding:0 10px;font:inherit;font-size:13px;line-height:28px;color:var(--tx)}
+  .sw{width:44px;height:24px;border-radius:12px;background:#cfd5dc;position:relative}
+  .sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+  .sw.on{background:var(--teal)}
+  .sw.on::after{left:23px}
+  .btns{display:flex;gap:8px;padding:12px 14px;background:#fafbfc;border-top:1px solid var(--line);flex-wrap:wrap}
+  .btn{padding:7px 14px;border-radius:6px;border:1px solid var(--line2);background:#fff;
+       font:inherit;font-size:13px;color:var(--tx)}
+  .btn.pri{background:var(--teal);border-color:var(--teal);color:#fff}
+  .btn.dead{background:#f2f3f5;color:#b6bcc4;border-color:#e4e7ea;cursor:not-allowed}
+  .deadnote{padding:0 14px 12px;font-size:12px;color:#a8aeb6;background:#f2f3f5;margin-top:-1px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  td{padding:5px 14px;border-bottom:1px solid #f0f2f4;vertical-align:top}
+  td:first-child{color:var(--tx2);width:44%}
+  td:last-child{color:var(--tx);font-variant-numeric:tabular-nums}
+  .dense td{padding:3.5px 14px;font-size:12px}
+  .badge{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
+  .b-g{color:#0f6e56}.b-a{color:#b45309}.b-r{color:#b91c1c}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;
+        border:1px solid var(--line2);color:var(--tx2);background:#fff}
+  .pill.teal{border-color:var(--teal-line);background:var(--teal-bg);color:var(--teal)}
+  .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px}
+  .kpi{border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .kpi h4{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--tx3);letter-spacing:.3px}
+  .big{font-size:22px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+  .kv{display:flex;justify-content:space-between;font-size:12.5px;color:var(--tx2);padding:3px 0}
+  .kv b{color:var(--tx);font-weight:600;font-variant-numeric:tabular-nums}
+  .bar{height:4px;border-radius:2px;background:#eceef1;margin-top:10px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:2px}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .tab{padding:8px 14px;font-size:13px;color:var(--tx2);border:1px solid transparent;border-bottom:0;
+       border-radius:6px 6px 0 0;margin-bottom:-1px;background:transparent}
+  .tab.on{background:#fff;border-color:var(--line);border-bottom-color:#fff;color:var(--teal);font-weight:600}
+  .group{margin-bottom:16px}
+  .group-h{font-size:12px;font-weight:600;color:var(--tx3);margin:0 0 8px;letter-spacing:.4px}
+  .evt{display:flex;gap:10px;padding:7px 14px;border-bottom:1px solid #f0f2f4;font-size:12.5px}
+  .evt:last-child{border-bottom:0}
+  .evt time{color:var(--tx3);flex:0 0 60px;font-variant-numeric:tabular-nums}
+  .warn{display:flex;gap:10px;padding:10px 14px;border-radius:8px;background:var(--amber-bg);
+        border:1px solid var(--amber-line);color:var(--amber);font-size:12.5px;margin-bottom:14px}
+  .ok{display:flex;gap:10px;padding:10px 14px;border-radius:8px;background:var(--teal-bg);
+      border:1px solid var(--teal-line);color:var(--teal);font-size:12.5px;margin-bottom:14px}
+  .steps{display:flex;gap:6px;flex-wrap:wrap;padding:12px 14px;background:#fafbfc;border-top:1px solid var(--line)}
+  .step{font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line2);
+        color:var(--tx2);background:#fff}
+  .step.done{border-color:var(--teal-line);background:var(--teal-bg);color:var(--teal)}
+  .step.cur{border-color:var(--amber-line);background:var(--amber-bg);color:var(--amber)}
+  .foot{color:var(--tx3);font-size:12px;margin:-6px 0 0}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 22px;font-size:12.5px;color:var(--tx2)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw2{width:12px;height:12px;border-radius:3px;border:1px solid var(--line2);background:#fff}
+  .sw2.g{background:#f2f3f5;border-color:#e4e7ea}
+  .sw2.t{background:var(--teal-bg);border-color:var(--teal-line)}
+  .sw2.a{background:var(--amber-bg);border-color:var(--amber-line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="hd">SY108 LuCI 前端改造 · 效果图</h1>
+  <p class="sub">基于当前仓库 <code>19049a3</code> 的五个视图实际代码绘制。左为现状，右为改后。</p>
+  <p class="note">这是线框示意，不是最终主题渲染。字体、间距、配色以 Outline 主题实际产出为准，这里只表达信息结构、控件数量与交互顺序。</p>
+
+  <div class="legend">
+    <span><i class="sw2 g"></i>现状</span>
+    <span><i class="sw2 t"></i>改后复用</span>
+    <span><i class="sw2 a"></i>危险能力收口 / 需注意</span>
+  </div>
+
+  <!-- ============ A 现状 ============ -->
+  <section class="panel">
+    <div class="plabel"><div class="pnum">A</div>
+      <div><div class="ptitle">现状：概览页</div>
+      <div class="pdesc">一个表单 + 一张 23 行平铺长表 + 一个永远点不动的按钮，全挤在首屏</div></div></div>
+    <div class="frame">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <span class="url">192.168.88.1/cgi-bin/luci/admin/udx/overview</span></div>
+      <div class="app">
+        <nav class="side">
+          <div class="brand">SY108</div>
+          <div class="mi on">Overview and network control</div>
+          <div class="mi">Bands, cells and APN</div>
+          <div class="mi">SMS management</div>
+          <div class="mi">AT terminal and IMEI</div>
+          <div class="mi">Hardware and platform</div>
+        </nav>
+        <div class="main">
+          <div class="crumb">SY108 / Overview and network control</div>
+          <h2 class="h2">Network control</h2>
+
+          <div class="sec">
+            <div class="row"><div class="lab">Airplane mode</div><div class="ctl"><div class="sw"></div></div></div>
+            <div class="row"><div class="lab">Mobile data</div><div class="ctl"><div class="sw on"></div></div></div>
+            <div class="row"><div class="lab">Data roaming</div><div class="ctl"><div class="sw"></div></div></div>
+            <div class="row"><div class="lab">SIM slot</div><div class="ctl"><span class="inp">SIM 1</span></div></div>
+            <div class="row"><div class="lab">Network mode</div><div class="ctl"><span class="inp">5G / 4G automatic (SA + NSA)</span></div></div>
+            <div class="btns">
+              <span class="btn pri">Apply</span>
+              <span class="btn dead">Restart modem</span>
+              <span class="btn">Refresh</span>
+            </div>
+            <div class="deadnote">Modem reset is not supported in this version.</div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-h"><span>Current network</span><span>23 行</span></div>
+            <table class="dense">
+              <tr><td>Operator</td><td>China Mobile</td></tr>
+              <tr><td>SIM status</td><td>READY</td></tr>
+              <tr><td>Active SIM</td><td>SIM 1</td></tr>
+              <tr><td>Radio</td><td>On</td></tr>
+              <tr><td>Data connection</td><td>Connected</td></tr>
+              <tr><td>Network mode</td><td>5G SA + NSA</td></tr>
+              <tr><td>Band</td><td>n78</td></tr>
+              <tr><td>Frequency point (ARFCN)</td><td>627264</td></tr>
+              <tr><td>Physical cell ID (PCI)</td><td>312</td></tr>
+              <tr><td>Reference signal power (RSRP)</td><td>-95 dBm</td></tr>
+              <tr><td>Reference signal quality (RSRQ)</td><td>-11 dB</td></tr>
+              <tr><td>Signal to interference noise ratio (SINR)</td><td>18 dB</td></tr>
+              <tr><td>Tracking area code (TAC)</td><td>57120</td></tr>
+              <tr><td>Cell ID</td><td>128451073</td></tr>
+              <tr><td>Bandwidth</td><td>100 MHz</td></tr>
+              <tr><td>AMBR downlink</td><td>300 Mbps</td></tr>
+              <tr><td>AMBR uplink</td><td>100 Mbps</td></tr>
+              <tr><td>MBR downlink</td><td>300 Mbps</td></tr>
+              <tr><td>MBR uplink</td><td>100 Mbps</td></tr>
+              <tr><td>GBR downlink</td><td>—</td></tr>
+              <tr><td>GBR uplink</td><td>—</td></tr>
+              <tr><td>IPv4</td><td>10.42.13.7</td></tr>
+              <tr><td>Last error</td><td>None</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">问题：菜单标题是整句英文；首屏没有一个"最重要的三个数"；23 行同级信息没有分组；死按钮占着黄金位置。</p>
+  </section>
+
+  <!-- ============ B 改后概览 ============ -->
+  <section class="panel">
+    <div class="plabel"><div class="pnum">B</div>
+      <div><div class="ptitle">改后：概览（纯读，不放表单）</div>
+      <div class="pdesc">四张状态卡 + 最近事件 + 三个动作，所有"改配置"的动作都移到移动网络页</div></div></div>
+    <div class="frame">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <span class="url">192.168.88.1/cgi-bin/luci/admin/udx/overview</span></div>
+      <div class="app">
+        <nav class="side">
+          <div class="brand">SY108</div>
+          <div class="mi on">概览</div>
+          <div class="mi">移动网络</div>
+          <div class="mi">SIM 卡<small>状态 · 重新识别</small></div>
+          <div class="mi">短信</div>
+          <div class="mi">硬件</div>
+          <div class="mi">高级<small>AT · IMEI</small></div>
+        </nav>
+        <div class="main">
+          <div class="crumb">SY108 / 概览</div>
+          <h2 class="h2">当前状态</h2>
+
+          <div class="cards">
+            <div class="kpi">
+              <h4>信号</h4>
+              <div class="big"><span class="b-g">良好</span> <span style="font-size:15px;color:var(--tx2);font-weight:400">-95 dBm</span></div>
+              <div class="bar"><i style="width:72%;background:#0f6e56"></i></div>
+              <div class="kv"><span>RSRQ</span><b>-11 dB</b></div>
+              <div class="kv"><span>SINR</span><b>18 dB</b></div>
+            </div>
+            <div class="kpi">
+              <h4>网络</h4>
+              <div class="big">中国移动 <span style="font-size:14px;color:var(--tx2);font-weight:400">5G SA</span></div>
+              <div class="kv"><span>频段 / 带宽</span><b>n78 · 100 MHz</b></div>
+              <div class="kv"><span>PCI / ARFCN</span><b>312 · 627264</b></div>
+            </div>
+            <div class="kpi">
+              <h4>SIM</h4>
+              <div class="big"><span class="b-g">READY</span> <span style="font-size:14px;color:var(--tx2);font-weight:400">槽位 1</span></div>
+              <div class="kv"><span>ICCID</span><b>8986 0115 ···· 4821</b></div>
+              <div class="kv"><span>最近识别</span><b>3 分钟前</b></div>
+            </div>
+            <div class="kpi">
+              <h4>数据</h4>
+              <div class="big">已连接 <span style="font-size:14px;color:var(--tx2);font-weight:400">00:12:34</span></div>
+              <div class="kv"><span>IPv4</span><b>10.42.13.7</b></div>
+              <div class="kv"><span>AMBR 上 / 下</span><b>100 / 300 Mbps</b></div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-h"><span>最近事件</span><span>最近 20 条</span></div>
+            <div class="evt"><time>22:41</time><span>数据连接建立（PDP 3）</span></div>
+            <div class="evt"><time>22:38</time><span>小区切换：PCI 318 → 312</span></div>
+            <div class="evt"><time>22:30</time><span>SIM 卡重新识别完成（约 9 秒）</span></div>
+            <div class="btns">
+              <span class="btn">刷新</span>
+              <span class="btn">重连数据</span>
+              <span class="btn">去诊断 →</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">同样四个数，从 23 行表格里提出来；长表整段挪到「移动网络」的详情里，不再占首屏。</p>
+  </section>
+
+  <!-- ============ C 改后移动网络 ============ -->
+  <section class="panel">
+    <div class="plabel"><div class="pnum">C</div>
+      <div><div class="ptitle">改后：移动网络（合并原来两页）</div>
+      <div class="pdesc">连接 / 频段与小区 / 运营商 / APN，四件事各归其位；应用时能看到"执行到第几步"</div></div></div>
+    <div class="frame">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <span class="url">192.168.88.1/cgi-bin/luci/admin/udx/network</span></div>
+      <div class="app">
+        <nav class="side">
+          <div class="brand">SY108</div>
+          <div class="mi">概览</div>
+          <div class="mi on">移动网络</div>
+          <div class="mi">SIM 卡<small>状态 · 重新识别</small></div>
+          <div class="mi">短信</div>
+          <div class="mi">硬件</div>
+          <div class="mi">高级<small>AT · IMEI</small></div>
+        </nav>
+        <div class="main">
+          <div class="crumb">SY108 / 移动网络</div>
+          <h2 class="h2">连接</h2>
+
+          <div class="tabs">
+            <span class="tab on">连接</span>
+            <span class="tab">频段与小区</span>
+            <span class="tab">运营商</span>
+            <span class="tab">APN</span>
+          </div>
+
+          <div class="group">
+            <div class="group-h">SIM 与制式</div>
+            <div class="sec">
+              <div class="row"><div class="lab">飞机模式</div><div class="ctl"><div class="sw"></div></div></div>
+              <div class="row"><div class="lab">SIM 卡槽</div><div class="ctl"><span class="inp">SIM 1</span></div></div>
+              <div class="row"><div class="lab">网络模式</div><div class="ctl"><span class="inp">5G / 4G 自动（SA + NSA）</span></div></div>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-h">数据</div>
+            <div class="sec">
+              <div class="row"><div class="lab">移动数据</div><div class="ctl"><div class="sw on"></div></div></div>
+              <div class="row"><div class="lab">数据漫游</div><div class="ctl"><div class="sw"></div></div></div>
+            </div>
+          </div>
+
+          <div class="warn"><span>改这几项会按顺序下发 5 条指令，期间不要重复点击。卡槽切换会让网络断开约 10 秒。</span></div>
+
+          <div class="sec">
+            <div class="btns" style="border-top:0"><span class="btn pri">应用变更</span><span class="btn">全部还原</span></div>
+            <div class="steps">
+              <span class="step done">1 自动连接策略</span>
+              <span class="step done">2 射频开关</span>
+              <span class="step cur">3 卡槽切换</span>
+              <span class="step">4 制式配置</span>
+              <span class="step">5 重新拨号</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">解决"一个 Apply 串五个操作、失败后不知道停在哪"：把五步摊开成可见进度，失败时能指着第 3 步说"卡在这一步"。</p>
+  </section>
+
+  <!-- ============ D SIM 卡 ============ -->
+  <section class="panel">
+    <div class="plabel"><div class="pnum">D</div>
+      <div><div class="ptitle">改后：SIM 卡（新增落点）</div>
+      <div class="pdesc">SIM 的"诊断与救急"终于有地方放，也是这次热插拔重识别的入口</div></div></div>
+    <div class="frame">
+      <div class="chrome"><i class="dot"></i><i class="dot"></i><i class="dot"></i>
+        <span class="url">192.168.88.1/cgi-bin/luci/admin/udx/sim</span></div>
+      <div class="app">
+        <nav class="side">
+          <div class="brand">SY108</div>
+          <div class="mi">概览</div>
+          <div class="mi">移动网络</div>
+          <div class="mi on">SIM 卡<small>状态 · 重新识别</small></div>
+          <div class="mi">短信</div>
+          <div class="mi">硬件</div>
+          <div class="mi">高级<small>AT · IMEI</small></div>
+        </nav>
+        <div class="main">
+          <div class="crumb">SY108 / SIM 卡</div>
+          <h2 class="h2">SIM 状态</h2>
+
+          <div class="ok"><span>读卡正常。上次识别于 3 分钟前，用时约 9 秒。</span></div>
+
+          <div class="sec">
+            <div class="sec-h"><span>识别结果</span><span class="pill teal">READY</span></div>
+            <table>
+              <tr><td>ICCID</td><td>8986 0115 2345 6789 4821</td></tr>
+              <tr><td>IMSI</td><td>460 00 ···· 8421</td></tr>
+              <tr><td>运营商</td><td>中国移动</td></tr>
+              <tr><td>物理槽位</td><td>槽位 1（共 3 个，可切 2 个）</td></tr>
+              <tr><td>卡在位</td><td>是</td></tr>
+            </table>
+          </div>
+
+          <div class="warn"><span>重新识别会关闭射频、重读卡、再打开射频，全程约 10 秒，期间断网。仅在拔插卡后状态不对时使用。</span></div>
+
+          <div class="sec">
+            <div class="btns" style="border-top:0">
+              <span class="btn pri">重新识别</span>
+              <span class="btn">查看最近 5 次记录</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="foot">这一页对应的后端能力（身份键扩展 + 强制重读）正是方案里 2.5–3.5 人日的 M2；页面可以先上，按钮等后端好了再点亮。</p>
+  </section>
+
+</div>
+</body>
+</html>

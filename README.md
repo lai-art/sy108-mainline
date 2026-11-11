@@ -72,6 +72,7 @@ U-Boot 与 SPL 在 `sy108-uboot-spl` 仓库中独立构建，详见 [构建维�
 - [USB 与 MCU 接口](docs/usb-mcu.md)
 - [已验证改动](docs/verified-changes.md)
 - [上游 issue 稿存档：USB3 U1/U2](docs/upstream-issue-usb3-lpm.md)
+- [设计与整改方案归档](docs/plans/README.md)（前端 / SIM / 测速等设计稿与决策记录，**非已实现功能**）
 
 ## 致谢
 
