@@ -101,6 +101,30 @@ jobs:
           cd artifact/${{ matrix.profile }}
           sha256sum * > SHA256SUMS || true
 
+      # A stale build-tree cache can silently drop a package that was just
+      # added under packages/: defconfig reuses the old package index, so the
+      # new CONFIG_PACKAGE_<name>=y line vanishes while the build still turns
+      # green. That already shipped twice (run 52/53). Refuse to publish an
+      # image whose openwrt.config is missing any package the profile asks for.
+      - name: Verify requested packages survived defconfig
+        run: |
+          src="configs/openwrt-${{ matrix.profile }}.config"
+          built="artifact/${{ matrix.profile }}/openwrt.config"
+          [ -f "$built" ] || { echo "::error::$built missing"; exit 1; }
+          fail=0
+          while IFS= read -r line; do
+            case "$line" in
+              CONFIG_PACKAGE_*=y)
+                sym="${line%%=*}"
+                grep -qx "${sym}=y" "$built" || {
+                  echo "::error::$sym requested in $src but missing from built config"
+                  fail=1
+                }
+                ;;
+            esac
+          done < "$src"
+          exit $fail
+
       # 002-sy108-usb3-lpm-disable.patch has to reach the compiled DTB, and a
       # stale build tree or a cached kernel drops it silently - the image still
       # boots and still trains SuperSpeed, only the link keeps falling into

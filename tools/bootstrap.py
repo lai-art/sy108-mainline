@@ -71,16 +71,25 @@ def main():
     subprocess.run([sys.executable, str(PROJECT / 'tools/build/kernel-source.py')], check=True)
     run(['sh', '-c', 'test -e dl || ln -s /downloads dl; ./scripts/feeds update -a'])
     run(['./scripts/feeds', 'install', '-a'])
-    # The CI cache restores tmp/.packageinfo from the previous build. `make
-    # defconfig` reads it without regenerating, so a package newly added under
-    # packages/ is invisible to Kconfig: its CONFIG_PACKAGE_<name>=y line is
-    # silently dropped and the package never reaches the image — even though
-    # `feeds install` above just indexed it. Drop the stale index so the next
-    # defconfig rescans package/feeds and picks the new package up.
-    for stale in ('tmp/.packageinfo', 'tmp/.packagedeps'):
+    # The CI cache restores the whole build tree, including the incremental
+    # package-scan state under tmp/. `make defconfig` (via prepare-tmpinfo)
+    # reuses tmp/.packageinfo together with the per-package stamps in tmp/info/
+    # to skip re-scanning packages whose Makefiles look unchanged, so a package
+    # newly added under packages/ is invisible to Kconfig: its
+    # CONFIG_PACKAGE_<name>=y line is silently dropped and the package never
+    # reaches the image — even though `feeds install` above just indexed and
+    # symlinked it. Drop the stale scan state so the next defconfig rescans
+    # package/feeds from scratch. Deleting only tmp/.packageinfo is not enough:
+    # the per-package stamps in tmp/info/ still short-circuit the rescan, and a
+    # restored tree may carry timestamps that fool the incremental check.
+    for stale in ('tmp/.packageinfo', 'tmp/.packagedeps',
+                  'tmp/.config-package.in', 'tmp/.config-feeds.in'):
         p = OPENWRT / stale
-        if p.exists():
+        if p.exists() or p.is_symlink():
             p.unlink()
+    scan = OPENWRT / 'tmp/info'
+    if scan.is_dir() and not scan.is_symlink():
+        shutil.rmtree(scan)
     expected = {
         'upstream_commit': lock['upstream_commit'],
         'integration_sha256': digest.hexdigest(),
