@@ -56,12 +56,17 @@ jobs:
             out/openwrt-build
             out/downloads
             out/ccache
-          # Bump the key prefix whenever the prepared kernel tree must be
-          # rebuilt from scratch. A .patch deleted from the repo can survive in
-          # a restored tree; hashFiles alone does not guarantee re-prepare.
-          key: sy108-v2-${{ matrix.profile }}-${{ hashFiles('manifests/*.json', 'integration/openwrt/**', 'integration/openwrt/target/linux/sprd/patches-7.3/*.patch') }}
-          restore-keys: |
-            sy108-v2-${{ matrix.profile }}-
+          # The cache restores the whole build tree, including the incremental
+          # package-scan state under tmp/. A stale tree silently drops a package
+          # that was just added or changed under packages/: defconfig reuses the
+          # old package index, so its CONFIG_PACKAGE_<name>=y line vanishes while
+          # the build still turns green (that already shipped twice, runs 52/53).
+          # Hash every input that changes the image so a package/config/tool
+          # change forces a cache miss (fresh, correct scan). No restore-keys:
+          # a prefix fallback could resurrect a tree built from a different
+          # package set. tools/bootstrap.py additionally drops the tmp/ scan
+          # state as a second line of defence.
+          key: sy108-v3-${{ matrix.profile }}-${{ hashFiles('manifests/*.json', 'integration/openwrt/**', 'integration/openwrt/target/linux/sprd/patches-7.3/*.patch', 'packages/**', 'configs/**', 'tools/**') }}
 
       - name: Prepare builder image
         run: |
