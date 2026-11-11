@@ -478,7 +478,7 @@ static struct uci_section *find_section(struct uci_package *package, const char 
 		struct uci_section *section = uci_to_section(element);
 		if (type && strcmp(section->type, type))
 			continue;
-		if (name && strcmp(section->name, name))
+		if (name && strcmp(section->e.name, name))
 			continue;
 		return section;
 	}
@@ -551,9 +551,9 @@ static void load_config(struct node *nodes, size_t capacity, size_t *count)
 			continue;
 		struct node *node = &nodes[*count];
 		memset(node, 0, sizeof(*node));
-		snprintf(node->id, sizeof(node->id), "%s", section->name);
+		snprintf(node->id, sizeof(node->id), "%s", section->e.name);
 		snprintf(node->name, sizeof(node->name), "%s",
-			 cfg_string(uci, section, "name", section->name));
+			 cfg_string(uci, section, "name", section->e.name));
 		snprintf(node->group, sizeof(node->group), "%s",
 			 cfg_string(uci, section, "group", "global"));
 		snprintf(node->group_label, sizeof(node->group_label), "%s",
@@ -998,7 +998,7 @@ static struct json_object *status_document(void)
 /* --------------------------------------------------------------------------
  * ubus surface
  */
-static void handler_status(struct ubus_context *ctx, struct ubus_object *obj,
+static int handler_status(struct ubus_context *ctx, struct ubus_object *obj,
 			   struct ubus_request_data *request, const char *method,
 			   struct blob_attr *msg)
 {
@@ -1009,9 +1009,10 @@ static void handler_status(struct ubus_context *ctx, struct ubus_object *obj,
 	js_bool(out, "accepted", true);
 	js_int(out, "pid", getpid());
 	reply_json(ctx, request, out);
+	return 0;
 }
 
-static void handler_stop(struct ubus_context *ctx, struct ubus_object *obj,
+static int handler_stop(struct ubus_context *ctx, struct ubus_object *obj,
 			 struct ubus_request_data *request, const char *method, struct blob_attr *msg)
 {
 	(void)obj;
@@ -1027,7 +1028,7 @@ static void handler_stop(struct ubus_context *ctx, struct ubus_object *obj,
 							   : "No task is running");
 		js_int(out, "pid", getpid());
 		reply_json(ctx, request, out);
-		return;
+		return 0;
 	}
 	finish("user", NULL);
 	js_bool(out, "accepted", true);
@@ -1038,6 +1039,7 @@ static void handler_stop(struct ubus_context *ctx, struct ubus_object *obj,
 	js_string(out, "reason", job.stop_reason);
 	js_int(out, "pid", getpid());
 	reply_json(ctx, request, out);
+	return 0;
 }
 
 static struct blob_attr *msg_field(struct blob_attr *msg, const char *name)
@@ -1078,7 +1080,7 @@ static bool msg_number(struct blob_attr *msg, const char *name, uint64_t *out)
 	return false;
 }
 
-static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
+static int handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 			  struct ubus_request_data *request, const char *method, struct blob_attr *msg)
 {
 	(void)obj;
@@ -1092,7 +1094,7 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 		speed = false;
 	else {
 		reply_error(ctx, request, out, "mode must be \"speed\" or \"burn\"");
-		return;
+		return 0;
 	}
 	if (job.active) {
 		js_bool(out, "accepted", false);
@@ -1101,7 +1103,7 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 		js_string(out, "error", "Another speed test task is already running");
 		js_int(out, "pid", getpid());
 		reply_json(ctx, request, out);
-		return;
+		return 0;
 	}
 	struct node nodes[MAX_NODES];
 	size_t count = 0;
@@ -1112,15 +1114,15 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 		chosen = find_node(nodes, count, wanted);
 		if (!chosen) {
 			reply_error(ctx, request, out, "Unknown node");
-			return;
+			return 0;
 		}
 		if (!chosen->enabled) {
 			reply_error(ctx, request, out, "Node is disabled");
-			return;
+			return 0;
 		}
 		if (!chosen->url[0]) {
 			reply_error(ctx, request, out, "Node has no URL");
-			return;
+			return 0;
 		}
 	} else {
 		if (speed)
@@ -1128,13 +1130,13 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 		chosen = first_usable(nodes, count);
 		if (!chosen) {
 			reply_error(ctx, request, out, "No usable speed test node is configured");
-			return;
+			return 0;
 		}
 	}
 	char host[256], why[192];
 	if (check_target(chosen->url, host, sizeof(host), why, sizeof(why)) < 0) {
 		reply_error(ctx, request, out, why);
-		return;
+		return 0;
 	}
 	uint64_t value;
 	unsigned threads = settings.threads;
@@ -1176,7 +1178,7 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 	uint64_t counter;
 	if (!read_counter(&counter)) {
 		reply_error(ctx, request, out, "No byte counter for the cellular interface");
-		return;
+		return 0;
 	}
 	/* Measure the idle round trip before the clock starts, otherwise the pause
 	 * would be charged to the average. */
@@ -1202,7 +1204,7 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 		if (spawn_thread(slot) < 0) {
 			finish("error", "Cannot start curl");
 			reply_error(ctx, request, out, "Cannot start curl");
-			return;
+			return 0;
 		}
 	}
 	uloop_timeout_set(&tick, SAMPLE_MS);
@@ -1215,9 +1217,10 @@ static void handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 	js_string(out, "node", job.node);
 	js_int(out, "pid", getpid());
 	reply_json(ctx, request, out);
+	return 0;
 }
 
-static void handler_nodes(struct ubus_context *ctx, struct ubus_object *obj,
+static int handler_nodes(struct ubus_context *ctx, struct ubus_object *obj,
 			  struct ubus_request_data *request, const char *method, struct blob_attr *msg)
 {
 	(void)obj;
@@ -1257,6 +1260,7 @@ static void handler_nodes(struct ubus_context *ctx, struct ubus_object *obj,
 	js_bool(out, "running", job.active);
 	js_int(out, "pid", getpid());
 	reply_json(ctx, request, out);
+	return 0;
 }
 
 static const struct ubus_method methods[] = {
