@@ -86,7 +86,21 @@ jobs:
 
       - name: Build ${{ matrix.profile }} firmware
         run: |
-          python3 tools/build/firmware.py ${{ matrix.profile }} --jobs 4
+          set -o pipefail
+          python3 tools/build/firmware.py ${{ matrix.profile }} --jobs 4 2>&1 | tee build-${{ matrix.profile }}.log
+
+      # GitHub withholds the runner log for fork repositories (403 even for the
+      # owner-less public API), so a compiler error inside the build step is
+      # otherwise invisible. Persist the log as an artifact on failure so it can
+      # be pulled back for diagnosis.
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ matrix.profile }}
+          path: build-${{ matrix.profile }}.log
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Record target patch hash
         run: |
