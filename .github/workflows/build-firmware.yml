@@ -56,9 +56,12 @@ jobs:
             out/openwrt-build
             out/downloads
             out/ccache
-          key: sy108-${{ matrix.profile }}-${{ hashFiles('manifests/*.json', 'integration/openwrt/**') }}
+          # Bump the key prefix whenever the prepared kernel tree must be
+          # rebuilt from scratch. A .patch deleted from the repo can survive in
+          # a restored tree; hashFiles alone does not guarantee re-prepare.
+          key: sy108-v2-${{ matrix.profile }}-${{ hashFiles('manifests/*.json', 'integration/openwrt/**', 'integration/openwrt/target/linux/sprd/patches-7.3/*.patch') }}
           restore-keys: |
-            sy108-${{ matrix.profile }}-
+            sy108-v2-${{ matrix.profile }}-
 
       - name: Prepare builder image
         run: |
@@ -67,7 +70,7 @@ jobs:
       - name: Drop cached kernel when target patches change
         run: |
           KD=$(ls -d out/openwrt-build/build_dir/target-*/linux-sprd_udx710 2>/dev/null || true)
-          [ -n "$KD" ] || exit 0
+          [ -n "$KD" ] || { echo "No prepared kernel tree in cache; nothing to drop"; exit 0; }
           want=$(cat integration/openwrt/target/linux/sprd/patches-7.3/*.patch 2>/dev/null | sha256sum | cut -d' ' -f1)
           have=$(cat "$KD/.sy108-patch-hash" 2>/dev/null || true)
           if [ "$want" != "$have" ]; then
@@ -103,7 +106,7 @@ jobs:
       # boots and still trains SuperSpeed, only the link keeps falling into
       # U1/U2.  That failure mode is indistinguishable from a cable problem
       # until the image is flashed, so refuse to publish an image without it.
-      - name: Verify USB3 LPM quirks in device tree
+      - name: Verify device tree invariants (USB3 LPM + fixed peripheral role)
         run: |
           dtb=artifact/${{ matrix.profile }}/board.dtb
           if [ ! -f "$dtb" ]; then
@@ -120,7 +123,23 @@ jobs:
             echo "::error::dead property snps,usb3-u1u2-disable still present in $dtb - 002 not applied"
             exit 1
           fi
-          echo "USB3 LPM quirks present in $dtb"
+          # The management port must stay a FIXED USB device. A cached kernel
+          # tree can retain a .patch that was deleted from the repository, and
+          # dr_mode="otg" makes dwc3 take dwc3_drd_init() instead of
+          # dwc3_gadget_init(); boot_accept() then never sees the UDC and the
+          # watchdog returns to Recovery. Run 50 shipped exactly this failure
+          # with a green build, so refuse to publish such an image.
+          for prop in usb-role-switch role-switch-default-mode otg; do
+            if grep -aq -- "$prop" "$dtb"; then
+              echo "::error::$prop present in $dtb - stale/cached kernel tree or unintended USB role switch"
+              exit 1
+            fi
+          done
+          if ! grep -aq -- 'peripheral' "$dtb"; then
+            echo "::error::dr_mode is not peripheral in $dtb"
+            exit 1
+          fi
+          echo "USB3 LPM quirks present and fixed-peripheral role verified in $dtb"
 
       - name: Upload ${{ matrix.profile }} artifacts
         uses: actions/upload-artifact@v4
