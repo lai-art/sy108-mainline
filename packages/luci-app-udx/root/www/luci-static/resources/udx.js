@@ -401,7 +401,9 @@ function main(unit) {
         value : value,
         set : function(text, opts) {
             opts = opts || {};
-            var empty = (text === null || text === undefined || text === '');
+            /* `'—'` is the placeholder `row().set` emits for a missing value, so
+             * it is empty too; `0` is not — "0 Mbps" is a real reading. */
+            var empty = (text === null || text === undefined || text === '' || text === '—');
             value.textContent = empty ? '—' : String(text);
             /* A dash is not a measurement, so it must not carry a unit: "— Mbps"
              * reads as "zero megabits", when what it means is "no reading yet".
@@ -673,23 +675,26 @@ function bpsText(bps) {
  * next to `error` and would read as "why the error happened"), while the reply
  * to `stop` uses `reason`. They are read in different places on purpose.
  *
- * Each `text` is wrapped in `_()` *here*, at the literal, and not at the
- * lookup. A `_(row.text)` call is invisible to xgettext, so those six strings
- * never reached the .pot and shipped as English on a Chinese build. */
+ * The six `text` values below are looked up as `_(row.text)` at render time.
+ * That is a non-literal call, so xgettext never sees them and a bare `msgmerge`
+ * drops them from the .pot. They MUST stay in sync with
+ * `po/templates/udx.pot` / `po/zh_Hans/udx.po` by hand (the udx-po.py helper
+ * carries them in its fixed list for exactly this reason). Do not "clean up"
+ * the table without updating the catalog. */
 var STOP_REASONS = {
-    user : {tone : 'neutral', text : _('Stopped by you')},
-    byte_limit : {tone : 'warn', text : _('Stopped, the data cap for this run was reached')},
-    time_limit : {tone : 'ok', text : _('Finished, the planned duration elapsed')},
-    thermal : {tone : 'bad', text : _('Aborted, the device got too hot')},
-    sim_removed : {tone : 'warn', text : _('Interrupted, the mobile network went away')},
-    error : {tone : 'bad', text : _('The test failed')}
+    user : {tone : 'neutral', text : 'Stopped by you'},
+    byte_limit : {tone : 'warn', text : 'Stopped, the data cap for this run was reached'},
+    time_limit : {tone : 'ok', text : 'Finished, the planned duration elapsed'},
+    thermal : {tone : 'bad', text : 'Aborted, the device got too hot'},
+    sim_removed : {tone : 'warn', text : 'Interrupted, the mobile network went away'},
+    error : {tone : 'bad', text : 'The test failed'}
 };
 function stopReason(value) {
     if (!value)
         return null;
     var row = STOP_REASONS[value];
     return {raw : value, tone : row ? row.tone : 'warn',
-            text : row ? row.text : _('The test ended for an unknown reason')};
+            text : row ? _(row.text) : _('The test ended for an unknown reason')};
 }
 /* Normalise `nodes` whether the service answers with an array or with an
  * object carrying a `nodes` list, and whether it identifies a node by id or by
