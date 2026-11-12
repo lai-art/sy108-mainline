@@ -635,10 +635,21 @@ function rateText(kbps) {
     return (Math.round(mbps * 10) % 10 === 0) ? String(Math.round(mbps)) : mbps.toFixed(1);
 }
 function maskIccid(v) {
-    var s = String(v === null || v === undefined ? '' : v).replace(/\s+/g, '');
+    if (v === null || v === undefined)
+        return null;
+    var s = String(v).trim();
     if (!s)
         return null;
-    return s.length <= 8 ? s : s.slice(0, 6) + ' ···· ' + s.slice(-4);
+    /* ICCID is numeric, but the modem may hand it back with spaces, quotes or a
+     * filler character (some firmware pads the value with 'F' or 'L'). Mask on
+     * the digits alone so the length check cannot be defeated by that noise and
+     * a 19/20-digit card always renders as "898601 ···· 4821". */
+    var digits = s.replace(/\D+/g, '');
+    if (!digits)
+        return s;
+    if (digits.length <= 8)
+        return digits;
+    return digits.slice(0, 6) + ' ···· ' + digits.slice(-4);
 }
 /* ---------------------------------------------------------------------------
  * Speed test / data burn
