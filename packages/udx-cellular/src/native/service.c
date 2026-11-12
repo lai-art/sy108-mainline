@@ -785,6 +785,21 @@ int main(void)
 		return 1;
 	}
 	json_object_put(history);
+	/* Publish the APN catalogue right away so the "Templates" picker and the
+	 * live APN state exist on the very first page load. Previously this file
+	 * only appeared after the user performed an APN action, so apn_status()
+	 * answered "Not sampled yet" with no templates and the dropdown stayed
+	 * disabled until then. */
+	J *apn = apn_publish(c);
+	if (!apn) {
+		fprintf(stderr, "%s\n", cell_error);
+		control_close(&control);
+		active_transport = NULL;
+		controller_destroy(c);
+		free(c);
+		return 1;
+	}
+	json_object_put(apn);
 	int rc = pthread_create(&control.thread, NULL, worker, &control);
 	if (rc) {
 		control_close(&control);
