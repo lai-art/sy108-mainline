@@ -752,6 +752,14 @@ function buildApn(status, initialApn) {
     var providerPanel = panel(_('Carrier APNs'));
     providerPanel.body.appendChild(providerEmpty);
     providerPanel.body.appendChild(providerList.node);
+    providerPanel.foot.appendChild(actionButton(_('Read APNs'), function() {
+        return udx.execute('operator_catalog', {}).then(function(r) {
+            var rows = r.home_candidates || [];
+            providerList.update(rows);
+            providerEmpty.hidden = rows.length > 0;
+            return r;
+        });
+    }));
 
     rebuildTemplates();
     templateList.update(templates);
