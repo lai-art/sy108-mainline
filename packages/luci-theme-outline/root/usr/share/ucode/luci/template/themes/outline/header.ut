@@ -12,6 +12,10 @@
 	const boardinfo = ubus.call('system', 'board') ?? {};
 	const rootsp = getspnam('root');
 	const root_pw_unset = (rootsp && rootsp.pwdp == '');
+	// Cache-busting key: the firmware build id (written into the rootfs by
+	// udx-runtime) changes on every image, so a browser that cached the
+	// previous build's JS re-fetches it after each upgrade.
+	let asset_version = trim(readfile('/etc/udx-system-build') ?? '') || '1.3.1';
 
 	const page_segs = length(ctx?.request_path) ? ctx.request_path : (ctx?.path || []);
 	const page = join('-', page_segs);
@@ -190,16 +194,16 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<meta name="color-scheme" content="light dark">
 		{% if (blank_page): %}
-		<link rel="stylesheet" href="{{ media }}/login.css?v=1.3.1">
+		<link rel="stylesheet" href="{{ media }}/login.css?v={{ asset_version }}">
 		<style id="outline-appearance" data-luci-shell>{{ appearance_css }}</style>
 		{% else %}
-		<link rel="stylesheet" href="{{ media }}/main.css?v=1.3.1" data-luci-shell>
+		<link rel="stylesheet" href="{{ media }}/main.css?v={{ asset_version }}" data-luci-shell>
 		<style id="outline-appearance" data-luci-shell>{{ appearance_css }}</style>
 		{% for (let patch in patch_files): %}
-		<link rel="stylesheet" href="{{ media }}/patches/{{ patch }}.css?v=1.3.1" data-luci-patch="{{ patch }}">
+		<link rel="stylesheet" href="{{ media }}/patches/{{ patch }}.css?v={{ asset_version }}" data-luci-patch="{{ patch }}">
 		{% endfor %}
 		{% for (let patch in patch_scripts): %}
-		<script defer src="{{ media }}/patches/{{ patch }}.js?v=1.3.1" data-luci-patch="{{ patch }}"></script>
+		<script defer src="{{ media }}/patches/{{ patch }}.js?v={{ asset_version }}" data-luci-patch="{{ patch }}"></script>
 		{% endfor %}
 		{% endif %}
 		<link rel="icon" href="{{ favicon_url }}"{% if (favicon_type): %} type="{{ favicon_type }}"{% endif %}>
@@ -213,10 +217,10 @@
 		<style data-luci-shell>{{ css }}</style>
 		{% endif %}
 		<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
-		<script src="{{ resource }}/cbi.js?v=1.3.1"></script>
+		<script src="{{ resource }}/cbi.js?v={{ asset_version }}"></script>
 	</head>
 
-	<body class="lang_{{ dispatcher.lang }}" data-page="{{ entityencode(page, true) }}" data-asset-version="1.3.1"{% if (length(patch_all)): %} data-patches="{{ entityencode(join(' ', patch_all), true) }}"{% endif %}>
+	<body class="lang_{{ dispatcher.lang }}" data-page="{{ entityencode(page, true) }}" data-asset-version="{{ asset_version }}"{% if (length(patch_all)): %} data-patches="{{ entityencode(join(' ', patch_all), true) }}"{% endif %}>
 		{% if (!blank_page): %}
 
 		<div

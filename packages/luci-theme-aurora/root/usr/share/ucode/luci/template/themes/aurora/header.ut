@@ -18,6 +18,10 @@
 	const hostname = striptags(boardinfo.hostname ?? '?');
 	const uci = cursor();
 	const tokens = prefetched_tokens ?? (uci.get_all('aurora', 'theme') || {});
+	// Cache-busting key: the firmware build id (written into the rootfs by
+	// udx-runtime) changes on every image, so a browser that cached the
+	// previous build's JS re-fetches it after each upgrade.
+	let asset_version = trim(readfile('/etc/udx-system-build') ?? '') || '1.4.0';
 
 	const page_segs = length(ctx?.request_path) ? ctx.request_path : (ctx?.path || []);
 	const page = join('-', page_segs);
@@ -177,18 +181,18 @@
 		{% if (_loginBgUrl): %}
 		<link rel="preload" as="image" href="{{ entityencode(_loginBgUrl, true) }}">
 		{% endif %}
-		<link rel="stylesheet" href="{{ media }}/login.css">
+		<link rel="stylesheet" href="{{ media }}/login.css?v={{ asset_version }}">
 		{% else %}
 		{% const _mainBgUrl = tokens.struct_main_bg ? bg_preload_url(tokens.struct_main_bg) : null; -%}
 		{% if (_mainBgUrl): %}
 		<link rel="preload" as="image" href="{{ entityencode(_mainBgUrl, true) }}">
 		{% endif %}
-		<link rel="stylesheet" href="{{ media }}/main.css" data-luci-shell>
+		<link rel="stylesheet" href="{{ media }}/main.css?v={{ asset_version }}" data-luci-shell>
 		{% for (let patch in patch_files): %}
-		<link rel="stylesheet" href="{{ media }}/patches/{{ patch }}.css" data-luci-patch="{{ patch }}">
+		<link rel="stylesheet" href="{{ media }}/patches/{{ patch }}.css?v={{ asset_version }}" data-luci-patch="{{ patch }}">
 		{% endfor %}
 		{% for (let patch in patch_scripts): %}
-		<script defer src="{{ media }}/patches/{{ patch }}.js" data-luci-patch="{{ patch }}"></script>
+		<script defer src="{{ media }}/patches/{{ patch }}.js?v={{ asset_version }}" data-luci-patch="{{ patch }}"></script>
 		{% endfor %}
 		{% endif %}
 		{% if (font_preload): %}
@@ -223,11 +227,11 @@
 		{% endif %}
 		{% if (!blank_page): %}
 		<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
-		<script src="{{ resource }}/cbi.js"></script>
+		<script src="{{ resource }}/cbi.js?v={{ asset_version }}"></script>
 		{% endif %}
 	</head>
 
-	<body class="lang_{{ dispatcher.lang }}" data-page="{{ entityencode(page, true) }}" data-nav-type="{{ nav_type }}" data-asset-version="{# PKG_VERSION #}"{% if (!blank_page): %} data-nav-stamp="{{ entityencode(join(':', [nav_type, dispatcher.lang, ctx?.authuser ?? '']), true) }}:{# PKG_VERSION #}"{% endif %}{% if (length(patch_all)): %} data-patches="{{ entityencode(join(' ', patch_all), true) }}"{% endif %}{% if (blank_page ? tokens.struct_login_bg : tokens.struct_main_bg): %} data-bg{% endif %}>
+	<body class="lang_{{ dispatcher.lang }}" data-page="{{ entityencode(page, true) }}" data-nav-type="{{ nav_type }}" data-asset-version="{{ asset_version }}"{% if (!blank_page): %} data-nav-stamp="{{ entityencode(join(':', [nav_type, dispatcher.lang, ctx?.authuser ?? '']), true) }}:{{ asset_version }}"{% endif %}{% if (length(patch_all)): %} data-patches="{{ entityencode(join(' ', patch_all), true) }}"{% endif %}{% if (blank_page ? tokens.struct_login_bg : tokens.struct_main_bg): %} data-bg{% endif %}>
 		{% if (!blank_page): %}
 		{% if (nav_type == 'sidebar'): %}
 		{# First in body: once anything resolves body's style (the page-bg script does), the column would ease shut on load. #}
