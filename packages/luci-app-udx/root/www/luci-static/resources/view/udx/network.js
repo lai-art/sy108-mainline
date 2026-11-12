@@ -778,36 +778,115 @@ function buildApn(status, initialApn) {
 /* ------------------------------------------------------------------------- */
 /* "Speed test" and "Data burn" share nothing but the service and its poll
  * loop: their own parameters, their own result block, their own buttons. */
+/* A live speed curve. The service samples the wwan0 byte counter once a second
+ * (and speed_now every 500 ms), so the samples array grows during a run and the
+ * front end re-paints this chart on every poll — the line, the area under it
+ * and the trailing dot all advance in real time. */
 function spotChart() {
-    var svg = E('svg', {viewBox : '0 0 600 84', preserveAspectRatio : 'none',
-                        style : 'width:100%;height:84px;display:block'});
-    var line = E('polyline', {fill : 'none', stroke : 'var(--success, #0f6e56)',
-                              'stroke-width' : '2', 'stroke-linejoin' : 'round',
-                              'points' : ''});
-    var grid = E('line', {x1 : 0, y1 : 42, x2 : 600, y2 : 42, stroke : 'var(--udx-line, #eef0f3)',
-                          'stroke-width' : '1'});
-    svg.appendChild(grid);
+    var W = 600, H = 168, L = 54, R = 12, T = 12, B = 24;
+    var uid = udx.randomId();
+    var svg = E('svg', {viewBox : '0 0 ' + W + ' ' + H, preserveAspectRatio : 'none',
+                        style : 'width:100%;height:' + H + 'px;display:block'});
+    var defs = E('defs', {});
+    var grad = E('linearGradient', {id : 'udxArea' + uid, x1 : '0', y1 : '0', x2 : '0', y2 : '1'});
+    grad.appendChild(E('stop', {offset : '0',
+                                style : 'stop-color:var(--success,#16a34a);stop-opacity:.30'}));
+    grad.appendChild(E('stop', {offset : '1',
+                                style : 'stop-color:var(--success,#16a34a);stop-opacity:0'}));
+    defs.appendChild(grad);
+    svg.appendChild(defs);
+
+    /* Horizontal grid lines with a compact Mbps label each. The top label also
+     * carries the unit so the others can stay as bare numbers. */
+    var gridLabels = [], gridLines = [];
+    for (var g = 0; g <= 4; g++) {
+        var gy = T + (H - T - B) * g / 4;
+        gridLines.push(E('line', {x1 : L, y1 : gy, x2 : W - R, y2 : gy,
+                                  style : 'stroke:var(--udx-line,#e3e6ea);stroke-width:1'}));
+        gridLabels.push(E('text', {x : L - 7, y : gy + 3, 'text-anchor' : 'end',
+                                   style : 'font-size:9.5px;fill:var(--udx-text2,#5b6472);' +
+                                           'font-variant-numeric:tabular-nums'}));
+        svg.appendChild(gridLines[g]);
+        svg.appendChild(gridLabels[g]);
+    }
+    var unitLabel = E('text', {x : L - 7, y : T - 4, 'text-anchor' : 'end',
+                               style : 'font-size:9px;fill:var(--udx-text2,#5b6472);' +
+                                       'opacity:.75'});
+
+    var area = E('path', {fill : 'url(#udxArea' + uid + ')', stroke : 'none'});
+    var glow = E('polyline', {fill : 'none',
+                              style : 'stroke:var(--success,#16a34a);stroke-width:6;' +
+                                      'stroke-opacity:.18;stroke-linejoin:round;' +
+                                      'stroke-linecap:round'});
+    var line = E('polyline', {fill : 'none',
+                              style : 'stroke:var(--success,#16a34a);stroke-width:2;' +
+                                      'stroke-linejoin:round;stroke-linecap:round'});
+    var dot = E('circle', {r : '3.5', style : 'fill:var(--success,#16a34a);' +
+                                              'filter:drop-shadow(0 0 4px var(--success,#16a34a))'});
+
+    svg.appendChild(unitLabel);
+    svg.appendChild(area);
+    svg.appendChild(glow);
     svg.appendChild(line);
+    svg.appendChild(dot);
+
+    var live = E('div', {class : 'udx-chart-live', style : 'visibility:hidden'});
     var caption = E('div', {class : 'udx-note'});
+
+    function niceCeil(v) {
+        if (!(v > 0))
+            return 1;
+        var exp = Math.floor(Math.log(v) / Math.LN10), base = Math.pow(10, exp), m = v / base;
+        return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * base;
+    }
+
     return {
-        node : E('div', {}, [ svg, caption ]),
+        node : E('div', {class : 'udx-chart'}, [ svg, live, caption ]),
         set : function(samples, unit) {
             var points = (samples || []).filter(function(x) {
                 return isFinite(Number(x));
             }).map(Number);
             if (!points.length) {
+                area.setAttribute('d', '');
+                glow.setAttribute('points', '');
                 line.setAttribute('points', '');
+                dot.setAttribute('cx', '');
+                dot.setAttribute('cy', '');
+                live.textContent = '';
+                live.style.visibility = 'hidden';
                 caption.textContent = _('No samples yet.');
                 return;
             }
-            var max = Math.max.apply(null, points);
-            max = max > 0 ? max : 1;
-            line.setAttribute('points',
-                              points.map(function(v, i) {
-                                  var x = points.length === 1 ? 0 : i / (points.length - 1) * 600;
-                                  var y = 80 - (v / max) * 76;
-                                  return x.toFixed(1) + ',' + y.toFixed(1);
-                              }).join(' '));
+            var max = niceCeil(Math.max.apply(null, points));
+            var innerW = W - L - R, innerH = H - T - B;
+            var coords = points.map(function(v, i) {
+                var x = points.length === 1 ? L + innerW / 2 : L + i / (points.length - 1) * innerW;
+                var y = T + (1 - v / max) * innerH;
+                return [ x, y ];
+            });
+            var pts = coords.map(function(p) {
+                return p[0].toFixed(1) + ',' + p[1].toFixed(1);
+            }).join(' ');
+            line.setAttribute('points', pts);
+            glow.setAttribute('points', pts);
+            var d = 'M' + coords[0][0].toFixed(1) + ',' + (H - B).toFixed(1);
+            coords.forEach(function(p) {
+                d += 'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1);
+            });
+            d += 'L' + coords[coords.length - 1][0].toFixed(1) + ',' + (H - B).toFixed(1) + 'Z';
+            area.setAttribute('d', d);
+            var last = coords[coords.length - 1];
+            dot.setAttribute('cx', last[0].toFixed(1));
+            dot.setAttribute('cy', last[1].toFixed(1));
+            /* Grid labels read off the nice ceiling so they stay round numbers;
+             * the top one also carries the unit. */
+            for (var g = 0; g <= 4; g++)
+                gridLabels[g].textContent = udx.bpsText(max * (4 - g) / 4);
+            unitLabel.textContent = _('Mbps');
+            /* Live read-out: the freshest point, so the eye lands on a number
+             * that changes every poll rather than a static caption. */
+            live.style.visibility = 'visible';
+            live.textContent = unit(points[points.length - 1]);
             caption.textContent = _('Top of the chart') + ': ' + unit(max) + ' · ' +
                                   points.length + ' ' + _('samples');
         }

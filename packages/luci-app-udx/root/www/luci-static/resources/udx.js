@@ -345,7 +345,18 @@ var CSS = [
     'padding:7px 12px;font:inherit;font-size:13px;color:var(--udx-text2);cursor:pointer}',
     '.udx-tab:hover{color:var(--udx-text)}',
     '.udx-tab.on{color:var(--success-fg,#0f6e56);border-bottom-color:var(--success-fg,#0f6e56);',
-    'font-weight:600}'
+    'font-weight:600}',
+    /* ---- live speed curve ---- */
+    '.udx-chart{position:relative;margin:6px 0 2px}',
+    '.udx-chart-live{font-size:18px;font-weight:600;color:var(--success,#16a34a);',
+    'font-variant-numeric:tabular-nums;text-shadow:0 0 14px rgba(22,163,74,.4);',
+    'margin:4px 0 0;line-height:1.2}',
+    /* ---- neon / sci-fi accents, readability-safe ---- */
+    '.udx-tab.on{text-shadow:0 0 8px rgba(22,163,74,.35)}',
+    '.udx-card,.udx-panel{transition:border-color .2s ease,box-shadow .2s ease}',
+    '.udx-card:hover{border-color:var(--success-color-low,#9fd4c4);',
+    'box-shadow:0 0 0 1px rgba(22,163,74,.08) inset,0 0 18px rgba(22,163,74,.14)}',
+    '.udx-pill[data-tone="teal"],.udx-pill[data-tone="ok"]{box-shadow:0 0 10px rgba(22,163,74,.28)}'
 ].join('');
 function injectStyles() {
     if (STYLE_NODE || typeof document === 'undefined')
@@ -372,10 +383,12 @@ function setPill(node, text, key) {
 function bar() {
     var fill = E('i', {style : 'width:0%'});
     return {node : E('div', {class : 'udx-bar'}, fill), fill : fill, set : function(pct, key) {
-        var p = Number(pct);
+        var p = Number(pct), solid = tone(key || 'neutral').solid;
         fill.style.width =
             (isFinite(p) ? Math.max(0, Math.min(100, p)) : 0).toFixed(1) + '%';
-        fill.style.background = tone(key || 'neutral').solid;
+        fill.style.background = solid;
+        /* A soft neon halo in the bar's own colour. */
+        fill.style.boxShadow = '0 0 9px ' + solid;
     }};
 }
 function row(label) {
