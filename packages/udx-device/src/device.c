@@ -347,33 +347,47 @@ static const char *ping_binary(void)
 }
 
 /* scope 0x00 is global: link-local (0x20) and host scopes cannot reach the
- * public target, so an IPv6 result is only meaningful when one exists. */
-static bool global_ipv6(void)
+ * public target, so an IPv6 result is only meaningful when one exists.
+ *
+ * /proc/net/if_inet6 is "address ifindex prefix scope flags ifname". The
+ * previous sscanf read the prefix into the name slot and the flags into the
+ * scope slot, so no interface ever matched and a live global address looked
+ * like "no IPv6 address". wwan0 is preferred; when it owns no global address
+ * the probe falls back to whichever interface does, and hands that name back
+ * so the ping can bind to it. The returned string is malloc'd. */
+static char *global_ipv6(void)
 {
 	char *raw = read_file("/proc/net/if_inet6", 65536);
 	if (!raw)
-		return false;
-	bool found = false;
-	char *save = NULL;
-	for (char *line = strtok_r(raw, "\n", &save); line && !found;
+		return NULL;
+	char *chosen = NULL, *save = NULL;
+	for (char *line = strtok_r(raw, "\n", &save); line;
 	     line = strtok_r(NULL, "\n", &save)) {
 		char name[32];
 		unsigned scope;
-		/* address, ifindex, ifname, prefix length, scope, flags */
-		if (sscanf(line, "%*39s %*x %31s %*x %x %*x", name, &scope) != 2)
+		if (sscanf(line, "%*39s %*x %*x %x %*x %31s", &scope, name) != 2)
 			continue;
-		found = !strcmp(name, latency_interface) && !scope;
+		if (scope)
+			continue;
+		if (!strcmp(name, latency_interface)) {
+			chosen = strdup(name);
+			break;
+		}
+		if (!chosen)
+			chosen = strdup(name);
 	}
 	free(raw);
-	return found;
+	return chosen;
 }
 
-/* Single packet, hard timeout. Returns 0 and the round trip in milliseconds. */
-static int ping_round_trip(const char *target, double *milliseconds)
+/* Single packet, hard timeout. Returns 0 and the round trip in milliseconds.
+ * `interface` is the source to bind, which for IPv6 must be the one that
+ * actually owns the global address. */
+static int ping_round_trip(const char *target, const char *interface, double *milliseconds)
 {
 	char timeout[8];
 	snprintf(timeout, sizeof(timeout), "%d", LATENCY_PROBE_MS / 1000);
-	const char *argv[] = {ping_binary(), "-c", "1", "-W", timeout, "-I", latency_interface,
+	const char *argv[] = {ping_binary(), "-c", "1", "-W", timeout, "-I", interface,
 			      target,	   NULL};
 	char *raw = NULL;
 	int rc = command_run(argv, NULL, LATENCY_PROBE_MS, 8192, &raw);
@@ -401,13 +415,15 @@ static J *latency_sample(void)
 {
 	J *out = json_object_new_object();
 	double ipv4 = NAN, ipv6 = NAN;
-	bool has_v6 = global_ipv6();
+	char *v6_interface = global_ipv6();
+	bool has_v6 = v6_interface != NULL;
 	/* A firmware image trimmed of busybox ping is a packaging fault, not a
 	 * network one: name it instead of letting it look like a dead uplink, and
 	 * skip the two fork/exec round trips that are certain to fail. */
 	bool have_ping = !access(ping_binary(), X_OK);
-	bool ipv4_ok = have_ping && !ping_round_trip(latency_v4_target, &ipv4);
-	bool ipv6_ok = have_ping && has_v6 && !ping_round_trip(latency_v6_target, &ipv6);
+	bool ipv4_ok = have_ping && !ping_round_trip(latency_v4_target, latency_interface, &ipv4);
+	bool ipv6_ok = have_ping && has_v6 && !ping_round_trip(latency_v6_target, v6_interface, &ipv6);
+	free(v6_interface);
 	if (ipv4_ok)
 		real(out, "ipv4_ms", ipv4);
 	else
