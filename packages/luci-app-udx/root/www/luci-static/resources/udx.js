@@ -144,7 +144,7 @@ function signalBadge(kind, v, suffix) {
  * ------------------------------------------------------------------------ */
 var TOKENS = {
     ok : {
-        fg : 'var(--success-fg, #0f6e56)',
+        fg : 'var(--success, #16a34a)',
         bg : 'var(--success-surface, #e8f5f0)',
         line : 'var(--success-color-low, #9fd4c4)',
         solid : 'var(--success, #16a34a)'
@@ -152,19 +152,19 @@ var TOKENS = {
     /* QCI/5QI "GBR" badge and the temperature/storage/latency "good" band share
      * one teal so the same number never looks different on two pages. */
     teal : {
-        fg : 'var(--success-fg, #0f6e56)',
+        fg : 'var(--success, #0f6e56)',
         bg : 'var(--success-surface, #e8f5f0)',
         line : 'var(--success-color-low, #9fd4c4)',
         solid : 'var(--success, #0f6e56)'
     },
     warn : {
-        fg : 'var(--warning-fg, #8a5308)',
+        fg : 'var(--warning, #d97706)',
         bg : 'var(--warning-surface, #fdf4e3)',
         line : 'var(--warning-a15, #e9c78f)',
         solid : 'var(--warning, #d97706)'
     },
     bad : {
-        fg : 'var(--danger-surface-fg, #a32d2d)',
+        fg : 'var(--danger, #dc2626)',
         bg : 'var(--danger-surface, #fcedec)',
         line : 'var(--destructive-a20, #efb7b5)',
         solid : 'var(--danger, #dc2626)'
@@ -260,7 +260,7 @@ function qciInfo(value, kind) {
         prefix : prefix,
         value : n,
         badge : prefix + ' ' + n,
-        tone : row ? (row.kind === 'gbr' ? 'teal' : 'neutral') : 'warn',
+        tone : row ? (row.kind === 'gbr' ? 'teal' : 'ok') : 'warn',
         /* Above 9 the LTE semantics stop applying; never force them onto 5QI. */
         text : row ? _(row.text) : _('Extended level') + ' ' + n
     };
@@ -296,7 +296,7 @@ var CSS = [
     '.udx-lb{font-size:10.5px;color:var(--udx-text2);margin-bottom:1px}',
     '.udx-kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;',
     'color:var(--udx-text2);padding:2.5px 0}',
-    '.udx-kv-k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.udx-kv-k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 0 auto}',
     '.udx-kv-v{color:var(--udx-text);font-weight:600;text-align:right;',
     'font-variant-numeric:tabular-nums;word-break:break-all}',
     '.udx-bar{height:4px;border-radius:2px;background:var(--udx-bar);overflow:hidden;margin:9px 0 8px}',
@@ -335,16 +335,16 @@ var CSS = [
     '.udx-step{font-size:11.5px;padding:3px 10px;border-radius:999px;',
     'border:1px solid var(--udx-line2);color:var(--udx-text2)}',
     '.udx-step.on-done{border-color:var(--success-color-low,#9fd4c4);',
-    'background:var(--success-surface,#e8f5f0);color:var(--success-fg,#0f6e56)}',
+    'background:var(--success-surface,#e8f5f0);color:var(--success,#0f6e56)}',
     '.udx-step.on-cur{border-color:var(--warning-a15,#e9c78f);',
-    'background:var(--warning-surface,#fdf4e3);color:var(--warning-fg,#8a5308);font-weight:600}',
+    'background:var(--warning-surface,#fdf4e3);color:var(--warning,#8a5308);font-weight:600}',
     '.udx-step.on-fail{border-color:var(--destructive-a20,#efb7b5);',
-    'background:var(--danger-surface,#fcedec);color:var(--danger-surface-fg,#a32d2d);font-weight:600}',
+    'background:var(--danger-surface,#fcedec);color:var(--danger,#a32d2d);font-weight:600}',
     '.udx-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;border-bottom:1px solid var(--udx-line)}',
     '.udx-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;',
     'padding:7px 12px;font:inherit;font-size:13px;color:var(--udx-text2);cursor:pointer}',
     '.udx-tab:hover{color:var(--udx-text)}',
-    '.udx-tab.on{color:var(--success-fg,#0f6e56);border-bottom-color:var(--success-fg,#0f6e56);',
+    '.udx-tab.on{color:var(--success,#0f6e56);border-bottom-color:var(--success,#0f6e56);',
     'font-weight:600}',
     /* ---- live speed curve ---- */
     '.udx-chart{position:relative;margin:6px 0 2px}',
@@ -363,6 +363,32 @@ function injectStyles() {
         return;
     STYLE_NODE = E('style', {type : 'text/css'}, CSS);
     document.head.appendChild(STYLE_NODE);
+}
+/* SVG elements must be created in the SVG namespace. LuCI's `E()` builds HTML
+ * nodes via document.createElement(), so an <svg>/<polyline>/… produced with it
+ * lands in the HTML namespace and the browser refuses to paint it — the live
+ * speed curve stayed blank for exactly this reason. */
+var SVG_NS = 'http://www.w3.org/2000/svg';
+function svgEl(tag, attr) {
+    var el = document.createElementNS(SVG_NS, tag), k;
+    if (attr)
+        for (k in attr)
+            el.setAttribute(k, attr[k]);
+    for (var i = 2; i < arguments.length; i++) {
+        var a = arguments[i];
+        if (a === null || a === undefined)
+            continue;
+        if (typeof a === 'string' || typeof a === 'number')
+            el.appendChild(document.createTextNode(String(a)));
+        else if (Array.isArray(a))
+            a.forEach(function(c) {
+                if (c !== null && c !== undefined)
+                    el.appendChild(c);
+            });
+        else
+            el.appendChild(a);
+    }
+    return el;
 }
 function pill(text, key) {
     var node = E('span', {class : 'udx-pill'});
@@ -1377,6 +1403,7 @@ return baseclass.extend({
     smsReceipt : receiptRPC,
     usb : usb,
     delay : delay,
+    svgEl : svgEl,
     randomId : function() {
         var a = new Uint8Array(16);
         crypto.getRandomValues(a);

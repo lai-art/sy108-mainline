@@ -785,13 +785,13 @@ function buildApn(status, initialApn) {
 function spotChart() {
     var W = 600, H = 168, L = 54, R = 12, T = 12, B = 24;
     var uid = udx.randomId();
-    var svg = E('svg', {viewBox : '0 0 ' + W + ' ' + H, preserveAspectRatio : 'none',
+    var svg = udx.svgEl('svg', {viewBox : '0 0 ' + W + ' ' + H, preserveAspectRatio : 'none',
                         style : 'width:100%;height:' + H + 'px;display:block'});
-    var defs = E('defs', {});
-    var grad = E('linearGradient', {id : 'udxArea' + uid, x1 : '0', y1 : '0', x2 : '0', y2 : '1'});
-    grad.appendChild(E('stop', {offset : '0',
+    var defs = udx.svgEl('defs', {});
+    var grad = udx.svgEl('linearGradient', {id : 'udxArea' + uid, x1 : '0', y1 : '0', x2 : '0', y2 : '1'});
+    grad.appendChild(udx.svgEl('stop', {offset : '0',
                                 style : 'stop-color:var(--success,#16a34a);stop-opacity:.30'}));
-    grad.appendChild(E('stop', {offset : '1',
+    grad.appendChild(udx.svgEl('stop', {offset : '1',
                                 style : 'stop-color:var(--success,#16a34a);stop-opacity:0'}));
     defs.appendChild(grad);
     svg.appendChild(defs);
@@ -801,27 +801,27 @@ function spotChart() {
     var gridLabels = [], gridLines = [];
     for (var g = 0; g <= 4; g++) {
         var gy = T + (H - T - B) * g / 4;
-        gridLines.push(E('line', {x1 : L, y1 : gy, x2 : W - R, y2 : gy,
+        gridLines.push(udx.svgEl('line', {x1 : L, y1 : gy, x2 : W - R, y2 : gy,
                                   style : 'stroke:var(--udx-line,#e3e6ea);stroke-width:1'}));
-        gridLabels.push(E('text', {x : L - 7, y : gy + 3, 'text-anchor' : 'end',
+        gridLabels.push(udx.svgEl('text', {x : L - 7, y : gy + 3, 'text-anchor' : 'end',
                                    style : 'font-size:9.5px;fill:var(--udx-text2,#5b6472);' +
                                            'font-variant-numeric:tabular-nums'}));
         svg.appendChild(gridLines[g]);
         svg.appendChild(gridLabels[g]);
     }
-    var unitLabel = E('text', {x : L - 7, y : T - 4, 'text-anchor' : 'end',
+    var unitLabel = udx.svgEl('text', {x : L - 7, y : T - 4, 'text-anchor' : 'end',
                                style : 'font-size:9px;fill:var(--udx-text2,#5b6472);' +
                                        'opacity:.75'});
 
-    var area = E('path', {fill : 'url(#udxArea' + uid + ')', stroke : 'none'});
-    var glow = E('polyline', {fill : 'none',
+    var area = udx.svgEl('path', {fill : 'url(#udxArea' + uid + ')', stroke : 'none'});
+    var glow = udx.svgEl('polyline', {fill : 'none',
                               style : 'stroke:var(--success,#16a34a);stroke-width:6;' +
                                       'stroke-opacity:.18;stroke-linejoin:round;' +
                                       'stroke-linecap:round'});
-    var line = E('polyline', {fill : 'none',
+    var line = udx.svgEl('polyline', {fill : 'none',
                               style : 'stroke:var(--success,#16a34a);stroke-width:2;' +
                                       'stroke-linejoin:round;stroke-linecap:round'});
-    var dot = E('circle', {r : '3.5', style : 'fill:var(--success,#16a34a);' +
+    var dot = udx.svgEl('circle', {r : '3.5', style : 'fill:var(--success,#16a34a);' +
                                               'filter:drop-shadow(0 0 4px var(--success,#16a34a))'});
 
     svg.appendChild(unitLabel);
