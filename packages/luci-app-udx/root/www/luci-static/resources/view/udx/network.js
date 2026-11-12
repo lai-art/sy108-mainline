@@ -1323,6 +1323,7 @@ return view.extend({
             var c = udx.cellular(d);
             parts.bands.update(d);
             parts.operators.update(d);
+            parts.apn.update(d);
             /* Same rule as the overview: stale is amber, an uncertain modem
              * state is amber too, and neither is a failure. While a speed test
              * runs the telemetry legitimately lags, so say so in grey instead
