@@ -996,6 +996,9 @@ msgstr "立即重新识别"
 msgid "Read"
 msgstr "已读"
 
+msgid "Read APNs"
+msgstr "读取"
+
 msgid "Read IMEI"
 msgstr "读取 IMEI"
 

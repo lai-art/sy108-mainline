@@ -267,10 +267,23 @@ static J *storage_status(void)
 	if (!raw)
 		return out;
 	for (char *line = strtok_r(raw, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
-		char source[256], mount[PATH_MAX], type[64], options[512];
-		if (sscanf(line, "%255s %4095s %63s %511s", source, mount, type, options) != 4 ||
-		    (strcmp(mount, "/") && strcmp(mount, "/rom") && strcmp(mount, "/overlay") &&
-		     strcmp(mount, "/tmp")))
+		/* /proc/mounts is whitespace-separated:
+		 *   source mount-point filesystem-type options dump pass
+		 * Split each line into its first four fields instead of relying on
+		 * sscanf("%s"): if a field ever carries an escaped space (\040) the
+		 * %s conversion would misalign every following column and silently
+		 * drop the volumes we care about. */
+		char *fields[4] = {NULL};
+		size_t count = 0;
+		char *ws = NULL;
+		for (char *token = strtok_r(line, " \t", &ws); token && count < 4;
+		     token = strtok_r(NULL, " \t", &ws))
+			fields[count++] = token;
+		if (count < 4)
+			continue;
+		char *source = fields[0], *mount = fields[1], *type = fields[2], *options = fields[3];
+		if (strcmp(mount, "/") && strcmp(mount, "/rom") && strcmp(mount, "/overlay") &&
+		    strcmp(mount, "/tmp"))
 			continue;
 		J *row = json_object_new_object();
 		string(row, "mount", mount);
