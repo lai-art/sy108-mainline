@@ -63,15 +63,22 @@ return view.extend({
                 'ICCID',
                 function(d) {
                     var c = udx.cellular(d);
-                    return ((c.sim || {}).state === 'READY' && udx.maskIccid(c.iccid)) ||
-                           null;
+                    return ((c.sim || {}).state === 'READY' && c.iccid) || null;
+                },
+                null,
+                function(v) {
+                    return udx.reveal(v) || E('span', {}, '—');
                 }
             ],
             [
                 'IMSI',
                 function(d) {
                     var c = udx.cellular(d);
-                    return ((c.sim || {}).state === 'READY' && udx.maskIccid(c.imsi)) || null;
+                    return ((c.sim || {}).state === 'READY' && c.imsi) || null;
+                },
+                null,
+                function(v) {
+                    return udx.reveal(v) || E('span', {}, '—');
                 }
             ],
             [

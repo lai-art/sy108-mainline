@@ -375,7 +375,7 @@ return view.extend({
             }
             else {
                 simMain.set('SIM ' + (slot + 1));
-                iccid.set(simState === 'READY' ? (udx.maskIccid(cellular.iccid) || _('Not available'))
+                iccid.set(simState === 'READY' ? (udx.reveal(cellular.iccid) || _('Not available'))
                                                : _('Not available'));
                 var age = identifyAge(d);
                 identified.set(simState === 'READY'

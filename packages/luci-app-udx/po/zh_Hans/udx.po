@@ -339,6 +339,12 @@ msgstr "请先选择一个模板。"
 msgid "Clear folder"
 msgstr "清空"
 
+msgid "Click to hide the full number"
+msgstr "点击隐藏完整号码"
+
+msgid "Click to show the full number"
+msgstr "点击显示完整号码"
+
 msgid "Collected while this page is open"
 msgstr "仅在页面打开期间收集"
 

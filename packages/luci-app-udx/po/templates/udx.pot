@@ -338,6 +338,12 @@ msgstr ""
 msgid "Clear folder"
 msgstr ""
 
+msgid "Click to hide the full number"
+msgstr ""
+
+msgid "Click to show the full number"
+msgstr ""
+
 msgid "Collected while this page is open"
 msgstr ""
 

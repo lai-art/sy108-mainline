@@ -426,9 +426,16 @@ function row(label) {
         node : node,
         value : value,
         set : function(text, key) {
+            value.style.color = key ? tone(key).fg : '';
+            /* A DOM node (e.g. udx.reveal) is rendered as-is; anything else
+             * becomes text so the empty case still shows a dash. */
+            if (text && text.nodeType === 1) {
+                value.textContent = '';
+                value.appendChild(text);
+                return text;
+            }
             value.textContent =
                 (text === null || text === undefined || text === '') ? '—' : String(text);
-            value.style.color = key ? tone(key).fg : '';
             return value.textContent;
         }
     };
@@ -691,6 +698,27 @@ function maskIccid(v) {
     if (digits.length <= 8)
         return digits;
     return digits.slice(0, 6) + ' ···· ' + digits.slice(-4);
+}
+/* A masked ICCID/IMSI that reveals the full number on click and masks it again
+ * on the next click. The full value is never shown until the user asks, so the
+ * default stays privacy-safe; the dashed underline advertises the tap. */
+function reveal(fullValue) {
+    var masked = maskIccid(fullValue);
+    if (!masked)
+        return null;
+    var node = E('span', {
+        'class' : 'udx-reveal',
+        title : _('Click to show the full number'),
+        style : 'cursor:pointer;border-bottom:1px dashed var(--udx-line2,#ccd2d9);' +
+                'padding-bottom:1px;user-select:all'
+    }, masked);
+    node.addEventListener('click', function() {
+        var showing = (node.textContent === masked);
+        node.textContent = showing ? String(fullValue) : masked;
+        node.title = showing ? _('Click to hide the full number')
+                             : _('Click to show the full number');
+    });
+    return node;
 }
 /* ---------------------------------------------------------------------------
  * Speed test / data burn
@@ -1385,6 +1413,7 @@ return baseclass.extend({
         return SPEED.state;
     },
     maskIccid : maskIccid,
+    reveal : reveal,
     clockText : clockText,
     uncertainText : uncertainText,
     failureText : failureText,
