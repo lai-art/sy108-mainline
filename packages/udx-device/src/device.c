@@ -263,7 +263,11 @@ static J *sysfs_array(const char *pattern, int kind)
 static J *storage_status(void)
 {
 	J *out = json_object_new_array();
-	char *raw = read_file("/proc/mounts", 65536), *save = NULL;
+	/* Read /proc/self/mounts rather than /proc/mounts: the latter is a symlink
+	 * to the former, and read_text() opens with O_NOFOLLOW, which rejects a
+	 * symlink as the final path component and would make every volume read
+	 * return NULL (an empty storage array). */
+	char *raw = read_file("/proc/self/mounts", 65536), *save = NULL;
 	if (!raw)
 		return out;
 	for (char *line = strtok_r(raw, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {

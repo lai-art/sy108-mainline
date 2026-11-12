@@ -9,17 +9,18 @@ if ! uci -q get network.usbmgmt >/dev/null; then
 	uci set network.usbmgmt=interface
 	uci set network.usbmgmt.proto=static
 	uci set network.usbmgmt.device=br-usb
-	uci set network.usbmgmt.ipaddr=192.168.88.1
+	uci set network.usbmgmt.ipaddr=192.168.9.1
 	uci set network.usbmgmt.netmask=255.255.255.0
 	uci set network.usbmgmt.delegate=0
 	uci set network.usbmgmt.defaultroute=0
 	uci set network.usbmgmt.peerdns=0
 fi
-# Migration: the factory default used to be 192.168.66.1. Only that exact value
-# is rewritten, so an address the user chose deliberately is never touched.
-if [ "$(uci -q get network.usbmgmt.ipaddr)" = "192.168.66.1" ]; then
-	uci set network.usbmgmt.ipaddr=192.168.88.1
-fi
+# Migration: factory defaults have moved over time (192.168.66.1, then
+# 192.168.88.1, now 192.168.9.1). Only those exact legacy values are rewritten,
+# so an address the user chose deliberately is never touched.
+case "$(uci -q get network.usbmgmt.ipaddr)" in
+	192.168.66.1|192.168.88.1) uci set network.usbmgmt.ipaddr=192.168.9.1 ;;
+esac
 usb_bridge=$(uci -q get network.usbmgmt.device)
 usb_section=
 for section in $(uci -q show network | sed -n 's/^network\.\([^=]*\)=device$/\1/p'); do

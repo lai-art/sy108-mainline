@@ -7,20 +7,20 @@
 # rejects the whole catalogue otherwise.
 
 [ -x /sbin/uci ] || exit 0
-uci -q get cellular.modem >/dev/null 2>&1 || exit 0
+uci -q get udx-cellular.modem >/dev/null 2>&1 || exit 0
 
-uci -q show cellular 2>/dev/null | grep -q '=apn_template$' && exit 0
+uci -q show udx-cellular 2>/dev/null | grep -q '=apn_template$' && exit 0
 
 seed() {
 	local id="$1" name="$2" apn="$3"
-	uci -q get "cellular.$id" >/dev/null 2>&1 && return 0
-	uci set "cellular.$id=apn_template" || return 1
-	uci set "cellular.$id.name=$name"
-	uci set "cellular.$id.apn=$apn"
-	uci set "cellular.$id.pdp_type=IPV4V6"
-	uci set "cellular.$id.username="
-	uci set "cellular.$id.password="
-	uci set "cellular.$id.auth_method=none"
+	uci -q get "udx-cellular.$id" >/dev/null 2>&1 && return 0
+	uci set "udx-cellular.$id=apn_template" || return 1
+	uci set "udx-cellular.$id.name=$name"
+	uci set "udx-cellular.$id.apn=$apn"
+	uci set "udx-cellular.$id.pdp_type=IPV4V6"
+	uci set "udx-cellular.$id.username="
+	uci set "udx-cellular.$id.password="
+	uci set "udx-cellular.$id.auth_method=none"
 }
 
 seed apn_1 '中国移动' 'cmnet'
@@ -28,6 +28,6 @@ seed apn_2 '中国联通' '3gnet'
 seed apn_3 '中国电信' 'ctnet'
 seed apn_4 '中国广电' 'cbnet'
 
-uci set cellular.modem.template_next_id='5'
-uci commit cellular
+uci set udx-cellular.modem.template_next_id='5'
+uci commit udx-cellular
 exit 0
