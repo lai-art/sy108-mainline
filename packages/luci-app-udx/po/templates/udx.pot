@@ -995,6 +995,9 @@ msgstr ""
 msgid "Read"
 msgstr ""
 
+msgid "Read APNs"
+msgstr ""
+
 msgid "Read IMEI"
 msgstr ""
 
