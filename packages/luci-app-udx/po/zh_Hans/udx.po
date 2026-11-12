@@ -919,7 +919,7 @@ msgid "Overheating"
 msgstr "过热"
 
 msgid "Overview"
-msgstr "概览"
+msgstr "数据看板"
 
 msgid "Overview and network control"
 msgstr "总览与网络控制"
