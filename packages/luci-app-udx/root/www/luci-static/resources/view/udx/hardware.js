@@ -524,10 +524,7 @@ return view.extend({
                     title : _('Sensors'),
                     render : function() {
                         return [
-                            block(_('Temperatures'), temperatures.node),
-                            block(_('CPU clocks'), cpus.node),
-                            block(_('DDR clocks'), ddr.node,
-                                  _('DDR is managed automatically by firmware. Monitoring only.'))
+                            block(_('Temperatures'), temperatures.node)
                         ];
                     }
                 },
@@ -536,6 +533,9 @@ return view.extend({
                     title : _('CPU frequency'),
                     render : function() {
                         return [
+                            block(_('CPU clocks'), cpus.node),
+                            block(_('DDR clocks'), ddr.node,
+                                  _('DDR is managed automatically by firmware. Monitoring only.')),
                             E('p', {class : 'udx-note', style : 'opacity:1;margin-bottom:8px'},
                               _('Changing the governor or the frequency range applies immediately and survives a reboot.')),
                             forms[1]
