@@ -20,6 +20,12 @@ console_instance() {
 }
 
 start_service() {
+	# Host-only builds (CONFIG_USB_DWC3_HOST=y in config-7.3) expose no UDC,
+	# so there is nothing to bind a gadget function to. The usbmgmt bridge and
+	# its DHCP pool still come up: they are created by 90-udx-usb and served by
+	# netifd/dnsmasq, and the Wi-Fi AP bridges into them. Skip the gadget part
+	# quietly instead of failing the service on every boot.
+	[ -e /sys/class/udc/29100000.usb ] || return 0
 	/usr/libexec/udx-usb-gadget start || return $?
 	console_instance
 }
@@ -36,5 +42,6 @@ status_service() {
 }
 
 stop_service() {
+	[ -e /sys/class/udc/29100000.usb ] || return 0
 	/usr/libexec/udx-usb-gadget stop
 }

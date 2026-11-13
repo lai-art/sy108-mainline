@@ -5,3 +5,4 @@
 040-sysupgrade-prepare-hook.patch
 050-dnsmasq-jail-pidfile.patch
 060-procd-jail-status.patch
+070-wifi-default-network.patch

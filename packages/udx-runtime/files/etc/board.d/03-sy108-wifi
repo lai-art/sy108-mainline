@@ -1,0 +1,70 @@
+#!/bin/sh
+# External USB Wi-Fi AP: BL-M7921AU1 (MediaTek MT7921AUN, USB 0e8d:7961).
+#
+# Role on this board: the MT7921AU is the ACCESS POINT that serves Wi-Fi to
+# phones and other clients. It is NOT an uplink. The uplink is the cellular
+# modem on network.wan (proto udx -> wwan0 -> 5G). Traffic path:
+#
+#   phone --Wi-Fi--> phy0-ap0 --bridge--> br-usb (192.168.9.1/24, dnsmasq)
+#         --firewall zone usbmgmt, forwarding usbmgmt->wan, masq on wan-->
+#         wwan0 --> cellular --> internet
+#
+# network=usbmgmt is not the OpenWrt default. This board's generic `lan` is
+# uncm0/proto=none with no address and no DHCP, so an AP attached to it would
+# never hand out a lease. usbmgmt is the br-usb bridge that already carries the
+# address, the dnsmasq pool, the firewall zone and the usbmgmt->wan forwarding
+# wired by the udx-usb and udx-runtime packages.
+#
+# BAND - one band at a time, switchable at runtime:
+#   mt792x declares num_different_channels = 1, AP limit = 1
+#   (drivers/net/wireless/mediatek/mt76/mt792x_core.c, if_comb/if_limits), so
+#   this single-radio part cannot run a 2.4 GHz AP and a 5 GHz AP at the same
+#   time. mac80211.uc also emits one wifi-device per radio.
+#
+#   bands_order in 070-wifi-default-network.patch is [ "5G", "2G" ], but that is
+#   only the priority used the FIRST time /etc/config/wireless is generated:
+#   mac80211.uc skips every radio that already exists and never rewrites one, so
+#   after first boot the band is whatever the config says and it survives
+#   reboot. 5 GHz wins by default because the uplink is 5G cellular and 2.4 GHz
+#   is forced to HE20 (~287 Mbps PHY), which would cap the downlink; a card that
+#   reports no 5 GHz still comes up on 2.4. 6 GHz is excluded: the CN regdb
+#   marks every 6 GHz channel NO-IR and hostapd cannot start an AP there.
+#
+#   To switch band after first boot (persists across reboot), any of:
+#     udx-wifi-band 2g          script; also fixes htmode and channel
+#     LuCI > Network > Wireless > radio0 > Edit > Band (set Width to 20 too)
+#     uci set wireless.radio0.band=2g
+#     uci set wireless.radio0.channel=6
+#     uci set wireless.radio0.htmode=HE20
+#     uci commit wireless; wifi reload
+#
+#   The per-band channels below only seed the first generation. 149 sits in
+#   5725-5850, the widest non-DFS allowance in CN, so ACS cannot leave the AP
+#   waiting out a 60 s CAC before the SSID shows up; 6 is the usual 2.4 GHz
+#   default.
+#
+# The key is the factory default and is meant to be changed on first login.
+. /lib/functions/uci-defaults.sh
+
+board_config_update
+
+ucidef_set_wireless 2g 'SY108' 'psk2' '12345678'
+ucidef_set_wireless 5g 'SY108' 'psk2' '12345678'
+ucidef_set_country CN
+
+json_select_object wlan
+	json_select_object defaults
+		json_add_string network usbmgmt
+		json_select_object ssids
+			json_select_object 2g
+				json_add_string channel 6
+			json_select ..
+			json_select_object 5g
+				json_add_string channel 149
+			json_select ..
+		json_select ..
+	json_select ..
+json_select ..
+
+board_config_flush
+exit 0

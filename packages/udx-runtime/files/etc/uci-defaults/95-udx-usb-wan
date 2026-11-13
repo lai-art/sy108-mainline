@@ -30,6 +30,17 @@ if [ "$(uci -q get 'dhcp.@dnsmasq[0].port' || true)" = 0 ]; then
 	uci set 'dhcp.@dnsmasq[0].port=53'
 	uci set 'dhcp.@dnsmasq[0].noresolv=0'
 fi
+# The udx proto hands netifd no resolvers at all: a SIPA link has no DHCP lease
+# to carry option 6, and packages/udx-cellular/files/lib/netifd/proto/udx.sh
+# never writes one. resolv.conf.auto therefore ends up without a WAN DNS and
+# dnsmasq runs with no forwarder - a Wi-Fi client gets a lease, can ping
+# 192.168.9.1, and still fails every name lookup. Pin public resolvers when the
+# user has not configured any, so the on-board AP is actually usable.
+if uci -q get 'dhcp.@dnsmasq[0]' >/dev/null &&
+   [ -z "$(uci -q get 'dhcp.@dnsmasq[0].server' || true)" ]; then
+	uci add_list 'dhcp.@dnsmasq[0].server=223.5.5.5'
+	uci add_list 'dhcp.@dnsmasq[0].server=119.29.29.29'
+fi
 # Extend the cellular /64 to USB using odhcp6c's RFC 7278 support.
 # SIPA is a routed, NOARP link; it does not solicit LAN neighbors.
 uci set network.wan6=interface

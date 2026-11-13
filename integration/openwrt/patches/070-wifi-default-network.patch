@@ -1,0 +1,41 @@
+diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
+index d61786f..f65119e 100644
+--- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
++++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
+@@ -2,7 +2,11 @@
+ import { readfile } from "fs";
+ import * as uci from 'uci';
+ 
+-const bands_order = [ "6G", "5G", "2G" ];
++/* 5 GHz first: the uplink here is 5G cellular and 2.4 GHz is capped at HE20,
++ * so 2.4 GHz would bottleneck the downlink. 6 GHz is dropped because CN regdb
++ * marks every 6 GHz channel NO-IR and hostapd cannot start an AP there. A card
++ * that reports no 5 GHz radio still falls back to 2G. */
++const bands_order = [ "5G", "2G" ];
+ const htmode_order = [ "EHT", "HE", "VHT", "HT" ];
+ 
+ let board = json(readfile("/etc/board.json"));
+@@ -51,7 +55,10 @@
+ 
+ 		let band = info.bands[band_name];
+ 		let rband = radio.bands[band_name];
+-		let channel = rband.default_channel ?? "auto";
++		/* boards may pin a non-DFS channel; 03-sy108-wifi pins 149 for 5G so
++		 * ACS cannot land on a DFS channel and stall the AP in 60 s CAC */
++		let channel = board.wlan.defaults?.ssids?.[lc(band_name)]?.channel
++			?? rband.default_channel ?? "auto";
+ 
+ 		let width = band.max_width;
+ 		if (band_name == "2G")
+@@ -107,7 +114,10 @@
+ 
+ set ${si}=wifi-iface
+ set ${si}.device='${name}'
+-set ${si}.network='lan'
++/* The board's `lan` is uncm0/proto=none with no address or DHCP, so an AP on it
++ * would never hand out a lease. boards that care set wlan.defaults.network
++ * (03-sy108-wifi writes "usbmgmt"); everything else keeps upstream behaviour. */
++set ${si}.network='${board.wlan?.defaults?.network || "lan"}'
+ set ${si}.mode='ap'
+ set ${si}.ssid='${defaults?.ssid || "OpenWrt"}'
+ set ${si}.encryption='${defaults?.encryption || encryption}'

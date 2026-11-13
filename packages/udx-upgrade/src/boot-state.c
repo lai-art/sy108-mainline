@@ -389,6 +389,20 @@ static int usb_profile_supported(const char *applied)
 static int boot_management_ready(void)
 {
 	char value[512];
+	/* Host-only build: the single USB port drives an external USB Wi-Fi
+	 * adapter and there is no UDC at all, so every gadget check below is
+	 * unsatisfiable and the trial would expire on a perfectly healthy boot.
+	 * Management is reached over the Wi-Fi AP that 03-sy108-wifi bridges into
+	 * usbmgmt, so acceptance requires that path to actually answer: a boot
+	 * that never brings the AP up still falls back to Recovery.
+	 */
+	if (access("/sys/class/udc/29100000.usb", F_OK)) {
+		if (management_listener(22) ||
+		    (management_listener(80) && management_listener(443)) ||
+		    management_network_ready())
+			return -1;
+		return 0;
+	}
 	/* Logical gadget readiness is independent of a connected host or SIM.
 	 * All run files are from this boot; require the live UDC binding too. */
 	if (text("/sys/kernel/config/usb_gadget/udx-usb/UDC", value, sizeof(value)) ||

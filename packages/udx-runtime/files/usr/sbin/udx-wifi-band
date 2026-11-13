@@ -1,0 +1,199 @@
+#!/bin/sh
+# udx-wifi-band - choose which band the AP radio serves
+#
+# The MT7921AU is a single-radio part: mt792x declares num_different_channels=1
+# and an AP limit of 1 (drivers/net/wireless/mediatek/mt76/mt792x_core.c), so
+# exactly one band can carry the AP at a time. mac80211.uc picks 5 GHz the first
+# time it generates /etc/config/wireless (see bands_order in
+# 070-wifi-default-network.patch) but it skips every radio that already exists,
+# so after first boot the band is whatever the config says, and it survives
+# reboot until something changes it. This is that something.
+#
+# Three things have to move together, which is why this is a script and not a
+# one-line `uci set` in the docs:
+#   band    - 2g or 5g
+#   channel - 149 is not a 2.4 GHz channel and 6 is not a 5 GHz channel, so
+#             keeping the old channel across a band switch leaves hostapd with
+#             an invalid config and no SSID
+#   htmode  - HE80 is rejected on 2.4 GHz (its max width is 40); switching down
+#             rewrites it to HE20
+#
+# Usage:
+#   udx-wifi-band                 show the current setting
+#   udx-wifi-band 2g [channel]    serve 2.4 GHz (default channel 6)
+#   udx-wifi-band 5g [channel]    serve 5 GHz   (default channel 149, non-DFS)
+#   udx-wifi-band --rollback      restore the values saved by the last switch
+#
+# 6 GHz is deliberately not offered: the CN regdb marks every 6 GHz channel
+# NO-IR, so hostapd cannot start an AP there.
+#
+# NOTE: `wifi reload` restarts the radio, so an SSH session carried over this AP
+# drops. The previous values are written to /etc/udx-wifi-band.prev before the
+# reload; if the AP does not come back, run `udx-wifi-band --rollback` from the
+# serial console or from Recovery.
+
+RADIO="${UDX_WIFI_RADIO:-radio0}"
+PREV="/etc/udx-wifi-band.prev"
+PROG="udx-wifi-band"
+
+die() {
+	printf '%s: %s\n' "$PROG" "$*" >&2
+	exit 1
+}
+
+get() {
+	uci -q get "wireless.$RADIO.$1" 2>/dev/null
+}
+
+show() {
+	local band channel htmode country
+
+	band=$(get band)
+	channel=$(get channel)
+	htmode=$(get htmode)
+	country=$(get country)
+
+	printf 'radio    %s\n' "$RADIO"
+	printf 'band     %s\n' "${band:-unknown}"
+	printf 'channel  %s\n' "${channel:-unknown}"
+	printf 'htmode   %s\n' "${htmode:-unknown}"
+	printf 'country  %s\n' "${country:-unset}"
+	printf '\nusage: %s 2g [channel] | %s 5g [channel] | %s --rollback\n' \
+		"$PROG" "$PROG" "$PROG"
+}
+
+restore_prev() {
+	[ -f "$PREV" ] || die "no previous setting in $PREV"
+
+	# shellcheck disable=SC1090
+	. "$PREV"
+	[ -n "$band" ] && [ -n "$channel" ] || die "$PREV is malformed"
+
+	uci set "wireless.$RADIO.band=$band"
+	uci set "wireless.$RADIO.channel=$channel"
+	if [ -n "$htmode" ]; then
+		uci set "wireless.$RADIO.htmode=$htmode"
+	fi
+	uci commit wireless || die "uci commit failed"
+
+	printf 'restored band=%s channel=%s htmode=%s\n' \
+		"$band" "$channel" "${htmode:-unchanged}"
+	wifi reload
+	printf 'radio reloaded; the SSID returns in a few seconds\n'
+}
+
+[ "$(uci -q get "wireless.$RADIO" 2>/dev/null)" = "wifi-device" ] ||
+	die "wireless.$RADIO is not a wifi-device - is the card detected and has 'wifi config' run?"
+
+case "${1:-}" in
+	''|-h|--help|help)
+		show
+		exit 0
+		;;
+	--rollback)
+		restore_prev
+		exit 0
+		;;
+esac
+
+case "$1" in
+	2g|2.4g|2.4|2)
+		band=2g
+		defchan=6
+		;;
+	5g|5|5.0)
+		band=5g
+		defchan=149
+		;;
+	6g|6|6.0)
+		die "6 GHz is not usable in CN: regdb marks every 6 GHz channel NO-IR and hostapd refuses to start an AP"
+		;;
+	*)
+		die "unknown band '$1' (use 2g or 5g)"
+		;;
+esac
+
+old_band=$(get band)
+cur_chan=$(get channel)
+cur_ht=$(get htmode)
+
+# Keep the current channel when it is already legal in the target band, so
+# `5g -> 2g -> 5g` does not silently move off a channel the user chose.
+if [ -n "${2:-}" ]; then
+	case "$2" in
+		''|*[!0-9]*)
+			die "channel must be a number, got '$2'"
+			;;
+	esac
+	new_chan=$2
+else
+	new_chan=
+	case "$cur_chan" in
+		''|*[!0-9]*) : ;;
+		*)
+			if [ "$band" = "2g" ] && [ "$cur_chan" -ge 1 ] && [ "$cur_chan" -le 14 ]; then
+				new_chan=$cur_chan
+			fi
+			if [ "$band" = "5g" ] && [ "$cur_chan" -ge 32 ] && [ "$cur_chan" -le 177 ]; then
+				new_chan=$cur_chan
+			fi
+			;;
+	esac
+	[ -n "$new_chan" ] || new_chan=$defchan
+fi
+
+if [ "$band" = "2g" ] && { [ "$new_chan" -lt 1 ] || [ "$new_chan" -gt 14 ]; }; then
+	die "channel $new_chan is outside 1-14 for 2.4 GHz"
+fi
+if [ "$band" = "5g" ] && { [ "$new_chan" -lt 32 ] || [ "$new_chan" -gt 177 ]; }; then
+	die "channel $new_chan is outside 32-177 for 5 GHz"
+fi
+
+# Keep the generation (EHT/HE/VHT/HT) but make the width legal for the band.
+# Going down is what matters for correctness (HE80 is rejected on 2.4 GHz);
+# going up matters for throughput - a switch back to 5 GHz must not leave the
+# radio stuck at the 20 MHz the previous 2.4 GHz visit clamped it to.
+new_ht=$cur_ht
+gen=${cur_ht%%[0-9]*}
+[ -n "$gen" ] || gen=HE
+
+if [ "$cur_ht" = "NOHT" ]; then
+	:                                       # legacy 11b/g, leave it alone
+elif [ "$band" = "2g" ]; then
+	case "$cur_ht" in
+		*40|*80|*160|*320) new_ht="${gen}20" ;;
+	esac
+	if [ "$new_ht" = "VHT20" ]; then
+		new_ht=HT20                      # 802.11ac is 5 GHz only
+	fi
+else
+	case "$gen" in
+		HT) wide=40 ;;              # HT tops out at 40 MHz
+		*)  wide=80 ;;
+	esac
+	case "$cur_ht" in
+		*"$wide"|*160|*320) : ;;
+		*) new_ht="${gen}${wide}" ;;
+	esac
+fi
+
+{
+	printf 'band=%s\n' "$old_band"
+	printf 'channel=%s\n' "$cur_chan"
+	printf 'htmode=%s\n' "$cur_ht"
+} > "$PREV"
+
+uci set "wireless.$RADIO.band=$band"
+uci set "wireless.$RADIO.channel=$new_chan"
+if [ -n "$new_ht" ]; then
+	uci set "wireless.$RADIO.htmode=$new_ht"
+fi
+uci set "wireless.$RADIO.disabled=0"
+uci commit wireless || die "uci commit failed"
+
+printf 'applying band=%s channel=%s htmode=%s\n' \
+	"$band" "$new_chan" "${new_ht:-unchanged}"
+wifi reload || die "wifi reload failed - run '$PROG --rollback' to go back"
+
+printf 'radio reloaded; the SSID returns in a few seconds (check: iw dev)\n'
+printf 'previous setting saved in %s (undo: %s --rollback)\n' "$PREV" "$PROG"
