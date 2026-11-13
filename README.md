@@ -70,8 +70,10 @@ U-Boot 与 SPL 在 `sy108-uboot-spl` 仓库中独立构建，详见 [构建维�
 - [构建维护](docs/build.md)
 - [设备树与启动 ABI](docs/devicetree.md)
 - [USB 与 MCU 接口](docs/usb-mcu.md)
+- [外置 USB Wi-Fi（MT7921AU / BL-M7921AU1）](docs/wifi-mt7921au.md)（方案、变更清单与回退，**尚未编译、尚未上机**）
 - [已验证改动](docs/verified-changes.md)
 - [上游 issue 稿存档：USB3 U1/U2](docs/upstream-issue-usb3-lpm.md)
+- [HOST 模式历史补丁归档](docs/host-wifi/README.md)（**只归档，不应用**）
 - [设计与整改方案归档](docs/plans/README.md)（前端 / SIM / 测速等设计稿与决策记录，**非已实现功能**）
 
 ## 致谢

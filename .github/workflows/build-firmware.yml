@@ -7,7 +7,13 @@ name: build-firmware
 
 on:
   push:
-    branches: [main]
+    # `wifi-host` is the "SY108 无线网卡版" line: the single USB port runs in
+    # host mode and drives an external MT7921AU Wi-Fi adapter, instead of the
+    # gadget NCM management port that plain `main` keeps. Both lines build
+    # independently - each push only rebuilds its own branch, and artifacts
+    # never mix. Releases stay tag-only (see the `release` job), so pushing
+    # this branch cannot overwrite a mainline release.
+    branches: [main, wifi-host]
     tags: ['v*']
   pull_request:
     branches: [main]
@@ -149,7 +155,7 @@ jobs:
       # boots and still trains SuperSpeed, only the link keeps falling into
       # U1/U2.  That failure mode is indistinguishable from a cable problem
       # until the image is flashed, so refuse to publish an image without it.
-      - name: Verify device tree invariants (USB3 LPM + fixed peripheral role)
+      - name: Verify device tree invariants (USB3 LPM + fixed USB role)
         run: |
           dtb=artifact/${{ matrix.profile }}/board.dtb
           if [ ! -f "$dtb" ]; then
@@ -166,11 +172,10 @@ jobs:
             echo "::error::dead property snps,usb3-u1u2-disable still present in $dtb - 002 not applied"
             exit 1
           fi
-          # The management port must stay a FIXED USB device. A cached kernel
-          # tree can retain a .patch that was deleted from the repository, and
-          # dr_mode="otg" makes dwc3 take dwc3_drd_init() instead of
-          # dwc3_gadget_init(); boot_accept() then never sees the UDC and the
-          # watchdog returns to Recovery. Run 50 shipped exactly this failure
+          # The USB role must be FIXED on both images, never switchable. A
+          # stale cached kernel tree can retain a .patch that was deleted from
+          # the repository, and dr_mode="otg" makes dwc3 take dwc3_drd_init()
+          # instead of host/gadget init. Run 50 shipped exactly this failure
           # with a green build, so refuse to publish such an image.
           for prop in usb-role-switch role-switch-default-mode otg; do
             if grep -aq -- "$prop" "$dtb"; then
@@ -178,11 +183,40 @@ jobs:
               exit 1
             fi
           done
-          if ! grep -aq -- 'peripheral' "$dtb"; then
-            echo "::error::dr_mode is not peripheral in $dtb"
+          # main is host-only: the single port drives an external USB Wi-Fi
+          # adapter (900-usb-host.patch overrides dr_mode to "host").
+          # recovery keeps the "peripheral" default from the shared dtsi so its
+          # wired management port survives. Exactly one of the two strings must
+          # be present - both would mean a role switch crept back in.
+          have_host=0
+          have_peripheral=0
+          if strings "$dtb" | grep -qx 'host'; then have_host=1; fi
+          if strings "$dtb" | grep -qx 'peripheral'; then have_peripheral=1; fi
+          if [ "$have_host" = 1 ] && [ "$have_peripheral" = 1 ]; then
+            echo "::error::both host and peripheral dr_mode values present in $dtb - role switch is not supported"
             exit 1
           fi
-          echo "USB3 LPM quirks present and fixed-peripheral role verified in $dtb"
+          # Derive the expected role from the tree instead of hard-coding it per
+          # branch, so this same workflow file stays valid on both lines:
+          #   recovery   -> always the shared-dtsi default (wired NCM port)
+          #   main       -> host when 900-usb-host.patch is present, otherwise
+          #                 the plain mainline gadget role
+          # Hard-coding "main => host" would fail on the mainline branch, which
+          # deliberately does not carry the Wi-Fi changes.
+          want=peripheral
+          if [ "${{ matrix.profile }}" = "main" ] && \
+             [ -f integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch ]; then
+            want=host
+          fi
+          if [ "$want" = "host" ] && [ "$have_host" = 0 ]; then
+            echo "::error::dr_mode is not host in $dtb - 900-usb-host.patch was not applied"
+            exit 1
+          fi
+          if [ "$want" = "peripheral" ] && [ "$have_peripheral" = 0 ]; then
+            echo "::error::dr_mode is not peripheral in $dtb - expected the shared dtsi default"
+            exit 1
+          fi
+          echo "USB3 LPM quirks present and fixed-${want} role verified in $dtb"
 
       - name: Upload ${{ matrix.profile }} artifacts
         uses: actions/upload-artifact@v4

@@ -1,0 +1,126 @@
+--- a/integration/openwrt/target/linux/sprd/udx710/config-7.3
++++ b/integration/openwrt/target/linux/sprd/udx710/config-7.3
+@@ -389,7 +389,6 @@
+ CONFIG_SND_USB_AUDIO=y
+ CONFIG_USB=y
+ # CONFIG_USB_PCI is not set
+-# CONFIG_USB_XHCI_HCD is not set
+ # CONFIG_USB_ACM is not set
+ # CONFIG_USB_PRINTER is not set
+ # CONFIG_USB_STORAGE is not set
+@@ -557,7 +556,55 @@
+ CONFIG_VIDEO_DEV=y
+ CONFIG_VIDEO_V4L2_I2C=y
+ CONFIG_VIDEO_V4L2_SUBDEV_API=y
+-# CONFIG_USB_DWC3_HOST is not set
+-# CONFIG_USB_DWC3_DUAL_ROLE is not set
+-CONFIG_USB_DWC3_GADGET=y
++CONFIG_USB_DWC3_HOST=y
+ CONFIG_RT_GROUP_SCHED_DEFAULT_DISABLED=y
++CONFIG_CFG80211=y
++CONFIG_CFG80211_WEXT=y
++CONFIG_MAC80211=y
++CONFIG_RTW88=y
++CONFIG_RTW88_USB=y
++CONFIG_RTW88_8812A=y
++CONFIG_RTW88_8812AU=y
++CONFIG_RTW88_DEBUGFS=y
++CONFIG_WLAN=y
++CONFIG_RFKILL=y
++# CONFIG_USB_DWC3_GADGET is not set
++# CONFIG_USB_DWC3_DUAL_ROLE is not set
++CONFIG_USB_XHCI_HCD=y
++CONFIG_USB_XHCI_PLATFORM=y
++CONFIG_CFG80211_CERTIFICATION_ONUS=y
++CONFIG_CFG80211_REQUIRE_SIGNED_REGDB=n
++# CONFIG_CFG80211_USE_KERNEL_REGDB_KEYS is not set
++
++CONFIG_RTW88_8723D=y
++CONFIG_RTW88_8723DU=y
++CONFIG_RTW88_8821C=y
++CONFIG_RTW88_8821CU=y
++CONFIG_RTW88_8821A=y
++CONFIG_RTW88_8821AU=y
++CONFIG_RTW88_8822B=y
++CONFIG_RTW88_8822BU=y
++CONFIG_RTW88_8822C=y
++CONFIG_RTW88_8822CU=y
++CONFIG_RTW88_8814A=y
++CONFIG_RTW88_8814AU=y
++CONFIG_MT76_CORE=y
++CONFIG_MT76_USB=y
++CONFIG_MT76x02_LIB=y
++CONFIG_MT76x02_USB=y
++CONFIG_MT76x0_COMMON=y
++CONFIG_MT76x0U=y
++CONFIG_MT76x2_COMMON=y
++CONFIG_MT76x2U=y
++CONFIG_MT76_CONNAC_LIB=y
++CONFIG_MT7615_COMMON=y
++CONFIG_MT7663_USB_SDIO_COMMON=y
++CONFIG_MT7663U=y
++CONFIG_MT792x_LIB=y
++CONFIG_MT792x_USB=y
++CONFIG_MT7921_COMMON=y
++CONFIG_MT7921U=y
++CONFIG_MT7925_COMMON=y
++CONFIG_MT7925U=y
++
++CONFIG_USB_MON=y
+--- a/integration/openwrt/target/linux/sprd/udx710/config-recovery
++++ b/integration/openwrt/target/linux/sprd/udx710/config-recovery
+@@ -1,10 +1,11 @@
+-# SY108 Recovery: fixed USB device, software NCM and minimal platform drivers.
+-# Merged after config-7.3 to omit baseband and hardware USB offload.
+-# CONFIG_USB_XHCI_HCD is not set
+-# CONFIG_USB_XHCI_PLATFORM is not set
+-# CONFIG_USB_DWC3_HOST is not set
++# SY108 Recovery: host-only USB Wi-Fi and minimal platform drivers.
++# Merged after config-7.3 to omit baseband and hardware USB offload while
++# retaining the same cfg80211/mac80211/rtw88/mt76 stack as the main system.
++CONFIG_USB_XHCI_HCD=y
++CONFIG_USB_XHCI_PLATFORM=y
++CONFIG_USB_DWC3_HOST=y
++# CONFIG_USB_DWC3_GADGET is not set
+ # CONFIG_USB_DWC3_DUAL_ROLE is not set
+-CONFIG_USB_DWC3_GADGET=y
+ # CONFIG_USB_STORAGE is not set
+ # CONFIG_USB_UAS is not set
+ # CONFIG_USB_ACM is not set
+--- a/packages/udx-usb/files/etc/init.d/udx-usb
++++ b/packages/udx-usb/files/etc/init.d/udx-usb
+@@ -20,6 +20,9 @@
+ }
+ 
+ start_service() {
++	# Host-only builds have no UDC; keep the management bridge but do not
++	# attempt gadget setup.
++	[ -e /sys/class/udc/29100000.usb ] || return 0
+ 	/usr/libexec/udx-usb-gadget start || return $?
+ 	console_instance
+ }
+--- a/integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch
++++ b/integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch
+@@ -0,0 +1,22 @@
++--- a/arch/arm64/boot/dts/sprd/udx710-sy108.dts
+++++ b/arch/arm64/boot/dts/sprd/udx710-sy108.dts
++@@ -25,7 +25,7 @@
++ };
++ 
++ &usb1_dwc3 {
++-	sprd,pamu3-offload;
+++	// sprd,pamu3-offload;
++ 	/* The programmed 5160-byte RX FIFO holds five 1024-byte packets plus
++ 	 * setup/clock-crossing space. Wait for four free packet slots before
++ 	 * ERDY and advertise four credits, leaving one packet of headroom.
++--- a/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
+++++ b/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
++@@ -69,7 +69,7 @@
++ };
++ 
++ &usb1_dwc3 {
++-	dr_mode = "peripheral";
+++	dr_mode = "host";
++ };
++ 
++ #include "udx710-sy108-firmware.dtsi"

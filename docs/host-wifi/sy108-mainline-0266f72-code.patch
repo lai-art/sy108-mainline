@@ -1,0 +1,518 @@
+diff --git a/components/cpnv/src/nv_vendor.c b/components/cpnv/src/nv_vendor.c
+index 1529391fff77efe4186b24757ca64a53c51fb245..f5bc03ebf998d5bba679700a56d06b6f2ab7efd7 100644
+--- a/components/cpnv/src/nv_vendor.c
++++ b/components/cpnv/src/nv_vendor.c
+@@ -16,7 +16,7 @@ static uint32_t get32(const uint8_t *p)
+ 
+ int nv_vendor_valid(const uint8_t *p, size_t n, uint32_t payload, unsigned *bits)
+ {
+-	if (!p || !payload || payload > NV_MAX_IMAGE || payload % 512 ||
++	if (!p || !payload || payload > NV_MAX_IMAGE ||
+ 	    n != (size_t)payload + 512 || get32(p) != NV_IMAGE_MAGIC || get32(p + 4) != payload)
+ 		return 0;
+ 	uint32_t sum = get32(p + 8);
+@@ -69,7 +69,11 @@ static int valid_stored_image(int fd, uint32_t payload, uint8_t first[8], uint64
+ 	int e = read_at(fd, header, sizeof(header), 0, end);
+ 	if (e)
+ 		return e;
+-	if (get32(header) != NV_IMAGE_MAGIC || get32(header + 4) != payload)
++	if (get32(header) != NV_IMAGE_MAGIC)
++		return -EBADMSG;
++	if (!payload)
++		payload = get32(header + 4);
++	if (!payload || payload > NV_MAX_IMAGE || get32(header + 4) != payload)
+ 		return -EBADMSG;
+ 	uint8_t *block = malloc(IO_CHUNK);
+ 	if (!block)
+@@ -100,7 +104,7 @@ int nv_vendor_repair_pair(const int fd[2], uint32_t payload, uint64_t end)
+ 		return -EINVAL;
+ 	int good[2], e = 0;
+ 	for (unsigned i = 0; i < 2; i++) {
+-		int r = valid_stored_image(fd[i], payload, NULL, end);
++		int r = valid_stored_image(fd[i], 0, NULL, end);
+ 		if (r == -ETIMEDOUT || r == -ENOMEM)
+ 			return r;
+ 		good[i] = !r;
+@@ -182,7 +186,7 @@ int nv_vendor_initial_timestamps(const int fix_fd[2], int runtime_fd, uint32_t *
+ 	int e = -EBADMSG;
+ 	unsigned first = (rand() & 1) ? 0u : 1u;
+ 	for (unsigned attempt = 0; attempt < 2; attempt++) {
+-		e = valid_stored_image(fix_fd[first ^ attempt], 7340032u, first_words, deadline);
++		e = valid_stored_image(fix_fd[first ^ attempt], 0, first_words, deadline);
+ 		if (e == -ETIMEDOUT || e == -ENOMEM)
+ 			return e;
+ 		if (!e)
+diff --git a/components/cpnv/src/nv_vendor_backend.c b/components/cpnv/src/nv_vendor_backend.c
+index b5720e2d4d3738ee8b9f7da1d4a561e82f455586..46d31b94576ad42422d9554943f6b3d046a772d5 100644
+--- a/components/cpnv/src/nv_vendor_backend.c
++++ b/components/cpnv/src/nv_vendor_backend.c
+@@ -206,10 +206,11 @@ static int load_image(struct nv_ubi_backend *b)
+ 		if (e == NVU_DEADLINE || e == NVU_OWNERSHIP)
+ 			return e;
+ 		if (e || get32(v->header) != NV_IMAGE_MAGIC ||
+-		    get32(v->header + 4) != b->payload_size)
++		    !get32(v->header + 4) || get32(v->header + 4) > b->payload_size)
+ 			continue;
++		v->size = get32(v->header + 4);
+ 		uint64_t sum = 0;
+-		for (uint32_t off = 0; off < b->payload_size; off += CHUNK) {
++		for (uint32_t off = 0; off < v->size; off += CHUNK) {
+ 			unsigned index = off / CHUNK;
+ 			size_t length = block_length(v, index);
+ 			e = read_exact(b, b->fd[i], v->work, length, (uint64_t)NV_HEADER + off);
+@@ -231,6 +232,7 @@ static int load_image(struct nv_ubi_backend *b)
+ 		else
+ 			continue;
+ 		v->loaded = 1;
++		b->payload_size = v->size;
+ 		b->checksum_bits = v->bits;
+ 		return 0;
+ 	}
+@@ -382,7 +384,8 @@ int nv_ubi_stage(struct nv_ubi_backend *b, uint32_t off, const uint8_t *data, si
+ 
+ static int put_volume(struct nv_ubi_backend *b, unsigned i)
+ {
+-	size_t total = (size_t)b->payload_size + NV_HEADER;
++	struct vendor_state *v = b->vendor_state;
++	size_t total = (size_t)v->size + NV_HEADER;
+ 	int e = progress(b);
+ 	if (e)
+ 		return e;
+@@ -420,7 +423,7 @@ static int put_lebs(struct nv_ubi_backend *b, unsigned i)
+ {
+ 	struct vendor_state *v = b->vendor_state;
+ 	uint32_t leb = b->identity[i].leb_size;
+-	uint64_t total = (uint64_t)b->payload_size + NV_HEADER;
++	uint64_t total = (uint64_t)v->size + NV_HEADER;
+ 	int e = 0;
+ 	if (leb <= NV_HEADER || leb > total)
+ 		return NVU_CONFIG;
+diff --git a/components/system/runtime.c b/components/system/runtime.c
+index ad0ba6bd50765099bd11eba3cd18f6aacc0d7435..4862a2b90b585f22febc4498ca9d67cd0e00d7cb 100644
+--- a/components/system/runtime.c
++++ b/components/system/runtime.c
+@@ -265,10 +265,11 @@ static int rtc_write(struct runtime *r, const char *name, const char *text)
+ 
+ static int trial_pending(struct runtime *r)
+ {
+-	/* Acceptance is specific to this boot; missing/partial/stale files cannot
+-	 * cancel a deadline. The budget is measured from kernel boot, not owner start.
++	/* Pending until this boot's acceptance marker exists and matches. A
++	 * missing/partial/stale marker must not cancel the deadline; only a
++	 * successful exact match does. The budget starts at kernel boot.
+ 	 */
+-	return r->trial_deadline && exact_file(TRIAL_ACCEPTED_PATH, r->boot);
++	return r->trial_deadline && exact_file(TRIAL_ACCEPTED_PATH, r->boot) != 0;
+ }
+ 
+ static int trial_budget(struct runtime *r, uint64_t now)
+diff --git a/configs/openwrt-main.config b/configs/openwrt-main.config
+index 96f55a1c55b8f88c0bdf4a10310e5e1a3fcb1061..6d5cba4a21cff06effc0594e723a9c5644dce0ef 100644
+--- a/configs/openwrt-main.config
++++ b/configs/openwrt-main.config
+@@ -62,3 +62,20 @@ CONFIG_PACKAGE_luci-app-sy108-system=y
+ # CONFIG_PACKAGE_ucert-full is not set
+ CONFIG_PACKAGE_fwtool=y
+ CONFIG_BUSYBOX_CONFIG_FLOAT_DURATION=y
++CONFIG_PACKAGE_wpad-mbedtls=y
++# CONFIG_PACKAGE_rtl8812a-firmware is not set
++CONFIG_PACKAGE_iw=y
++CONFIG_PACKAGE_wifi-scripts=y
++# CONFIG_PACKAGE_wireless-regdb is not set
++# CONFIG_PACKAGE_rtl8723de-firmware is not set
++# CONFIG_PACKAGE_rtl8814a-firmware is not set
++# CONFIG_PACKAGE_rtl8821a-firmware is not set
++# CONFIG_PACKAGE_rtl8821ce-firmware is not set
++# CONFIG_PACKAGE_rtl8822be-firmware is not set
++# CONFIG_PACKAGE_rtl8822ce-firmware is not set
++
++CONFIG_DRIVER_11AC_SUPPORT=y
++CONFIG_DRIVER_11AX_SUPPORT=y
++CONFIG_KERNEL_PAGE_POOL=y
++# CONFIG_PACKAGE_kmod-mt7921-firmware is not set
++# CONFIG_PACKAGE_kmod-mt7925-firmware is not set
+diff --git a/configs/openwrt-recovery.config b/configs/openwrt-recovery.config
+index ca7222b02f72fbd2fffca0b4634685281c9f960f..5f33d4162e34cdbb028b7c22640edf90da55f401 100644
+--- a/configs/openwrt-recovery.config
++++ b/configs/openwrt-recovery.config
+@@ -52,3 +52,15 @@ CONFIG_KERNEL_BUILD_DOMAIN="sy108"
+ # CONFIG_PACKAGE_ucert-full is not set
+ CONFIG_PACKAGE_fwtool=y
+ CONFIG_BUSYBOX_CONFIG_FLOAT_DURATION=y
++
++CONFIG_PACKAGE_wpad-mbedtls=y
++CONFIG_PACKAGE_wifi-scripts=y
++# CONFIG_PACKAGE_wireless-regdb is not set
++CONFIG_PACKAGE_iw=y
++# CONFIG_PACKAGE_rtl8812a-firmware is not set
++# CONFIG_PACKAGE_rtl8723de-firmware is not set
++# CONFIG_PACKAGE_rtl8814a-firmware is not set
++# CONFIG_PACKAGE_rtl8821a-firmware is not set
++# CONFIG_PACKAGE_rtl8821ce-firmware is not set
++# CONFIG_PACKAGE_rtl8822be-firmware is not set
++# CONFIG_PACKAGE_rtl8822ce-firmware is not set
+diff --git a/integration/openwrt/patches/070-wifi-default-network.patch b/integration/openwrt/patches/070-wifi-default-network.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..ae6bbe08311507a84680983fb8a93c8e608f22cd
+--- /dev/null
++++ b/integration/openwrt/patches/070-wifi-default-network.patch
+@@ -0,0 +1,22 @@
++diff --git a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
++index d61786f..4335c0e 100644
++--- a/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
+++++ b/package/network/config/wifi-scripts/files/lib/wifi/mac80211.uc
++@@ -2,7 +2,7 @@
++ import { readfile } from "fs";
++ import * as uci from 'uci';
++ 
++-const bands_order = [ "6G", "5G", "2G" ];
+++const bands_order = [ "2G" ];
++ const htmode_order = [ "EHT", "HE", "VHT", "HT" ];
++ 
++ let board = json(readfile("/etc/board.json"));
++@@ -107,7 +107,7 @@ set ${s}.num_global_macaddr='${num_global_macaddr || ''}'
++ 
++ set ${si}=wifi-iface
++ set ${si}.device='${name}'
++-set ${si}.network='lan'
+++set ${si}.network='${board.wlan?.defaults?.network || "lan"}'
++ set ${si}.mode='ap'
++ set ${si}.ssid='${defaults?.ssid || "OpenWrt"}'
++ set ${si}.encryption='${defaults?.encryption || encryption}'
+diff --git a/integration/openwrt/series b/integration/openwrt/series
+index 3fdb83f95db88801e7b830437d397b8dc6776f01..94901cf02c4db06c2b6186955a3b8a93c19fa6f8 100644
+--- a/integration/openwrt/series
++++ b/integration/openwrt/series
+@@ -5,3 +5,4 @@
+ 040-sysupgrade-prepare-hook.patch
+ 050-dnsmasq-jail-pidfile.patch
+ 060-procd-jail-status.patch
++070-wifi-default-network.patch
+diff --git a/integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch b/integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch
+new file mode 100644
+index 0000000000000000000000000000000000000000..13092a6267ef2257151d9dd225066c46d0d08e9e
+--- /dev/null
++++ b/integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch
+@@ -0,0 +1,22 @@
++--- a/arch/arm64/boot/dts/sprd/udx710-sy108.dts
+++++ b/arch/arm64/boot/dts/sprd/udx710-sy108.dts
++@@ -25,7 +25,7 @@
++ };
++ 
++ &usb1_dwc3 {
++-	sprd,pamu3-offload;
+++	// sprd,pamu3-offload;
++ 	/* The programmed 5160-byte RX FIFO holds five 1024-byte packets plus
++ 	 * setup/clock-crossing space. Wait for four free packet slots before
++ 	 * ERDY and advertise four credits, leaving one packet of headroom.
++--- a/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
+++++ b/arch/arm64/boot/dts/sprd/udx710-sy108.dtsi
++@@ -69,7 +69,7 @@
++ };
++ 
++ &usb1_dwc3 {
++-	dr_mode = "peripheral";
+++	dr_mode = "host";
++ };
++ 
++ #include "udx710-sy108-firmware.dtsi"
+diff --git a/integration/openwrt/target/linux/sprd/udx710/config-7.3 b/integration/openwrt/target/linux/sprd/udx710/config-7.3
+index 94526be0418123b4aa35a5999367a2d7ee5f0dbc..02f515229395e1543e34dd8b128f61aff3c31690 100644
+--- a/integration/openwrt/target/linux/sprd/udx710/config-7.3
++++ b/integration/openwrt/target/linux/sprd/udx710/config-7.3
+@@ -330,8 +330,6 @@ CONFIG_PPP=y
+ CONFIG_PPPOE=y
+ CONFIG_PPPOL2TP=y
+ CONFIG_PPP_ASYNC=y
+-# CONFIG_USB_RTL8152 is not set
+-# CONFIG_USB_USBNET is not set
+ # CONFIG_WLAN is not set
+ # CONFIG_INPUT_LEDS is not set
+ CONFIG_INPUT_EVDEV=y
+@@ -389,14 +387,8 @@ CONFIG_SND=y
+ CONFIG_SND_USB_AUDIO=y
+ CONFIG_USB=y
+ # CONFIG_USB_PCI is not set
+-# CONFIG_USB_XHCI_HCD is not set
+-# CONFIG_USB_ACM is not set
+-# CONFIG_USB_PRINTER is not set
+-# CONFIG_USB_STORAGE is not set
+-# CONFIG_USB_UAS is not set
+ CONFIG_USB_DWC3=y
+ # CONFIG_USB_DWC3_GENERIC_PLAT is not set
+-# CONFIG_USB_SERIAL is not set
+ CONFIG_SPRD_PAMU3=y
+ CONFIG_USB_GADGET=y
+ CONFIG_USB_CONFIGFS=y
+@@ -543,7 +535,6 @@ CONFIG_RADIO_ADAPTERS=y
+ CONFIG_THERMAL_HWMON=y
+ CONFIG_USB_ARMLINUX=y
+ CONFIG_USB_BELKIN=y
+-# CONFIG_USB_HID is not set
+ CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV=y
+ CONFIG_UVC_COMMON=y
+ CONFIG_V4L2_ASYNC=y
+@@ -557,7 +548,92 @@ CONFIG_VIDEO_CAMERA_SENSOR=y
+ CONFIG_VIDEO_DEV=y
+ CONFIG_VIDEO_V4L2_I2C=y
+ CONFIG_VIDEO_V4L2_SUBDEV_API=y
+-# CONFIG_USB_DWC3_HOST is not set
+-# CONFIG_USB_DWC3_DUAL_ROLE is not set
+-CONFIG_USB_DWC3_GADGET=y
++CONFIG_USB_DWC3_HOST=y
+ CONFIG_RT_GROUP_SCHED_DEFAULT_DISABLED=y
++CONFIG_CFG80211=y
++CONFIG_CFG80211_WEXT=y
++CONFIG_MAC80211=y
++CONFIG_RTW88=y
++CONFIG_RTW88_USB=y
++CONFIG_RTW88_8812A=y
++CONFIG_RTW88_8812AU=y
++CONFIG_RTW88_DEBUGFS=y
++CONFIG_WLAN=y
++CONFIG_RFKILL=y
++# CONFIG_USB_DWC3_GADGET is not set
++# CONFIG_USB_DWC3_DUAL_ROLE is not set
++CONFIG_USB_XHCI_HCD=y
++CONFIG_USB_XHCI_PLATFORM=y
++CONFIG_CFG80211_CERTIFICATION_ONUS=y
++CONFIG_CFG80211_REQUIRE_SIGNED_REGDB=n
++# CONFIG_CFG80211_USE_KERNEL_REGDB_KEYS is not set
++
++CONFIG_RTW88_8723D=y
++CONFIG_RTW88_8723DU=y
++CONFIG_RTW88_8821C=y
++CONFIG_RTW88_8821CU=y
++CONFIG_RTW88_8821A=y
++CONFIG_RTW88_8821AU=y
++CONFIG_RTW88_8822B=y
++CONFIG_RTW88_8822BU=y
++CONFIG_RTW88_8822C=y
++CONFIG_RTW88_8822CU=y
++CONFIG_RTW88_8814A=y
++CONFIG_RTW88_8814AU=y
++
++CONFIG_USB_MON=y
++CONFIG_USB_USBNET=y
++CONFIG_USB_NET_CDCETHER=y
++CONFIG_USB_NET_CDC_NCM=y
++CONFIG_USB_NET_CDC_MBIM=y
++CONFIG_USB_NET_RNDIS_HOST=y
++CONFIG_USB_NET_CDC_SUBSET=y
++CONFIG_USB_RTL8152=y
++CONFIG_USB_NET_AX8817X=y
++CONFIG_USB_NET_AX88179_178A=y
++CONFIG_USB_NET_SMSC75XX=y
++CONFIG_USB_NET_SMSC95XX=y
++CONFIG_USB_NET_DM9601=y
++CONFIG_USB_NET_SR9700=y
++CONFIG_USB_NET_MCS7830=y
++CONFIG_USB_NET_QMI_WWAN=y
++CONFIG_USB_WDM=y
++# CONFIG_USB_ACM is not set
++CONFIG_USB_STORAGE=y
++CONFIG_USB_UAS=y
++CONFIG_USB_HID=y
++CONFIG_USB_HID_GENERIC=y
++CONFIG_USB_SERIAL=y
++CONFIG_USB_SERIAL_GENERIC=y
++CONFIG_USB_SERIAL_OPTION=y
++CONFIG_USB_SERIAL_CH341=y
++CONFIG_USB_SERIAL_FTDI_SIO=y
++CONFIG_USB_SERIAL_PL2303=y
++CONFIG_USB_SERIAL_CP210X=y
++CONFIG_USB_SERIAL_ARK3116=y
++CONFIG_USB_SERIAL_MOS7720=y
++CONFIG_USB_SERIAL_MOS7840=y
++CONFIG_USB_SERIAL_TI=y
++CONFIG_USB_PRINTER=y
++CONFIG_USB_AUDIO=y
++CONFIG_EXTRA_FIRMWARE="mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin mediatek/WIFI_MT7961_patch_mcu_1a_2_hdr.bin mediatek/WIFI_RAM_CODE_MT7961_1.bin mediatek/WIFI_RAM_CODE_MT7961_1a.bin mediatek/mt7610e.bin mediatek/mt7610u.bin mediatek/mt7662.bin mediatek/mt7662_rom_patch.bin mediatek/mt7662u.bin mediatek/mt7662u_rom_patch.bin mediatek/mt7663_n9_rebb.bin mediatek/mt7663_n9_v3.bin mediatek/mt7663pr2h.bin mediatek/mt7663pr2h_rebb.bin mediatek/mt7925/WIFI_MT7925_PATCH_MCU_1_1_hdr.bin mediatek/mt7925/WIFI_RAM_CODE_MT7925_1_1.bin rtw88/rtw8723d_fw.bin rtw88/rtw8812a_fw.bin rtw88/rtw8814a_fw.bin rtw88/rtw8821a_fw.bin rtw88/rtw8821c_fw.bin rtw88/rtw8822b_fw.bin rtw88/rtw8822c_fw.bin rtw88/rtw8822c_wow_fw.bin regulatory.db regulatory.db.p7s"
++CONFIG_EXTRA_FIRMWARE_DIR="/home/builder/wwudx710/linux-udx710/firmware"
++CONFIG_MT76_CORE=y
++CONFIG_MT76_USB=y
++CONFIG_MT76_LEDS=y
++CONFIG_MT76x02_LIB=y
++CONFIG_MT76x02_USB=y
++CONFIG_MT76_CONNAC_LIB=y
++CONFIG_MT792x_LIB=y
++CONFIG_MT792x_USB=y
++CONFIG_MT76x0_COMMON=y
++CONFIG_MT76x0U=y
++CONFIG_MT76x2_COMMON=y
++CONFIG_MT76x2U=y
++CONFIG_MT7615_COMMON=y
++CONFIG_MT7663_USB_SDIO_COMMON=y
++CONFIG_MT7663U=y
++CONFIG_MT7921_COMMON=y
++CONFIG_MT7921U=y
++CONFIG_MT7925_COMMON=y
++CONFIG_MT7925U=y
+diff --git a/integration/openwrt/target/linux/sprd/udx710/config-recovery b/integration/openwrt/target/linux/sprd/udx710/config-recovery
+index 40182142420305843bd0a3dfd05a525cab2b53ff..6a9d56b1f2cc39616d8834ad5474dc9acfc33f86 100644
+--- a/integration/openwrt/target/linux/sprd/udx710/config-recovery
++++ b/integration/openwrt/target/linux/sprd/udx710/config-recovery
+@@ -1,10 +1,11 @@
+-# SY108 Recovery: fixed USB device, software NCM and minimal platform drivers.
+-# Merged after config-7.3 to omit baseband and hardware USB offload.
+-# CONFIG_USB_XHCI_HCD is not set
+-# CONFIG_USB_XHCI_PLATFORM is not set
+-# CONFIG_USB_DWC3_HOST is not set
++# SY108 Recovery: host-only USB Wi-Fi and minimal platform drivers.
++# Merged after config-7.3 to omit baseband and hardware USB offload while
++# retaining the same cfg80211/mac80211/rtw88/mt76 stack as the main system.
++CONFIG_USB_XHCI_HCD=y
++CONFIG_USB_XHCI_PLATFORM=y
++CONFIG_USB_DWC3_HOST=y
++# CONFIG_USB_DWC3_GADGET is not set
+ # CONFIG_USB_DWC3_DUAL_ROLE is not set
+-CONFIG_USB_DWC3_GADGET=y
+ # CONFIG_USB_STORAGE is not set
+ # CONFIG_USB_UAS is not set
+ # CONFIG_USB_ACM is not set
+diff --git a/manifests/kernel.json b/manifests/kernel.json
+index fff789d99c7ab69e409cd501adc8e29639d711d6..b11106695e0e8ea0c37419ead26a0f209745cd4a 100644
+--- a/manifests/kernel.json
++++ b/manifests/kernel.json
+@@ -6,5 +6,5 @@
+   "commit": "14658d97220a06e34976d703e167073462390c78",
+   "archive": "linux-7.3.0-sy108-14658d97220a.tar.gz",
+   "version": "7.3.0",
+-  "sha256": "41352bb0e5fd3aac1cf7b50da0c08c2f7527da03760d3dde440f688d4e82b62a"
++  "sha256": "8f5cef5d5f15b738b112c8b1ddc0960d4093bae4b857b449f0cbbe50e617db80"
+ }
+diff --git a/packages/udx-runtime/Makefile b/packages/udx-runtime/Makefile
+index aecba9c00acadd5810dba54e80b11a21bf2c3ab6..be9828b6e73285882eb4f0ed3a2cb1aa7e56dac4 100644
+--- a/packages/udx-runtime/Makefile
++++ b/packages/udx-runtime/Makefile
+@@ -16,7 +16,7 @@ define Package/udx-runtime
+   SECTION:=base
+   CATEGORY:=Base system
+   TITLE:=SY108 boot, shutdown and recovery coordinator
+-  DEPENDS:=+kmod-udx710-pmsys +procd +ubus +libubus +libubox +ubi-utils +flock +udx-usb +ucode +ucode-mod-fs
++  DEPENDS:=+kmod-udx710-pmsys +procd +ubus +libubus +libubox +ubi-utils +flock +udx-usb +ucode +ucode-mod-fs +@DRIVER_11AC_SUPPORT +@DRIVER_11AX_SUPPORT +@DRIVER_11BE_SUPPORT
+ endef
+ 
+ define Package/udx-runtime/config
+@@ -56,6 +56,7 @@ define Package/udx-runtime/install
+ 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-runtime/recovery/defaults $(1)/etc/uci-defaults/95-sy108-recovery
+ 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-runtime/files/etc/uci-defaults/02-sy108-system $(1)/etc/uci-defaults/02-sy108-system
+ 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-runtime/files/etc/board.d/02-sy108-network $(1)/etc/board.d/
++	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-runtime/files/etc/board.d/03-sy108-wifi $(1)/etc/board.d/
+ 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-runtime/files/etc/uci-defaults/99-sy108-ports $(1)/etc/uci-defaults/
+ 	$(INSTALL_DIR) $(1)/etc/sysctl.d
+ 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/packages/udx-runtime/files/etc/sysctl.d/90-sy108.conf $(1)/etc/sysctl.d/
+diff --git a/packages/udx-runtime/files/etc/board.d/03-sy108-wifi b/packages/udx-runtime/files/etc/board.d/03-sy108-wifi
+new file mode 100755
+index 0000000000000000000000000000000000000000..8501f8b7c4bdce52b1a41c5a65ba664ed0e294da
+--- /dev/null
++++ b/packages/udx-runtime/files/etc/board.d/03-sy108-wifi
+@@ -0,0 +1,16 @@
++#!/bin/sh
++. /lib/functions/uci-defaults.sh
++
++board_config_update
++
++ucidef_set_wireless 2g 'SY108' 'psk2' '12345678'
++ucidef_set_country CN
++
++json_select_object wlan
++	json_select_object defaults
++		json_add_string network usbmgmt
++	json_select ..
++json_select ..
++
++board_config_flush
++exit 0
+diff --git a/packages/udx-runtime/files/etc/hotplug.d/net/20-usb-lan b/packages/udx-runtime/files/etc/hotplug.d/net/20-usb-lan
+new file mode 100755
+index 0000000000000000000000000000000000000000..970a8ac1e4356601d2c3744ea44561d73f65440a
+--- /dev/null
++++ b/packages/udx-runtime/files/etc/hotplug.d/net/20-usb-lan
+@@ -0,0 +1,18 @@
++#!/bin/sh
++# Attach newly appeared USB Ethernet ports to the usbmgmt LAN bridge.
++# This only changes bridge membership; it does not touch UCI or reload network.
++[ "$ACTION" = "add" ] || exit 0
++
++case "$INTERFACE" in
++	lo|br-*|wlan*|wwan*|uncm*)
++		exit 0
++		;;
++esac
++
++[ -e "/sys/class/net/$INTERFACE/device" ] || exit 0
++[ -e "/sys/class/net/$INTERFACE/phy80211" ] && exit 0
++readlink -f "/sys/class/net/$INTERFACE/device" | grep -q '/usb' || exit 0
++[ -d /sys/class/net/br-usb/bridge ] || exit 0
++
++ip link set dev "$INTERFACE" master br-usb 2>/dev/null || true
++exit 0
+diff --git a/packages/udx-runtime/files/etc/init.d/usb-lan b/packages/udx-runtime/files/etc/init.d/usb-lan
+new file mode 100755
+index 0000000000000000000000000000000000000000..c653c8887a3604b8c5d26da8560cda47ab128ec7
+--- /dev/null
++++ b/packages/udx-runtime/files/etc/init.d/usb-lan
+@@ -0,0 +1,28 @@
++#!/bin/sh /etc/rc.common
++
++START=99
++STOP=10
++
++start() {
++	[ -d /sys/class/net/br-usb/bridge ] || return 0
++
++	for path in /sys/class/net/*; do
++		ifname=${path##*/}
++
++		case "$ifname" in
++			lo|br-*|wlan*|wwan*|uncm*)
++				continue
++				;;
++		esac
++
++		[ -e "$path/device" ] || continue
++		[ -e "$path/phy80211" ] && continue
++		readlink -f "$path/device" | grep -q '/usb' || continue
++
++		ip link set dev "$ifname" master br-usb 2>/dev/null || true
++	done
++}
++
++boot() {
++	start
++}
+diff --git a/packages/udx-upgrade/src/boot-state.c b/packages/udx-upgrade/src/boot-state.c
+index 3f56a7bcde79ed6f9658841a27f05d5eb324cbef..21f8d0d46b1fd43f27db7864e2bcffce238fb769 100644
+--- a/packages/udx-upgrade/src/boot-state.c
++++ b/packages/udx-upgrade/src/boot-state.c
+@@ -367,6 +367,15 @@ static int management_network_ready(void)
+ static int boot_management_ready(void)
+ {
+ 	char value[512];
++	/* Host-only builds have no DWC3 UDC. In that mode management is the
++	 * WiFi/LAN path (br-usb/usbmgmt), not the USB NCM gadget. */
++	if (access("/sys/class/udc/29100000.usb", F_OK)) {
++		if (management_listener(22) ||
++		    (management_listener(80) && management_listener(443)) ||
++		    management_network_ready())
++			return -1;
++		return 0;
++	}
+ 	/* Logical gadget readiness is independent of a connected host or SIM.
+ 	 * All run files are from this boot; require the live UDC binding too. */
+ 	if (text("/sys/kernel/config/usb_gadget/udx-usb/UDC", value, sizeof(value)) ||
+diff --git a/packages/udx-usb/files/etc/init.d/udx-usb b/packages/udx-usb/files/etc/init.d/udx-usb
+index f514b8952699196ad0f293e94b4e7d385a935173..38a284e250ce6c95dd10d88c26364f906ba215e6 100755
+--- a/packages/udx-usb/files/etc/init.d/udx-usb
++++ b/packages/udx-usb/files/etc/init.d/udx-usb
+@@ -20,6 +20,9 @@ console_instance() {
+ }
+ 
+ start_service() {
++	# Host-only builds have no UDC; keep the management bridge but do not
++	# attempt gadget setup.
++	[ -e /sys/class/udc/29100000.usb ] || return 0
+ 	/usr/libexec/udx-usb-gadget start || return $?
+ 	console_instance
+ }
