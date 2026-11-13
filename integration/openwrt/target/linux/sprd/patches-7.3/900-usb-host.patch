@@ -1,0 +1,33 @@
+diff --git a/arch/arm64/boot/dts/sprd/udx710-sy108.dts b/arch/arm64/boot/dts/sprd/udx710-sy108.dts
+--- a/arch/arm64/boot/dts/sprd/udx710-sy108.dts
++++ b/arch/arm64/boot/dts/sprd/udx710-sy108.dts
+@@ -19,17 +19,27 @@
+-/* SY108 PAM U3 USB peripheral offload. Recovery uses the software path. */
++/* SY108 USB is host-only on the main image: the single port drives an external
++ * USB Wi-Fi adapter (BL-M7921AU1, MediaTek MT7921AUN, USB 0e8d:7961). Recovery
++ * keeps the software path and its wired management port, because it shares
++ * udx710-sy108.dtsi with this file. */
+ 
+ &pamu3 {
+ 	/* Independent PAM reset; USB1 remains live for management. */
+ 	resets = <&usb_reset 2>;
++	/* PAM U3 offload only serves the DWC3 gadget endpoint pair (EP2 OUT /
++	 * EP3 IN). With the port in host mode there is no gadget to attach, so
++	 * the reset line is kept programmed but no offload is claimed. */
+ 	status = "okay";
+ };
+ 
+ &usb1_dwc3 {
+-	sprd,pamu3-offload;
++	/* Overrides dr_mode="peripheral" from udx710-sy108.dtsi. The role is
++	 * static: usb-role-switch is deliberately absent, so there is no
++	 * /sys/class/usb_role entry and nothing can flip the port back to device
++	 * at run time. Recovery still gets "peripheral" from the shared dtsi. */
++	dr_mode = "host";
+ 	/* The programmed 5160-byte RX FIFO holds five 1024-byte packets plus
+ 	 * setup/clock-crossing space. Wait for four free packet slots before
+ 	 * ERDY and advertise four credits, leaving one packet of headroom.
+ 	 */
+ 	snps,rx-thr-num-pkt = /bits/ 8 <4>;
+ 	snps,rx-max-burst = /bits/ 8 <4>;
+ };

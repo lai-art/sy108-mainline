@@ -227,7 +227,26 @@ CONFIG_NETLINK_DIAG=y
 # CONFIG_PCPU_DEV_REFCNT is not set
 # CONFIG_RPS is not set
 # CONFIG_BQL is not set
-# CONFIG_WIRELESS is not set
+# Wireless core. The AP is an external USB adapter (BL-M7921AU1 / MT7921AUN),
+# so the full 802.11 stack is needed but there is no on-SoC WCN block: SIPA
+# never sees a WIFI endpoint and the traffic stays on the CPU.
+CONFIG_WIRELESS=y
+CONFIG_RFKILL=y
+CONFIG_CFG80211=y
+# WEXT keeps old iwconfig-style tooling alive; LuCI uses nl80211 regardless.
+CONFIG_CFG80211_WEXT=y
+# regulatory.db is embedded through CONFIG_EXTRA_FIRMWARE because the driver is
+# built in and probes before the rootfs is mounted. The signature check has to
+# stay off or the embedded database is rejected: there is no wireless-regdb key
+# in certs/, so a signed-db requirement can never be met on this board.
+# CFG80211_CERTIFICATION_ONUS only gets a prompt when CONFIG_EXPERT is set (see
+# the top of this file); without EXPERT the REQUIRE_SIGNED_REGDB symbol has no
+# prompt and silently falls back to its default y, throwing the embedded db away
+# at boot. That is exactly the "regdb signature failed" trap hit before.
+CONFIG_CFG80211_CERTIFICATION_ONUS=y
+# CONFIG_CFG80211_USE_KERNEL_REGDB_KEYS is not set
+# CONFIG_CFG80211_REQUIRE_SIGNED_REGDB is not set
+CONFIG_MAC80211=y
 # CONFIG_ETHTOOL_NETLINK is not set
 CONFIG_PCI=y
 # CONFIG_PCIEASPM is not set
@@ -331,14 +350,39 @@ CONFIG_PPPOE=y
 CONFIG_PPPOL2TP=y
 CONFIG_PPP_ASYNC=y
 CONFIG_USB_NET_DRIVERS=y
-# Realtek RTL8152/RTL8153 family (RTL8153B is a USB 3.0 gigabit part).
-# select MII/PHYLIB/CRC32/CRYPTO_LIB_SHA256 are pulled in by Kconfig.
+# Wired USB NICs, kept because the single port is now a host port.
+# RTL8153B shares the 0bda:8153 id with RTL8153 and is told apart at runtime by
+# the MAC version probe (RTL_GIGA_MAC_VER_4x in r8152.c), so USB_RTL8152 covers
+# 8152/8153/8153B/8155/8156/8157. MII/PHYLIB/CRC32/CRYPTO_LIB_SHA256 come from
+# Kconfig selects.
 CONFIG_USB_RTL8152=y
-# ASIX AX88179/178A (0x0b95:0x1790, 0x1790 covers the AX88179A part), built on
-# the usbnet framework. USB_USBNET selects MII; AX88179_178A selects CRC32.
+# ASIX AX88179 (0b95:1790) and AX88178A (0b95:178a) through the usbnet
+# framework. USB_USBNET selects MII, AX88179_178A selects CRC32 and PHYLIB.
 CONFIG_USB_USBNET=y
 CONFIG_USB_NET_AX88179_178A=y
-# CONFIG_WLAN is not set
+# AX88179A is NOT named anywhere in this tree's ax88179_178a.c - its device
+# table only has the two ids above. That part can enumerate as CDC-NCM instead,
+# so the NCM/ECM stack is pinned explicitly rather than left to its "default y"
+# Kconfig state; the same stack also covers NCM-mode LTE/5G dongles.
+CONFIG_USB_NET_CDC_NCM=y
+CONFIG_USB_NET_CDCETHER=y
+CONFIG_WLAN=y
+CONFIG_WLAN_VENDOR_MEDIATEK=y
+# MediaTek mt76, USB side only, single chip family. BL-M7921AU1 is an
+# MT7921AUN module (USB 0e8d:7961), so the MT7921U path is the only driver
+# built. MT7921U selects MT7921_COMMON -> MT792x_LIB -> MT76_CONNAC_LIB ->
+# MT76_CORE and MT792x_USB -> MT76_USB, but every symbol is listed explicitly:
+# a stale cached kernel tree has already dropped selected symbols silently
+# once, and the image still booted without wireless.
+CONFIG_MT76_CORE=y
+CONFIG_MT76_USB=y
+CONFIG_MT76_CONNAC_LIB=y
+CONFIG_MT792x_LIB=y
+CONFIG_MT792x_USB=y
+CONFIG_MT7921_COMMON=y
+CONFIG_MT7921U=y
+# MT76_CORE selects PAGE_POOL; mt76 receives into page_pool pages.
+CONFIG_PAGE_POOL=y
 # CONFIG_INPUT_LEDS is not set
 CONFIG_INPUT_EVDEV=y
 # CONFIG_KEYBOARD_ATKBD is not set
@@ -569,10 +613,26 @@ CONFIG_VIDEO_CAMERA_SENSOR=y
 CONFIG_VIDEO_DEV=y
 CONFIG_VIDEO_V4L2_I2C=y
 CONFIG_VIDEO_V4L2_SUBDEV_API=y
-# Dual role: the port still comes up as peripheral (management network) because
-# the board DTS sets usb-role-switch + role-switch-default-mode = "peripheral".
-# Host mode is opt-in at run time via /sys/class/usb_role/*/role.
-# CONFIG_USB_DWC3_HOST is not set
-CONFIG_USB_DWC3_DUAL_ROLE=y
+# Host-only. The single USB port drives an external USB Wi-Fi adapter
+# (BL-M7921AU1 / MT7921AUN) instead of acting as the NCM management device.
+# Only the main image is switched: udx710-sy108.dts overrides dr_mode to
+# "host", while the shared dtsi keeps "peripheral" so the recovery image still
+# exposes its wired management port. There is no role switch at run time -
+# /sys/class/usb_role is intentionally absent and the CI DTB check forbids
+# usb-role-switch / otg.
+CONFIG_USB_DWC3_HOST=y
+# CONFIG_USB_DWC3_DUAL_ROLE is not set
 # CONFIG_USB_DWC3_GADGET is not set
+
+# MT7921AU firmware is embedded into the kernel image instead of being loaded
+# from the rootfs: mt7921u is built in and requests its firmware during probe,
+# before the squashfs root is mounted. Only the two files the MT7921 path
+# actually reads are listed - the MT7920 "1a" variants, the MT7925 and the
+# rtw88 blobs are deliberately absent.
+# The directory is the repository root as bind-mounted into the build container
+# (/project, see tools/lib/workspace.py). Keeping the blobs outside the kernel
+# source tree means manifests/kernel.json and its archive sha256 stay untouched.
+CONFIG_EXTRA_FIRMWARE="mediatek/WIFI_RAM_CODE_MT7961_1.bin mediatek/WIFI_MT7961_patch_mcu_1_2_hdr.bin regulatory.db"
+CONFIG_EXTRA_FIRMWARE_DIR="/project/integration/openwrt/firmware"
+
 CONFIG_RT_GROUP_SCHED_DEFAULT_DISABLED=y
