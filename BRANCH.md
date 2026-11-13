@@ -5,16 +5,18 @@
 
 | | `main`（主线） | `wifi-host`（本分支，无线网卡版） |
 |---|---|---|
-| 定位 | 插电脑当网卡用，有线管理 | 自己发 Wi-Fi，手机连上来上网 |
+| 定位 | 插电脑当网卡用，有线管理 | 自己当网关，客户端从 Wi-Fi 或有线口进来上网 |
 | USB 口角色 | `peripheral`（device / gadget） | `host` |
-| 口上挂什么 | `uncm0`（CDC-NCM），进 `br-usb` | MT7921AU 无线网卡 → `phy0` → `phy0-ap0` |
-| 管理入口 | 网线插电脑，`http://192.168.9.1` | 手机连 SSID `SY108`（密码 `12345678`），同一地址 |
+| 口上挂什么 | `uncm0`（CDC-NCM），进 `br-usb` | MT7921AU（无线）**或** RTL8153B / AX88179（有线），二选一，不会同时插 |
+| 管理入口 | 网线插电脑，`http://192.168.9.1` | 手机连 SSID `SY108`（密码 `12345678`），**或** 电脑插 RJ45，都是 `http://192.168.9.1` |
 | 无线能力 | 无（内核里没有 802.11 栈） | Wi-Fi 6，默认 5GHz / ch149，可切 2.4GHz |
 | 上行 | 5G 蜂窝 `wwan0`（两者相同） | 5G 蜂窝 `wwan0`（两者相同） |
 | Recovery 镜像 | `peripheral` + 有线 NCM | **完全一样**，不受本分支影响 |
 
-上行链路两版一致：`wwan0 → zone wan (masq) → br-usb → 客户端`。本分支只是把
-"客户端怎么进来"从 USB 线换成了 Wi-Fi。
+上行链路两版一致：`wwan0 → zone wan (masq) → br-usb → 客户端`。本分支把"客户端怎么
+进来"从 USB gadget 线换成了 **LAN 侧接入端口**：MT7921AU 出 Wi-Fi，8153B/88179 出 RJ45，
+插谁谁自动进 `br-usb`（预写端口 + netifd 占位，见 `96-udx-usb-lan`）。**三者都不是 WAN**，
+上行永远只有蜂窝。
 
 ## 产物在哪
 
@@ -53,6 +55,19 @@ iw reg get                  # 期望 country CN
 ```
 
 切换频段：`udx-wifi-band 2g` / `udx-wifi-band 5g` / `udx-wifi-band --rollback`。
+
+## 上机自检（有线接入，插 8153B / 88179 时）
+
+```sh
+lsusb                          # 期望 0bda:8153 或 0b95:1790 / 0b95:178a
+ip -br link                    # 期望 eth0（或 usb0）UP
+ip link show master br-usb     # 有线口必须出现在桥成员里
+logread | grep udx-usb-lan     # 只有名字非 eth0..usb0 时才会有补写记录
+cat /sys/class/net/eth0/carrier # 1 = 网线对端有链路
+```
+
+电脑从 RJ45 应拿到 `192.168.9.x`，网关/DNS `192.168.9.1`，并经 `wwan0` 蜂窝上网。
+`wwan0` 绝不能出现在 `br-usb` 的成员里。
 
 完整方案见 [`docs/wifi-mt7921au.md`](docs/wifi-mt7921au.md)。
 

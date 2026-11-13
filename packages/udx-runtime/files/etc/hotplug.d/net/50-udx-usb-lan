@@ -1,0 +1,80 @@
+#!/bin/sh
+# USB Ethernet adapters are LAN-side ACCESS PORTS, not uplinks.
+#
+# This is the SECOND layer. 96-udx-usb-lan pre-seeds eth0/eth1/eth2/usb0 in
+# the bridge and netifd enslaves them natively when they appear; for those
+# names this script finds the port already configured and does nothing (not
+# even a network reload). It exists to catch a netdev with some other name.
+#
+# This image has a single USB host port. Whichever adapter is plugged in
+# (RTL8153B, AX88179, AX88179A in CDC-NCM mode) provides local access to the
+# board; the uplink is always the cellular modem on network.wan
+# (proto udx -> wwan0). Bridging the new netdev into br-usb hands it the
+# 192.168.9.1/24 address, the dnsmasq pool and the usbmgmt->wan forwarding
+# already wired by 90-udx-usb / 95-udx-usb-wan.
+#
+# The Wi-Fi AP takes a different path (mac80211 attaches phy0-ap0 through
+# wifi-iface network=usbmgmt) but lands in the SAME bridge. Wired and wireless
+# are just two ways for a client to get in; they are not two different roles.
+#
+# Only an exact driver whitelist is trusted. wwan0 (SIPA cellular) and
+# phy0-ap0 (mt7921u) are USB devices too and must never be enslaved here:
+# bridging the uplink into the LAN would collapse the NAT boundary.
+#
+# hotplug-call sources these scripts in a subshell, so everything is wrapped
+# in a function: `return` is valid both when sourced and when self-tested.
+udx_usb_lan_port() {
+	local iface drv bridge section s ports
+	local sysfs=${UDX_SYSFS_NET:-/sys/class/net}
+
+	case "${ACTION:-}" in add) ;; *) return 0 ;; esac
+	# The kernel net uevent exports INTERFACE (net-sysfs.c:2203); procd also
+	# synthesises DEVICENAME from the last DEVPATH component (hotplug.c:500),
+	# which is what the stock /etc/hotplug.d/net/00-sysctl uses. Accept both.
+	iface=${INTERFACE:-${DEVICENAME:-}}
+	[ -n "$iface" ] || return 0
+
+	# /sys/class/net/<if>/device is the USB interface; its driver symlink
+	# names the real driver without needing udev or a VID:PID table.
+	drv=$(readlink "$sysfs/$iface/device/driver" 2>/dev/null) || return 0
+	drv=${drv##*/}
+	case "$drv" in
+		r8152|ax88179_178a|cdc_ncm|cdc_ether|asix) ;;
+		*) return 0 ;;
+	esac
+
+	# netifd keeps a placeholder device for bridge ports that are not present
+	# yet and enslaves them the moment the netdev appears. Persisting the port
+	# name therefore also covers "adapter already plugged in at boot", when the
+	# net uevent can fire before netifd has created br-usb. We deliberately do
+	# NOT remove the port on unplug: the placeholder makes re-plugging work
+	# with no further writes, and a different adapter reusing eth0 works too.
+	bridge=$(uci -q get network.usbmgmt.device 2>/dev/null) || return 0
+	[ -n "$bridge" ] || return 0
+
+	section=
+	for s in $(uci -q show network 2>/dev/null |
+		sed -n 's/^network\.\([^=]*\)=device$/\1/p'); do
+		[ "$(uci -q get "network.$s.name" 2>/dev/null)" = "$bridge" ] || continue
+		section=$s
+		break
+	done
+	[ -n "$section" ] || return 0
+
+	# uci get prints one list item per line; normalise before the word match.
+	# CR is folded too - a CRLF list would otherwise make the " eth0 " word
+	# match fail and add the same port again on every uevent.
+	ports=$(uci -q get "network.$section.ports" 2>/dev/null | tr '\r\n' '  ' || true)
+	case " $ports " in
+		*" $iface "*) return 0 ;;
+	esac
+
+	uci add_list "network.$section.ports=$iface" || return 0
+	uci commit network || return 0
+	logger -t udx-usb-lan "bridged $iface ($drv) into $bridge"
+	# At early boot ubus may not be up yet; the committed config is still read
+	# when netifd starts, so a failed reload here is harmless.
+	ubus -t 2 call network reload >/dev/null 2>&1 || :
+	return 0
+}
+udx_usb_lan_port

@@ -1,20 +1,30 @@
 # SY108 外置 USB Wi-Fi：BL-M7921AU1（MT7921AU）
 
-状态：文件已改好，**未编译、未推送**。无线与 USB Host 是同一个改动切片，必须一起
-进镜像（见 §6），不能只上其中一个。
+状态：CI run #63（`9965b04`）两个 profile 全绿、产物已上传；**真机未验证**。
+无线与 USB Host 是同一个改动切片，必须一起进镜像（见 §6），不能只上其中一个。
 
 ## 0. 角色分工（先明确，避免歧义）
 
 ```
-        ┌─ 上行 WAN ─────────┐          ┌─ 用户接入 ──────────┐
-手机 ⇄ 5G 蜂窝 (wwan0)  ⇄  SY108  ⇄  MT7921AU (phy0-ap0) ⇄ 手机/笔记本
-        └─ 网络来源 ─────────┘          └─ Wi-Fi 信号提供者 ──┘
+                    上行 WAN（唯一）：5G 蜂窝 wwan0 (proto udx)
+                                  ▲
+                                  │ masq=1 / forwarding usbmgmt→wan
+              ┌───────────────────┴────────────────────┐
+              │  br-usb 192.168.9.1/24 = LAN（接入侧）   │
+              │  dnsmasq 池 192.168.9.2-21              │
+              └────▲──────────────▲──────────────▲─────┘
+                   │              │              │
+          MT7921AU phy0-ap0  RTL8153B eth0  AX88179/A eth0
+              Wi-Fi AP          有线 RJ45        有线 RJ45
+                   └── 同一个 USB host 口，不会同时插 ──┘
 ```
 
+- **三种网卡都是 LAN 侧的接入端口，不是 WAN。** 差别只在"客户端怎么进来"：
+  一个走无线，两个走有线。插谁谁提供本地接入，**上行永远只有蜂窝**。
 - **5G 蜂窝 = 网络来源**。`network.wan`（`proto udx` → `wwan0`）是唯一上行，是整
   机能不能上网的命脉。
-- **MT7921AU = AP（接入点）**。它不是上行网卡、不负责拨号，只负责把 Wi-Fi 发给
-  手机/笔记本。USB 口工作在 **host 模式**，这块卡就是被 host 枚举的从设备。
+- **MT7921AU = AP（接入点）**，不是上行网卡、不负责拨号。USB 口工作在 **host 模式**，
+  这块卡就是被 host 枚举的从设备。
 - 本文档里如果不特别说明，"5G" 一律指 **Wi-Fi 的 5GHz 频段**；蜂窝那一侧写成
   "5G 蜂窝"或"蜂窝上行"。
 
@@ -179,15 +189,29 @@ NCM 形态的 4G/5G 模块，代价只有几十 KB。**原来那行注释写"0x1
 已改掉——如果买的是"A"版而它又跑在 ASIX 私有模式（`ff/ff/00`），那它会被
 `ax88179_178a` 绑上但用的是 AX88179 的初始化序列，可能需要换 NCM 模式的固件开关。
 
-插上之后的行为要说清楚：
+插上之后的行为要说清楚（**全部是 LAN 角色，不需要手工配 UCI**）：
 
-- 网卡会枚举成 `eth1` / `eth2`，**不会自动进 `br-usb`**。`br-usb` 是 `bridge_empty=1` 的
-  空桥，host 模式下只有 `phy0-ap0` 一个成员。要拿它当上行，就新建一个 interface 绑 `eth1`
-  再挂 `wan` 区；要当 LAN 口，就 `uci add_list network.usbmgmt_device.ports=eth1`。
-- **WiFi 卡 + 有线卡同时用必须过 hub**。只有一个 host 口。
-- 只接了 D+/D- 的话，两张卡共享 USB2 的 330Mbps，千兆网卡也只能跑三百多。
-- 判据：`lsusb -t` 看 driver 列是 `r8152` 还是 `ax88179_178a`；`ip -br link` 看 `eth1` 是否
-  `UP`；`dmesg | grep -iE "r8152|ax88179"` 看有没有 PHY 协商失败。
+- **第一层（主路径，不依赖任何事件）**：`96-udx-usb-lan` 在首启把
+  `eth0 eth1 eth2 usb0` 预写进 `network.<br-usb device>.ports`。netifd 对还不存在的
+  成员保留占位 device，netdev 一出现就自动把它 enslave 进桥（`netifd/bridge.c` 的
+  `bridge_member_cb` → `bridge_enable_member`）。开机已插、运行中插、拔掉重插都覆盖。
+  `bridge_empty=1` 保证占位期间空桥照常 up、照常发 192.168.9.x（`:1251` 提前 return、
+  `:1906` force_active）。板上有 `usbnet` 但**没有别的以太网控制器**，所以有线卡几乎必然
+  拿到 `eth0`；`usb0` 是给 `usb%d` 命名习惯留的。
+- **第二层（补非标准命名）**：`/etc/hotplug.d/net/50-udx-usb-lan` 在 `ACTION=add` 时按
+  **驱动白名单**（`r8152` / `ax88179_178a` / `cdc_ncm` / `cdc_ether` / `asix`）识别，
+  把没预写过的名字补进同一个 `ports` 并 `network reload`。对已预写的名字它直接退出，
+  **连 reload 都不会触发**。同时兼容内核 uevent 的 `INTERFACE` 和 procd 合成的
+  `DEVICENAME`。
+- **绝不碰 `wwan0` 和 `phy0-ap0`**。它们也是 USB 设备，靠"是不是 USB 网卡"判断会把
+  蜂窝上行并进 LAN 桥、直接摧毁 NAT 边界；所以只认驱动名。`phy0-ap0` 由 mac80211
+  按 `wifi-iface.network=usbmgmt` 进同一个桥，路径不同、终点相同。
+- **WiFi 卡 + 有线卡不会同时用**（本方案前提）；若真要同时插必须过 hub，只有一个 host 口。
+- 只接 D+/D- 的话共享 USB2 的 330Mbps，千兆网卡也只能跑三百多。
+- 判据：`ip -br link` 看 `eth0` 是否 `UP`；`bridge fdb`、`ip link show master br-usb` 看
+  有没有真的进桥；`logread | grep udx-usb-lan` 看第二层是否补过端口；
+  `dmesg | grep -iE "r8152|ax88179"` 看 PHY 协商。客户端从 RJ45 拿到的应是
+  `192.168.9.x`，网关/DNS `192.168.9.1`，并能经蜂窝上网。
 
 ## 3. 固件：内嵌进内核，不落 rootfs
 
@@ -223,12 +247,13 @@ CONFIG_EXTRA_FIRMWARE_DIR="/project/integration/openwrt/firmware"
 ## 4. 网络挂载：线路
 
 ```
-无线客户端 / 手机 (DHCP 192.168.9.2-21)
-   │  802.11ax 5GHz, HE80, ch149
-   ▼
-phy0-ap0  (hostapd, SSID SY108)
-   │  netifd 按 wifi-iface.network=usbmgmt 把它加进桥
-   ▼
+无线客户端 / 手机                 有线客户端 / 电脑
+   │ 802.11ax 5GHz HE80 ch149       │ RJ45 千兆
+   ▼                                ▼
+phy0-ap0 (hostapd, SSID SY108)   eth0 (r8152 / ax88179_178a / cdc_ncm)
+   │ wifi-iface.network=usbmgmt     │ 96-udx-usb-lan 预写 + netifd 占位端口
+   └──────────────┬─────────────────┘   （50-udx-usb-lan 补非标准命名）
+                  ▼
 br-usb    192.168.9.1/24   (bridge_empty=1，没有 NCM 口时依然存在)
    │  dnsmasq: dhcp.usbmgmt (start=2 limit=20, 1h)，下发网关 3 + DNS 6
    │  firewall zone usbmgmt: input ACCEPT / output ACCEPT / forward REJECT
@@ -243,9 +268,9 @@ network.wan (proto=udx) → wwan0 → 蜂窝 5G
 | 段 | 改动前（`5eb262b`） | 改动后（本切片） |
 |---|---|---|
 | USB 口角色 | device（`dr_mode="peripheral"`） | **host**（`900-usb-host.patch`，只改 main dts） |
-| 口上挂什么 | gadget NCM → `uncm0` | MT7921AU → `phy0` |
-| 管理入口 | 插电脑，`192.168.9.x` 开网页 | **手机连 Wi-Fi**，`192.168.9.x` 开网页 |
-| `br-usb` 成员 | `uncm0` | `phy0-ap0`（没有 `uncm0`） |
+| 口上挂什么 | gadget NCM → `uncm0` | MT7921AU / RTL8153B / AX88179（同一口，不会同时插） |
+| 管理入口 | 插电脑，`192.168.9.x` 开网页 | 手机连 Wi-Fi **或** 电脑插 RJ45，同为 `192.168.9.x` |
+| `br-usb` 成员 | `uncm0` | `phy0-ap0` 或 `eth0`（谁插谁进桥）+ `eth0..usb0` 占位端口 |
 | 无线 | 无（内核里一行 wifi 配置都没有） | 5GHz AP，首启自动生成 `/etc/config/wireless` |
 | 上游 DNS | 空 → dnsmasq 没有 forwarder | `223.5.5.5` / `119.29.29.29` |
 | Recovery | peripheral + NCM 有线口 | **没动**，仍是 peripheral + NCM |
@@ -533,15 +558,15 @@ ip -4 addr show br-usb      # 期望 192.168.9.1/24
 
 ## 10. 本切片动过的所有文件
 
-13 项，全部服务于"唯一的 USB 口改成 host + 一块 MT7921AU 出 AP"。**没有一项是顺手改的**，
-每一项都能单独说出"不改会怎样"。
+16 项，服务于"唯一的 USB 口改成 host + 三种网卡统一作为 LAN 接入端口"。**没有一项是
+顺手改的**，每一项都能单独说出"不改会怎样"。
 
 | # | 文件 | 类型 | 改了什么 | 不改会怎样 |
 |---|---|---|---|---|
 | 1 | `target/linux/sprd/patches-7.3/900-usb-host.patch` | 新增 | main dts 的 `&usb1_dwc3`：`dr_mode="host"`，注释掉 `sprd,pamu3-offload` | 口还是 device，卡根本不枚举 |
 | 2 | `target/linux/sprd/udx710/config-7.3` | 改 | 打开 802.11 + mt76 单链、DWC3 改 host、`CONFIG_EXTRA_FIRMWARE` 内嵌固件、关 regdb 签名校验；有线网卡（8153B / AX88179）保持内建并补上 CDC-NCM | 没驱动 / 没固件 / regdb 被签名校验丢掉 |
 | 3 | `integration/openwrt/firmware/` | 新增 | 2 个 MT7961 固件 + `regulatory.db` + `README.md` | 内核编译**硬失败**（文件缺失） |
-| 4 | `configs/openwrt-main.config` | 改 | `wpad-mbedtls` / `wifi-scripts` / `iw` / `luci-proto-wireless` / `DRIVER_11AC_SUPPORT` / `DRIVER_11AX_SUPPORT` / `KERNEL_PAGE_POOL`；显式不装 `wireless-regdb`、`kmod-mt7921-firmware` | 有 phy 没 hostapd；或多一份用不上的 rootfs 固件 |
+| 4 | `configs/openwrt-main.config` | 改 | `wpad-mbedtls` / `wifi-scripts` / `iw` / `DRIVER_11AC_SUPPORT` / `DRIVER_11AX_SUPPORT` / `KERNEL_PAGE_POOL`；显式不装 `wireless-regdb`、`kmod-mt7921-firmware`。**`luci-proto-wireless` 已删**——pinned luci `128a7812` 里根本没有这个包，run 62 就是被 `Verify requested packages survived defconfig` 挡下来的 | 有 phy 没 hostapd；或多一份用不上的 rootfs 固件 |
 | 5 | `integration/openwrt/patches/070-wifi-default-network.patch` + `series` | 新增 | `bands_order=[5G,2G]`、`channel` 读 `board.json`、`wifi-iface.network` 读 `wlan.defaults.network` | 首启挑 6G/DFS 起不来；AP 挂到没地址的 `lan` |
 | 6 | `packages/udx-runtime/files/etc/board.d/03-sy108-wifi` | 新增 | 写 `/etc/board.json` 的 `wlan.defaults`（SSID/密码/CN/usbmgmt/5G ch149、2.4G ch6） | 首启不生成 `/etc/config/wireless` |
 | 7 | `packages/udx-usb/files/etc/init.d/udx-usb` | 改 | 无 UDC 时 `start/stop` 直接 `return 0` | 服务每次启动都失败，br-usb 起没起变得不确定 |
@@ -551,6 +576,9 @@ ip -4 addr show br-usb      # 期望 192.168.9.1/24
 | 11 | `docs/wifi-mt7921au.md` | 新增 | 本文 | — |
 | 12 | `docs/host-wifi/` | 新增 | 历史补丁归档 + 不许 apply 的说明 | 后来者会拿旧补丁硬套 |
 | 13 | `packages/udx-runtime/files/usr/sbin/udx-wifi-band` | 新增 | 运行时切频段：`2g` / `5g` / `--rollback`，band + channel + htmode 三项同步改，旧值存 `/etc/udx-wifi-band.prev` | 只能手敲 uci，漏改 channel/htmode 会让 hostapd 起不来；改坏没有一键回退 |
+| 14 | `packages/udx-runtime/files/etc/uci-defaults/96-udx-usb-lan` | 新增 | 首启把 `eth0 eth1 eth2 usb0` 预写进 `br-usb` 的 ports，交给 netifd 占位端口机制自动 enslave | 插 8153B/88179 只枚举不进桥，客户端拿不到 192.168.9.x，要手工 `uci add_list` |
+| 15 | `packages/udx-runtime/files/etc/hotplug.d/net/50-udx-usb-lan` | 新增 | 第二层：按驱动白名单把非标准命名的 USB 有线网卡补进同一桥；对已预写的名字直接退出，排除 `wwan0` / `phy0-ap0` | 名字不是 `ethX`/`usb0` 的卡不进桥；若只按"是不是 USB 设备"判断会误并把蜂窝上行并进 LAN |
+| 16 | `tools/check/selftest-usb-lan.py` | 新增 | 离线自检：mock uci/readlink/ubus，16 例覆盖三种网卡进桥、`wwan0`/`phy0-ap0` 必须排除、重复端口、重跑幂等 | 白名单写错只能等真机上 NAT 崩了才发现 |
 
 ### 10.1 建议的提交拆分
 
@@ -564,6 +592,7 @@ ip -4 addr show br-usb      # 期望 192.168.9.1/24
 | 4 | 9 | `ci: verify the USB role per profile` |
 | 5 | 10 | `runtime: pin public resolvers when the udx proto provides none` |
 | 6 | 11 + 12 | `docs: external USB Wi-Fi bring-up` |
+| 7 | 14 + 15 + 16 | `runtime: USB Ethernet joins the LAN bridge on plug-in` |
 
 ### 10.2 推送前 1 分钟自检
 
@@ -586,11 +615,13 @@ done
 # 3) 内核补丁在位
 test -f integration/openwrt/target/linux/sprd/patches-7.3/900-usb-host.patch && echo "ok   900"
 
-# 4) 四个脚本语法 + 可执行位
+# 4) 六个脚本语法 + 可执行位
 for f in packages/udx-runtime/files/etc/board.d/03-sy108-wifi \
          packages/udx-runtime/files/usr/sbin/udx-wifi-band \
          packages/udx-usb/files/etc/init.d/udx-usb \
-         packages/udx-runtime/files/etc/uci-defaults/95-udx-usb-wan; do
+         packages/udx-runtime/files/etc/uci-defaults/95-udx-usb-wan \
+         packages/udx-runtime/files/etc/uci-defaults/96-udx-usb-lan \
+         packages/udx-runtime/files/etc/hotplug.d/net/50-udx-usb-lan; do
 	sh -n "$f" && echo "ok   $f"
 done
 test -x packages/udx-runtime/files/usr/sbin/udx-wifi-band && echo "ok   udx-wifi-band +x"
@@ -599,9 +630,15 @@ test -x packages/udx-runtime/files/usr/sbin/udx-wifi-band && echo "ok   udx-wifi
 python -c "import yaml;yaml.safe_load(open('.github/workflows/build-firmware.yml',encoding='utf-8'));print('yaml ok')"
 
 # 6) 新脚本必须进仓库时带可执行位（Windows 上 core.fileMode=false 会丢）
-git ls-files -s packages/udx-runtime/files/usr/sbin/udx-wifi-band |
-	grep -q '^100755' && echo "ok   mode 100755" ||
-	echo "WARN: 不是 100755（未跟踪也会落到这里）→ git update-index --chmod=+x <file>"
+for f in packages/udx-runtime/files/usr/sbin/udx-wifi-band \
+         packages/udx-runtime/files/etc/uci-defaults/96-udx-usb-lan \
+         packages/udx-runtime/files/etc/hotplug.d/net/50-udx-usb-lan; do
+	git ls-files -s "$f" | grep -q '^100755' && echo "ok   100755 $f" ||
+	echo "WARN: $f 不是 100755 → git update-index --chmod=+x $f"
+done
+
+# 7) 统一 LAN 的离线自检（16 例，重点验 wwan0 / phy0-ap0 没被并进桥）
+python3 tools/check/selftest-usb-lan.py
 ```
 
 `boot-state.c` 编不了（要 libubus 与交叉工具链），只能靠 CI；那 14 行改写只用了

@@ -1,0 +1,57 @@
+#!/bin/sh
+# USB Ethernet on this image is a LAN-side ACCESS PORT, never an uplink.
+#
+# Pre-seeding the bridge ports is what makes an RTL8153B / AX88179 / AX88179A
+# work on plug-in with no UCI edit: netifd keeps a placeholder device for a
+# bridge member that does not exist yet, and enslaves it the moment the netdev
+# appears (netifd bridge.c: bridge_member_cb -> bridge_enable_member). This
+# covers both "adapter already plugged in at boot" and a later hot-plug.
+# bridge_empty=1 keeps br-usb up while every member is still absent
+# (bridge.c:1251 returns early, :1906 force_active), so idle placeholders are
+# harmless and an empty bridge still hands out 192.168.9.1.
+#
+# Board has no other Ethernet controller, so usbnet names these eth0/eth1;
+# usb0 is included for adapters that use the usb%d convention. The cellular
+# uplink is SIPA wwan0 and is deliberately NOT in this list - bridging it
+# into the LAN would collapse the NAT boundary.
+#
+# The Wi-Fi AP joins the SAME bridge through mac80211 (wifi-iface
+# network=usbmgmt). Wired and wireless are two access media for one LAN;
+# the uplink stays network.wan -> wwan0 -> cellular in both cases.
+#
+# Only wifi-host ships this file: main has no USB host controller, and the
+# recovery install target copies a fixed file list that omits it.
+set -eu
+# UDX_ROOT_FLAG is only an override for the offline self-test; production
+# leaves it unset and reads the real root marker.
+rootflag=${UDX_ROOT_FLAG:-/etc/udx-openwrt-root}
+[ "$(cat "$rootflag" 2>/dev/null)" = 'OpenWrt production root' ] || exit 0
+[ ! -e /etc/udx-recovery-root ] || exit 0
+
+bridge=$(uci -q get network.usbmgmt.device) || exit 0
+[ -n "$bridge" ] || exit 0
+
+section=
+for s in $(uci -q show network | sed -n 's/^network\.\([^=]*\)=device$/\1/p'); do
+	[ "$(uci -q get "network.$s.name")" = "$bridge" ] || continue
+	section=$s
+	break
+done
+[ -n "$section" ] || { echo 'udx-usb-lan: no bridge device section' >&2; exit 1; }
+
+ports=$(uci -q get "network.$section.ports" 2>/dev/null | tr '\r\n' '  ' || true)
+changed=0
+for port in eth0 eth1 eth2 usb0; do
+	case " $ports " in
+		*" $port "*) ;;
+		*)
+			uci add_list "network.$section.ports=$port"
+			ports="$ports $port"
+			changed=1
+			;;
+	esac
+done
+if [ "$changed" = 1 ]; then
+	uci commit network
+fi
+exit 0

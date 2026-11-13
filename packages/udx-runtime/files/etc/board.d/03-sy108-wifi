@@ -1,6 +1,13 @@
 #!/bin/sh
 # External USB Wi-Fi AP: BL-M7921AU1 (MediaTek MT7921AUN, USB 0e8d:7961).
 #
+# The USB port accepts one of three LAN-side ACCESS adapters, never together:
+#   MT7921AU  -> Wi-Fi AP (this file)      -> phy0-ap0 -> br-usb
+#   RTL8153B  -> wired RJ45 eth0           -> br-usb
+#   AX88179/A -> wired RJ45 eth0           -> br-usb
+# The two wired ones are bridged by 96-udx-usb-lan + 50-udx-usb-lan; all three
+# end up in the SAME br-usb. They are not uplinks and never join zone wan.
+#
 # Role on this board: the MT7921AU is the ACCESS POINT that serves Wi-Fi to
 # phones and other clients. It is NOT an uplink. The uplink is the cellular
 # modem on network.wan (proto udx -> wwan0 -> 5G). Traffic path:
