@@ -18,15 +18,32 @@
 插谁谁自动进 `br-usb`（预写端口 + netifd 占位，见 `96-udx-usb-lan`）。**三者都不是 WAN**，
 上行永远只有蜂窝。
 
-## 产物在哪
+## 产物在哪（命名与主线严格分离）
 
-GitHub Actions → `build-firmware` → 按分支筛选 `wifi-host` → 该 run 的 artifacts：
+两个版本 zip 内的文件名完全一样（`sysupgrade.bin` / `boot.bin` / `rootfs.squashfs` …），
+放在同一个下载目录会**互相覆盖、刷错固件**。所以从 workflow 顶层用
+`ARTIFACT_PREFIX` 按分支推导身份：
 
-- `sy108-main` → 里面的 `sysupgrade.bin` 就是无线网卡版，刷这个
-- `sy108-recovery` → `boot-recovery.bin` / `rootfs.cpio.gz`，与主线同源
+| | `main`（主线） | `wifi-host`（HOST 版） |
+|---|---|---|
+| workflow 变量 | `sy108` | `SY108-HOST` |
+| CI artifact | `sy108-main` / `sy108-recovery` | `SY108-HOST-main` / `SY108-HOST-recovery` |
+| 本地 zip | `sy108-main-*.zip` | `SY108-HOST-run64-main.zip` 等 |
+| 刷机文件 | `sysupgrade.bin` | `SY108-HOST-sysupgrade.bin`（`flash/` 副本） |
+
+**zip 内的标准文件名故意不改**：`SHA256SUMS`、LuCI 刷机流程和 U-Boot capsule 都依赖它们，
+改名会让校验和工具链失效。区分靠四层：artifact 名、zip 名、`SY108-HOST.txt` 标识文件、
+以及 `flash/` 里带 HOST 前缀的刷机副本。`flash/SHA256SUMS-HOST` 覆盖这些副本。
+
+`release` job 的下载路径和发布清单都用同一个 `ARTIFACT_PREFIX`，不会因改名漏改而挂。
+tag 触发时 `ref_name` 是 tag 名，因此 release 保持主线 `sy108` 身份——release 是主线通道，
+tag 只在 `main` 上打。
+
+> **生效边界**：run #64 是在本次命名改动**之前**构建的，它的 artifact 仍叫
+> `sy108-main` / `sy108-recovery`；本地取回后已手动按 HOST 规则重命名。
+> **下一次推送起**，CI 直接产出 `SY108-HOST-*`。
 
 `build.json` 里的 `component_commit` 指向本分支的提交，可以和主线的产物区分开。
-
 release 仍然只在打 `v*` tag 时发布，**推本分支不会覆盖主线的 release**。
 
 ## 两版怎么互切
