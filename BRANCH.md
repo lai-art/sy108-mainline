@@ -24,24 +24,34 @@
 放在同一个下载目录会**互相覆盖、刷错固件**。所以从 workflow 顶层用
 `ARTIFACT_PREFIX` 按分支推导身份：
 
+命名格式 **`<身份>-<profile>-<构建时间>`**，构建时间取 run 开始时刻，
+格式 `YYYYMMDD-HHMM`、**北京时间 UTC+8**，由 `meta` job 算一次，同一次 run 的
+main / recovery 共用同一个值（避免两个 profile 跨分钟拿到不同名字）。
+
 | | `main`（主线） | `wifi-host`（HOST 版） |
 |---|---|---|
-| workflow 变量 | `sy108` | `SY108-HOST` |
-| CI artifact | `sy108-main` / `sy108-recovery` | `SY108-HOST-main` / `SY108-HOST-recovery` |
-| 本地 zip | `sy108-main-*.zip` | `SY108-HOST-run64-main.zip` 等 |
-| 刷机文件 | `sysupgrade.bin` | `SY108-HOST-sysupgrade.bin`（`flash/` 副本） |
+| 身份前缀 | `sy108`（保持原名） | `SY108-HOST` |
+| CI artifact | `sy108-main-20261114-0830` | `SY108-HOST-main-20261114-0830` |
+| | `sy108-recovery-20261114-0830` | `SY108-HOST-recovery-20261114-0830` |
+| 本地 zip | `sy108-main-*.zip` | `SY108-HOST-main-20261114-0830.zip` 等 |
+| 刷机文件 | `sysupgrade.bin` | `SY108-HOST-sysupgrade-20261114-0830.bin` |
+
+主线**只在原名后面追加时间戳**，HOST 版在此基础上再加 `HOST` 身份，两版任何时刻都
+不会重名。`build.json` 里的 `component_commit` 和 zip 里的 `SY108-HOST.txt` 可交叉核对
+构建身份与时间。
 
 **zip 内的标准文件名故意不改**：`SHA256SUMS`、LuCI 刷机流程和 U-Boot capsule 都依赖它们，
 改名会让校验和工具链失效。区分靠四层：artifact 名、zip 名、`SY108-HOST.txt` 标识文件、
 以及 `flash/` 里带 HOST 前缀的刷机副本。`flash/SHA256SUMS-HOST` 覆盖这些副本。
 
-`release` job 的下载路径和发布清单都用同一个 `ARTIFACT_PREFIX`，不会因改名漏改而挂。
-tag 触发时 `ref_name` 是 tag 名，因此 release 保持主线 `sy108` 身份——release 是主线通道，
-tag 只在 `main` 上打。
+`build` 与 `release` 都 `needs: meta`，共用同一个 `BUILD_STAMP`，下载路径和发布清单
+不会因改名漏改而挂。tag 触发时 `ref_name` 是 tag 名，因此 release 保持主线 `sy108`
+身份——release 是主线通道，tag 只在 `main` 上打。
 
-> **生效边界**：run #64 是在本次命名改动**之前**构建的，它的 artifact 仍叫
-> `sy108-main` / `sy108-recovery`；本地取回后已手动按 HOST 规则重命名。
-> **下一次推送起**，CI 直接产出 `SY108-HOST-*`。
+> **生效边界**：run #64 是在命名改动**之前**构建的，它的 artifact 仍叫
+> `sy108-main` / `sy108-recovery`（无 HOST、无时间戳）；本地取回后已手动按
+> `SY108-HOST-*-20261114-0830` 规则重命名。**下一次推送起**，CI 直接产出
+> 带身份与时间戳的名字。
 
 `build.json` 里的 `component_commit` 指向本分支的提交，可以和主线的产物区分开。
 release 仍然只在打 `v*` tag 时发布，**推本分支不会覆盖主线的 release**。

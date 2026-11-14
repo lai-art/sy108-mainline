@@ -41,12 +41,29 @@ concurrency:
 # prefix. One variable drives both the build and the release job, so a tag
 # build cannot end up looking for the other prefix. A tag push has the tag as
 # ref_name, so releases keep the mainline `sy108` identity - releases are the
-# mainline channel, and tags are only cut on main.
+# mainline channel, and tags are only cut on main. Every artifact also ends in
+# a BUILD_STAMP (UTC+8, YYYYMMDD-HHMM) from the meta job, so two builds of the
+# same line never overwrite each other and the age of an image is obvious.
 env:
   ARTIFACT_PREFIX: ${{ github.ref_name == 'wifi-host' && 'SY108-HOST' || 'sy108' }}
 
 jobs:
+  # Both profiles must carry the SAME timestamp, and the release job has to
+  # reconstruct the exact artifact names. Computing it once here avoids a
+  # matrix output race and avoids a main/recovery pair straddling a minute
+  # boundary and ending up with different names.
+  meta:
+    name: build-metadata
+    runs-on: ubuntu-latest
+    outputs:
+      build_stamp: ${{ steps.stamp.outputs.value }}
+    steps:
+      - name: Build timestamp (UTC+8)
+        id: stamp
+        run: echo "value=$(date -u -d '+8 hours' +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: meta
     name: build-${{ matrix.profile }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 180
@@ -55,6 +72,7 @@ jobs:
       # clamped to the host capacity anyway, but stating it keeps the make
       # job count and the cgroup quota in step.
       SY108_JOBS: 4
+      BUILD_STAMP: ${{ needs.meta.outputs.build_stamp }}
       SY108_MEMORY: 8g
     strategy:
       fail-fast: false
@@ -120,7 +138,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_PREFIX }}-build-log-${{ matrix.profile }}
+          name: ${{ env.ARTIFACT_PREFIX }}-build-log-${{ matrix.profile }}-${{ env.BUILD_STAMP }}
           path: build-${{ matrix.profile }}.log
           retention-days: 7
           if-no-files-found: warn
@@ -149,7 +167,8 @@ jobs:
           SY108 HOST variant - wifi-host branch
           USB role : host (external USB Wi-Fi / wired LAN adapters)
           Uplink   : cellular wwan0 only; every USB adapter is a LAN port
-          Artifact : ${{ env.ARTIFACT_PREFIX }}-${{ matrix.profile }}
+          Artifact : ${{ env.ARTIFACT_PREFIX }}-${{ matrix.profile }}-${{ env.BUILD_STAMP }}
+          Built    : ${{ env.BUILD_STAMP }} (UTC+8, YYYYMMDD-HHMM)
           Commit   : ${{ github.sha }}
           Run      : ${{ github.run_number }}
 
@@ -240,18 +259,20 @@ jobs:
       - name: Upload ${{ matrix.profile }} artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARTIFACT_PREFIX }}-${{ matrix.profile }}
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ matrix.profile }}-${{ env.BUILD_STAMP }}
           path: artifact/${{ matrix.profile }}
           retention-days: 30
           if-no-files-found: error
 
   release:
     name: publish-release
-    needs: build
+    needs: [meta, build]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
+    env:
+      BUILD_STAMP: ${{ needs.meta.outputs.build_stamp }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -264,31 +285,33 @@ jobs:
       # recovery copies before publishing.
       - name: Disambiguate profile assets
         run: |
-          mv artifact/${{ env.ARTIFACT_PREFIX }}-recovery/boot.bin artifact/${{ env.ARTIFACT_PREFIX }}-recovery/boot-recovery.bin
-          mv artifact/${{ env.ARTIFACT_PREFIX }}-recovery/build.json artifact/${{ env.ARTIFACT_PREFIX }}-recovery/build-recovery.json
-          mv artifact/${{ env.ARTIFACT_PREFIX }}-recovery/SHA256SUMS artifact/${{ env.ARTIFACT_PREFIX }}-recovery/SHA256SUMS-recovery
+          mv artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/boot.bin artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/boot-recovery.bin
+          mv artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/build.json artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/build-recovery.json
+          mv artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/SHA256SUMS artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/SHA256SUMS-recovery
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifact/${{ env.ARTIFACT_PREFIX }}-main/sysupgrade.bin
-            artifact/${{ env.ARTIFACT_PREFIX }}-main/boot.bin
-            artifact/${{ env.ARTIFACT_PREFIX }}-main/rootfs.squashfs
-            artifact/${{ env.ARTIFACT_PREFIX }}-main/build.json
-            artifact/${{ env.ARTIFACT_PREFIX }}-main/SHA256SUMS
-            artifact/${{ env.ARTIFACT_PREFIX }}-recovery/boot-recovery.bin
-            artifact/${{ env.ARTIFACT_PREFIX }}-recovery/rootfs.cpio.gz
-            artifact/${{ env.ARTIFACT_PREFIX }}-recovery/build-recovery.json
-            artifact/${{ env.ARTIFACT_PREFIX }}-recovery/SHA256SUMS-recovery
+            artifact/${{ env.ARTIFACT_PREFIX }}-main-${{ env.BUILD_STAMP }}/sysupgrade.bin
+            artifact/${{ env.ARTIFACT_PREFIX }}-main-${{ env.BUILD_STAMP }}/boot.bin
+            artifact/${{ env.ARTIFACT_PREFIX }}-main-${{ env.BUILD_STAMP }}/rootfs.squashfs
+            artifact/${{ env.ARTIFACT_PREFIX }}-main-${{ env.BUILD_STAMP }}/build.json
+            artifact/${{ env.ARTIFACT_PREFIX }}-main-${{ env.BUILD_STAMP }}/SHA256SUMS
+            artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/boot-recovery.bin
+            artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/rootfs.cpio.gz
+            artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/build-recovery.json
+            artifact/${{ env.ARTIFACT_PREFIX }}-recovery-${{ env.BUILD_STAMP }}/SHA256SUMS-recovery
           fail_on_unmatched_files: true
           body: |
             SY108 firmware.
 
             Artifact prefix `${{ env.ARTIFACT_PREFIX }}`: `sy108` = mainline,
-            `SY108-HOST` = host-mode wireless/LAN line. Inner filenames are
-            identical between the two, so keep their downloads in separate
-            folders and check `SY108-HOST.txt` before flashing.
+            `SY108-HOST` = host-mode wireless/LAN line. Build stamp
+            `${{ env.BUILD_STAMP }}` (UTC+8, YYYYMMDD-HHMM) is part of every
+            artifact name. Inner filenames are identical between the two, so
+            keep their downloads in separate folders and check
+            `SY108-HOST.txt` before flashing.
 
             * `sysupgrade.bin` - flash this from LuCI under System -> Maintenance,
               or with `sysupgrade -n /tmp/sysupgrade.bin` over SSH.
