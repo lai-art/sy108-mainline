@@ -1,11 +1,11 @@
 'use strict';
-'require baseclass';
+'require view';
 'require ui';
 
 /* The old page is gone but people bookmark it. An alias in menu.d cannot carry
  * a query string, so this ten-line shell forwards to the band tab, which is
  * what "Bands, cells and APN" used to open on. */
-return baseclass.extend({
+return view.extend({
     load : function() {
         return Promise.resolve();
     },

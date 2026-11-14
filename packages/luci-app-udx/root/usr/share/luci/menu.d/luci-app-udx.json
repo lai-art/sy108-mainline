@@ -88,17 +88,5 @@
     "luci-app-udx"
    ]
   }
- },
- "admin/udx/cellular": {
-  "title": "蜂窝网络",
-  "action": {
-   "type": "view",
-   "path": "udx/cellular"
-  },
-  "depends": {
-   "acl": [
-    "luci-app-udx"
-   ]
-  }
  }
 }
