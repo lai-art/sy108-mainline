@@ -15,7 +15,7 @@ LINUX = Path(
         _SIBLING_LINUX if (_SIBLING_LINUX / '.git').exists() else OUT / 'linux',
     )
 ).expanduser().resolve()
-IMAGE = os.environ.get('SY108_BUILD_IMAGE', 'sy108-build:25.12.5')
+IMAGE = os.environ.get('SY108_BUILD_IMAGE', 'sy108-build:25.12.6')
 
 
 def docker():

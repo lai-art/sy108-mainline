@@ -1,6 +1,19 @@
 # 构建维护
 
-外部源码版本与校验信息集中在 `manifests/kernel.json`、`manifests/openwrt.json` 及 `integration/openwrt/feeds.conf`。当前基线为 Linux v7.3 与 OpenWrt v25.12.5。
+外部源码版本与校验信息集中在 `manifests/kernel.json`、`manifests/openwrt.json` 及 `integration/openwrt/feeds.conf`。当前基线为 Linux v7.3 与 OpenWrt **v25.12.6**。
+
+> **2026-11-14 基线升级**：OpenWrt `v25.12.5`（`f0a60eee`）→ `v25.12.6`（`64900e75`，发布于 2026-10-18）。
+> 25.12.6 是安全更新（uhttpd 未认证远程漏洞、Mbed TLS 3.6.7、hostapd/wpa_supplicant 等），官方强烈建议升级。
+> 升级前用与 CI 同款的 `git apply --check`，在 25.12.6 源码上干跑 `integration/openwrt/series`
+> 的全部 7 个板级补丁，**7/7 通过**；升级前后这 7 个补丁的目标文件 blob 完全一致。
+> 缓存 key 包含 `manifests/*.json`，改 pin 会自动触发全量重编。
+> 内核仍 pin Linux v7.3 / `14658d97`，LuCI 仍 pin `128a7812`，两者均未改动。
+> `sy108-build:25.12.6` 只是本地编译容器镜像的标签，不是 OpenWrt 源码版本。
+>
+> 同时把产物命名规则同步到主线：主线 `sy108-<profile>-<构建时间>`、
+> HOST 版 `SY108-HOST-<profile>-<构建时间>`（北京时间 `YYYYMMDD-HHMM`）。
+> `tools/check/dt-role.py` 一并同步，在 main 上按树推导出的期望 USB 角色仍是
+> `peripheral`，与本分支产物一致。
 
 ## 构建树初始化
 

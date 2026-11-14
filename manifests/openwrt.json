@@ -1,5 +1,5 @@
 {
   "upstream": "https://git.openwrt.org/openwrt/openwrt.git",
-  "upstream_tag": "v25.12.5",
-  "upstream_commit": "f0a60eee2fe051741c643ea6118718aae1ef17fb"
+  "upstream_tag": "v25.12.6",
+  "upstream_commit": "64900e756efa667774214f9c6b17c113222e01f7"
 }
