@@ -106,7 +106,7 @@ jobs:
 
       - name: Prepare builder image
         run: |
-          docker build -t sy108-build:25.12.5 containers/
+          docker build -t sy108-build:25.12.6 containers/
 
       - name: Drop cached kernel when target patches change
         run: |

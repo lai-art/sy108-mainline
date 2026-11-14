@@ -6,7 +6,7 @@ index d61786f..f65119e 100644
  import { readfile } from "fs";
  import * as uci from 'uci';
  
--const bands_order = [ "6G", "5G", "2G" ];
+-const bands_order = [ "60G", "6G", "5G", "2G" ];
 +/* 5 GHz first: the uplink here is 5G cellular and 2.4 GHz is capped at HE20,
 + * so 2.4 GHz would bottleneck the downlink. 6 GHz is dropped because CN regdb
 + * marks every 6 GHz channel NO-IR and hostapd cannot start an AP there. A card

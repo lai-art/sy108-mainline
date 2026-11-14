@@ -1,6 +1,6 @@
 # 构建维护
 
-外部源码版本与校验信息集中在 `manifests/kernel.json`、`manifests/openwrt.json` 及 `integration/openwrt/feeds.conf`。当前基线为 Linux v7.3 与 OpenWrt v25.12.5。
+外部源码版本与校验信息集中在 `manifests/kernel.json`、`manifests/openwrt.json` 及 `integration/openwrt/feeds.conf`。当前基线为 Linux v7.3 与 OpenWrt v25.12.6。
 
 ## 构建树初始化
 

@@ -13,31 +13,5 @@
         "sy108-system"
       ]
     }
-  },
-  "admin/system/flash": {
-    "title": "",
-    "action": {
-      "type": "alias",
-      "path": "admin/system/maintenance"
-    },
-    "depends": {
-      "acl": [
-        "luci-mod-system-flash",
-        "sy108-system"
-      ]
-    }
-  },
-  "admin/system/reboot": {
-    "title": "",
-    "action": {
-      "type": "alias",
-      "path": "admin/system/maintenance"
-    },
-    "depends": {
-      "acl": [
-        "luci-mod-system-reboot",
-        "sy108-system"
-      ]
-    }
   }
 }

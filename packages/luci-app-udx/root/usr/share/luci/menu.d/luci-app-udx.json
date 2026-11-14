@@ -89,20 +89,8 @@
    ]
   }
  },
- "admin/udx/at": {
-  "title": "",
-  "action": {
-   "type": "alias",
-   "path": "admin/udx/advanced"
-  },
-  "depends": {
-   "acl": [
-    "luci-app-udx"
-   ]
-  }
- },
  "admin/udx/cellular": {
-  "title": "",
+  "title": "蜂窝网络",
   "action": {
    "type": "view",
    "path": "udx/cellular"
