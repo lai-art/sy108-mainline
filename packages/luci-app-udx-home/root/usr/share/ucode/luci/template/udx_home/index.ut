@@ -14,6 +14,13 @@
 	const dev_custom = '';
 	const screen_ok = false;
 
+	/* 无线能力检测 —— 让同一个包在两条产品线共用，而不是分叉两份代码：
+	     main      线走 USB gadget NCM 管理口，没有无线硬件 -> /sys/class/ieee80211 不存在
+	     wifi-host 线同一个 USB 口跑 host 模式驱动 MT7921AU，加载 mt7921u 后该目录出现 phyN
+	   为 false 时不渲染「2.4G/5G 无线网络」卡与「无线网桥」按钮，
+	   无线相关接口（wifi_get/wifi_set/wlbridge_*）仍注册，只是没人调用。 */
+	const wifi_ok = stat('/sys/class/ieee80211') != null;
+
 	const _swon = match(readfile('/proc/swaps') ?? '', /\n\//) != null;
 
 	const _mc = readfile('/tmp/modconf.conf') ?? '';
@@ -325,10 +332,16 @@
 <div class="fc fo"><div class="fc-i"><i class="fas fa-cube"></i></div><div class="fc-c"><div class="fc-l">核心数</div><div class="fc-v" id="f-cores">--</div></div></div>
 <div class="fc fcy"><div class="fc-i"><i class="fas fa-terminal"></i></div><div class="fc-c"><div class="fc-l">内核版本</div><div class="fc-v" id="f-kernel">--</div></div></div>
 <div class="fc fcy full"><div class="fc-i"><i class="fas fa-tag"></i></div><div class="fc-c"><div class="fc-l">主机名</div><div class="fc-v" id="f-host">--</div></div></div>
-</div><div class="feat" id="wifi-wrap">
+</div>
+{% if (wifi_ok) %}
+<div class="feat" id="wifi-wrap">
 <div class="fc fb has-edit"><div class="fc-i"><i class="fas fa-wifi"></i></div><div class="fc-c"><div class="fc-l">2.4G 无线网络</div><div class="fc-v" id="f-wifi24">--</div></div><button type="button" class="fc-edit" data-band="2g" onclick="wfmOpen('2g')" title="修改 2.4G 无线设置" aria-label="修改 2.4G 无线设置"><i class="fas fa-pen"></i></button></div>
 <div class="fc fp has-edit"><div class="fc-i"><i class="fas fa-wifi"></i></div><div class="fc-c"><div class="fc-l">5G 无线网络</div><div class="fc-v" id="f-wifi5">--</div></div><button type="button" class="fc-edit" data-band="5g" onclick="wfmOpen('5g')" title="修改 5G 无线设置" aria-label="修改 5G 无线设置"><i class="fas fa-pen"></i></button></div>
-</div><div class="q-bt"><button type="button" class="sp-act" id="wlb-btn" onclick="wlbOpen()" title="无线网桥 · 桥接上游 WiFi"><i class="fas fa-link"></i><span id="wlb-btn-t">无线网桥</span></button></div>
+</div>
+{% endif %}
+{% if (wifi_ok) %}
+<div class="q-bt"><button type="button" class="sp-act" id="wlb-btn" onclick="wlbOpen()" title="无线网桥 · 桥接上游 WiFi"><i class="fas fa-link"></i><span id="wlb-btn-t">无线网桥</span></button></div>
+{% endif %}
 <div class="q-sp"></div>
 <div class="chs">
 <div class="ch"><div class="ch-ic w"><i class="fas fa-ethernet"></i></div><div><div class="ch-n">有线联网</div><div class="ch-s off" id="ch-w">--</div></div><div class="ch-d off" id="ch-w-d"></div></div>
