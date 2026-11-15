@@ -1,0 +1,31 @@
+/* mwrt-buttons.css —— 按钮悬停态
+ *
+ * 从 mwrt-aurora-full.css (143,594 B) 中抽出的唯一有效部分。
+ * 原表 577 条选择器里有 552 条与 luci-theme-aurora 的 main.css 逐条重复
+ * (该表是为「在 argon 上叠加 aurora 样式」而生成的，本主题本身就是 aurora
+ * 派生，整份加载纯属冗余), 独有内容只有下面两组悬停态 —— aurora 的
+ * main.css 里没有任何 .cbi-button:hover 规则。
+ *
+ * :not(#mwrt-nope) 不是笔误: 它把特异性抬到 (1,1,0), 用来压过
+ * LuCI 基础样式表里的 !important 声明。原表用的同一手法，保留以维持
+ * 与 mwrt 其他样式表一致的优先级关系。
+ */
+
+.btn:hover:not(#mwrt-nope),
+.cbi-button:hover:not(#mwrt-nope),
+.cbi-button-default:hover:not(#mwrt-nope),
+.cbi-button-download:hover:not(#mwrt-nope),
+.cbi-button-find:hover:not(#mwrt-nope),
+.cbi-button-link:hover:not(#mwrt-nope),
+.cbi-button-neutral:hover:not(#mwrt-nope) {
+	background-color: var(--hover-faint) !important;
+}
+
+.btn.primary:hover:not(#mwrt-nope),
+.cbi-button-action:hover:not(#mwrt-nope),
+.cbi-button-apply:hover:not(#mwrt-nope),
+.cbi-button-reload:hover:not(#mwrt-nope),
+.cbi-button-edit:hover:not(#mwrt-nope),
+.cbi-button-add:hover:not(#mwrt-nope) {
+	background-color: var(--brand-hover) !important;
+}

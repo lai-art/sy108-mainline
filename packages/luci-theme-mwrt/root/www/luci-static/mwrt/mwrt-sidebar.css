@@ -1,0 +1,65 @@
+/* mwrt-sidebar.css —— 把 mwrt 的深色侧边栏映射到 aurora 的变量体系
+ *
+ * 背景：主题骨架取自 luci-theme-aurora，导航形态由 uci-defaults 设为 sidebar。
+ * mwrt 原固件用的是 argon 的左侧深色侧边栏，mwrt-chrome.css 里 205 条
+ * .main-left 规则全部指向 argon 的 DOM（.main-left / .sidenav / .slide-menu /
+ * .menu），对不上 aurora 的 .sidebar-panel，静默失效。
+ *
+ * 与其逐条重写那 205 条，不如直接覆盖 aurora 侧边栏消费的几个 CSS 变量：
+ * 已核实 main.css 里 .sidebar-panel-inner 的 background-color 取 var(--bg)、
+ * border-color 取 var(--hairline)，.nav-row 的颜色取 var(--text-muted)/var(--text)，
+ * hover 底取 var(--hover-faint)，品牌链接 hover 取 var(--brand)，
+ * .sidebar-head / .sidebar-footer 的分隔线取 var(--hairline)。
+ * 变量定义在 .sidebar-panel-inner 上，作用域只覆盖侧边栏，不影响内容区。
+ *
+ * 配色取自 mwrt-chrome.css 的 --sb-* 变量块（原注释标注为 s68 设计稿）：
+ *   --sb-bg #202833 石板灰 / --sb-bg-elev #2c3744 / --sb-text #eef2f5
+ *   --sb-text-muted #a3adb8 / --sb-text-faint #6d7883 / --sb-accent #20b7d5
+ *
+ * 侧边栏恒定深色，不随 data-darkmode 变 —— 这是 mwrt 的设计取向
+ * （深色侧栏 + 浅色内容区），与 aurora 默认的「整站明暗一致」不同。
+ *
+ * ⚠ 未真机验证：本文件是按 aurora main.css 的变量消费点反推的，
+ *   实际观感需刷机确认。
+ */
+
+body[data-nav-type=sidebar] .sidebar-panel-inner {
+	--bg: #202833;
+	--text: #eef2f5;
+	--text-muted: #a3adb8;
+	--text-subtle: #6d7883;
+	--hairline: rgb(255 255 255 / .08);
+	--hover-faint: rgb(255 255 255 / .055);
+
+	/* --brand(#0085b7) 是给白底调的，压在 #202833 上对比度只有 2.6:1；
+	   提亮到 #20b7d5 约 6.4:1，过 WCAG AA。同 mwrt-chrome.css 的处理。 */
+	--brand: #20b7d5;
+	--brand-hover: #38c6e0;
+	--brand-subtle: rgb(32 183 213 / .17);
+	--brand-subtle-hover: rgb(32 183 213 / .26);
+
+	/* main.css 里是 background-color: var(--bg)，渐变得单独给 background */
+	background: linear-gradient(180deg, #202833 0%, #1c2530 55%, #19212b 100%);
+	border-right-color: rgb(255 255 255 / .08);
+}
+
+/* 当前所在页 —— aurora 的 JS 用 is-active-page 标记（menu-aurora.js syncRoute
+   里 classList.toggle("is-active-page", a)），不是 .active。补一层抬升底。 */
+body[data-nav-type=sidebar] .sidebar-list .nav-row.is-active-page {
+	background-color: #2c3744;
+	color: #eef2f5;
+}
+
+body[data-nav-type=sidebar] .sidebar-list .nav-row.is-active-page .nav-icon {
+	color: #20b7d5;
+}
+
+/* 展开中的分组标题：与普通项区分，但不抢激活项 */
+body[data-nav-type=sidebar] .sidebar-list .navigation-group.is-active-group > .navigation-group-toggle {
+	color: #eef2f5;
+}
+
+/* 二级菜单左侧导线 */
+body[data-nav-type=sidebar] .sidebar-submenu {
+	border-left-color: rgb(255 255 255 / .08);
+}

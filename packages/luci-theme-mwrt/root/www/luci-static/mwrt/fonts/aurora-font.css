@@ -1,0 +1,10 @@
+@font-face {
+  font-display: swap;
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  /* 相对本文件所在目录 (/luci-static/mwrt/fonts/) —— 不写死主题名,
+     换 mediaurlbase 或用别的主题目录时不会 404。
+     原值 url("/luci-static/aurora/fonts/...") 指向 aurora 主题目录, 属跨主题蹭资源。 */
+  src: url("lato-v24-latin-regular.woff2") format("woff2");
+}
