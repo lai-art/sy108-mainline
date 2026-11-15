@@ -71,7 +71,7 @@ function _temp_max() {
 		if (!match(name, /^thermal_zone\d+$/)) continue;
 		let v = _int(_rd('/sys/class/thermal/' + name + '/temp'), 0);
 		if (v > 1000) v = int(v / 1000);
-		seen.push(name + '=' + v);
+		push(seen, name + '=' + v);
 		if (v > max) max = v;
 	}
 	return { max: max, seen: seen };
@@ -132,7 +132,7 @@ function _cpu_usage() {
 		if (!c || !p) continue;
 		let cdt = c.total - p.total;
 		let cdi = c.idle - p.idle;
-		out.push({ id: i, usage: (cdt > 0) ? (cdt - cdi) * 100 / cdt : 0 });
+		push(out, { id: i, usage: (cdt > 0) ? (cdt - cdi) * 100 / cdt : 0 });
 	}
 
 	return { total: total, cores: out };
