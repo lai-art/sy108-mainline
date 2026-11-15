@@ -1,0 +1,211 @@
+#!/bin/sh
+# =============================================================================
+# router3d-data —— SY108 版（移植自 mwrt 的 /www/cgi-bin/router3d-data）
+#
+# 免鉴权只读状态端点，放在 /www/cgi-bin/ 下，需可执行位。
+# 只读 /proc /sys 与 ip 命令，绝不调 ubus/AT —— 首页每 1.8 秒轮询一次，
+# 热路径上任何 fork 都会累积。
+#
+# 与 mwrt 原版的差异（SY108 是 5G 通信壳，不是 MTK 路由器）：
+#   1. 没有物理 GMAC 网口，原版靠 OF_NAME=mac + phydev 过滤 eth* 的逻辑不适用。
+#      SY108 只有两个接口：wwan0(蜂窝数据, WAN) 与 br-usb(USB gadget 管理口, LAN)。
+#   2. 没有 /etc/config/network，网络是运行时由 netifd 建的，不能用 uci 查。
+#   3. 没有 mwrt-usbinfo / mwrt-clients 这类私有脚本，USB 与在线设备自己算。
+#   4. 无 HNAT（MTK 特性）、无 conntrack 用户态工具，conns 字段固定 0。
+#   5. 机型固定 TR3000（3D 图先用 TR3000 的，后续换 SY108 实物图）。
+#
+# 输出与 mwrt 原版字段保持同名同类型，前端 JS 无需改动。
+# =============================================================================
+printf 'Content-type: application/json\r\n'
+printf 'Cache-Control: no-store\r\n'
+printf '\r\n'
+
+# --- helpers ---------------------------------------------------------------
+rd() { cat "$1" 2>/dev/null; }
+json_str() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
+is_num() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
+
+# --- identity --------------------------------------------------------------
+# 机型固定 TR3000：用户决定 3D 整机图先沿用 TR3000 的 tr3000.png，
+# dev_model 必须与 index.ut 里的常量一致，否则前端 IMG 表会取错图。
+MODEL="TR3000"
+BOARD=$(rd /proc/device-tree/model)
+[ -n "$BOARD" ] || BOARD="SY108 (UDX710)"
+
+UPTIME=$(cut -d. -f1 /proc/uptime 2>/dev/null)
+is_num "$UPTIME" || UPTIME=0
+
+FW=$(sed -n "s/^DISTRIB_DESCRIPTION='\(.*\)'/\1/p" /etc/openwrt_release 2>/dev/null)
+[ -n "$FW" ] || FW=$(rd /etc/openwrt_version)
+
+# --- cpu (load + cores) ----------------------------------------------------
+NCPU=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)
+is_num "$NCPU" || NCPU=1
+[ "$NCPU" -gt 0 ] 2>/dev/null || NCPU=1
+LOAD1=$(cut -d' ' -f1 /proc/loadavg 2>/dev/null)
+case "$LOAD1" in ''|*[!0-9.]*) LOAD1=0 ;; esac
+# CPU 频率：展锐平台走 cpufreq scaling_cur_freq，单位 kHz -> MHz
+CPUMHZ=0
+for f in /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq; do
+	if [ -r "$f" ]; then
+		CPUMHZ=$(( $(cat "$f" 2>/dev/null) / 1000 ))
+		break
+	fi
+done
+is_num "$CPUMHZ" || CPUMHZ=0
+
+# --- memory (KB) -----------------------------------------------------------
+meminfo_kb() { sed -n "s/^$1:[[:space:]]*\([0-9]*\).*/\1/p" /proc/meminfo 2>/dev/null; }
+MEM_TOTAL=$(meminfo_kb MemTotal); is_num "$MEM_TOTAL" || MEM_TOTAL=0
+MEM_AVAIL=$(meminfo_kb MemAvailable); is_num "$MEM_AVAIL" || MEM_AVAIL=0
+MEM_FREE=$(meminfo_kb MemFree); is_num "$MEM_FREE" || MEM_FREE=0
+SWAP_TOTAL=$(meminfo_kb SwapTotal); is_num "$SWAP_TOTAL" || SWAP_TOTAL=0
+SWAP_FREE=$(meminfo_kb SwapFree); is_num "$SWAP_FREE" || SWAP_FREE=0
+
+# --- temperature (max thermal zone, °C) ------------------------------------
+# 只读 /sys/class/thermal，不查 ubus：热路径上 ubus call 要走 rpcd，
+# 每 1.8 秒一次不划算。udx.status 里的 thermal 也是从这个目录组装的。
+TEMP=0
+for z in /sys/class/thermal/thermal_zone*/temp; do
+	[ -r "$z" ] || continue
+	v=$(cat "$z" 2>/dev/null); is_num "$v" || continue
+	[ "$v" -gt 1000 ] && v=$(( v / 1000 ))
+	[ "$v" -gt "$TEMP" ] && TEMP=$v
+done
+
+# --- storage (overlay, KB) -------------------------------------------------
+# 用 stat -f 取 overlay 的块数/可用块数/块大小，统一折算成 KB。
+STOR_TOTAL=0; STOR_FREE=0
+if [ -d /overlay ]; then
+	SZ=$(stat -f -c '%S' /overlay 2>/dev/null); is_num "$SZ" || SZ=1024
+	[ "$SZ" -lt 1024 ] && SZ=1024
+	BLK=$(stat -f -c '%b' /overlay 2>/dev/null); is_num "$BLK" || BLK=0
+	AVA=$(stat -f -c '%f' /overlay 2>/dev/null); is_num "$AVA" || AVA=0
+	STOR_TOTAL=$(( BLK * SZ / 1024 ))
+	STOR_FREE=$(( AVA * SZ / 1024 ))
+fi
+STOR_USED=$(( STOR_TOTAL - STOR_FREE ))
+[ "$STOR_USED" -ge 0 ] || STOR_USED=0
+
+# --- ports (SY108: wwan0 = WAN cellular, br-usb = LAN management) ----------
+# 原版按 eth* + phydev 过滤物理网口；SY108 没有物理 GMAC，只有这两个逻辑口，
+# 直接枚举，role 按名字判定。
+port_json=""
+add_port() {
+	dev="/sys/class/net/$1"
+	[ -d "$dev" ] || return 0
+	car=$(rd "$dev/carrier"); [ "$car" = "1" ] || car=0
+	spd=$(rd "$dev/speed"); is_num "$spd" || spd=-1
+	[ "$car" = "1" ] || spd=-1
+	up=$(rd "$dev/operstate"); [ "$up" = "up" ] && upv=1 || upv=0
+	cnt=$(rd "$dev/carrier_up_count"); is_num "$cnt" || cnt=0
+	prx=$(rd "$dev/statistics/rx_bytes"); is_num "$prx" || prx=0
+	ptx=$(rd "$dev/statistics/tx_bytes"); is_num "$ptx" || ptx=0
+	dup=""; [ "$car" = "1" ] && dup=$(rd "$dev/duplex")
+	mac=$(rd "$dev/address")
+	[ -n "$port_json" ] && port_json="$port_json,"
+	port_json="$port_json{\"id\":\"$1\",\"role\":\"$2\",\"carrier\":$car,\"speed\":$spd,\"up\":$upv,\"cnt\":$cnt,\"rx\":$prx,\"tx\":$ptx,\"dup\":\"$(json_str "$dup")\",\"mac\":\"$(json_str "$mac")\"}"
+}
+add_port wwan0 WAN
+add_port br-usb LAN
+
+# --- usb (外接 USB 设备, 只读 sysfs) ----------------------------------------
+# main 线 USB 口跑 gadget 模式，列表为空；wifi-host 线插 MT7921AU 时能看到。
+usb_json=""; HASMOD=0
+for d in /sys/bus/usb/devices/[0-9]*-*; do
+	[ -d "$d" ] || continue
+	uv=$(rd "$d/idVendor"); up=$(rd "$d/idProduct")
+	[ -n "$uv" ] || continue
+	umfr=$(rd "$d/manufacturer"); uname=$(rd "$d/product")
+	us=$(rd "$d/speed"); case "$us" in ''|*[!0-9.]*) us=0 ;; esac
+	us=${us%%.*}
+	is_num "$us" || us=0
+	# 类型判型：MT7921AU(0e8d:7961) 是无线网卡；其余按 generic。
+	ut="generic"
+	if [ "$uv" = "0e8d" ] && [ "$up" = "7961" ]; then ut="nic"; fi
+	usb_x=""
+	if [ "$ut" = "nic" ]; then
+		udev=""
+		for nd in "$d":*/net/*; do [ -e "$nd" ] && { udev=${nd##*/}; break; }; done
+		[ -n "$uname" ] || uname=$umfr
+		usb_x=",\"dev\":\"$(json_str "$udev")\",\"role\":\"\""
+	fi
+	[ -n "$usb_json" ] && usb_json="$usb_json,"
+	usb_json="$usb_json{\"bus\":\"$(json_str "${d##*/}")\",\"vid\":\"$(json_str "$uv")\",\"pid\":\"$(json_str "$up")\",\"speed\":$us,\"type\":\"$(json_str "$ut")\",\"mb\":0,\"sub\":0,\"mfr\":\"$(json_str "$umfr")\",\"name\":\"$(json_str "$uname")\"$usb_x}"
+done
+
+# --- wan ip (effective default-route source addr, no AT) ------------------
+TRDEV=$(ip -4 route get 8.8.8.8 2>/dev/null | sed -n 's/.* dev \([^ ]*\).*/\1/p' | head -1)
+WANIP=""; WANPFX=""
+if [ -n "$TRDEV" ]; then
+	WANIP=$(ip -4 -o addr show dev "$TRDEV" scope global 2>/dev/null | sed -n 's/.* inet \([^ ]*\)\/.*/\1/p' | head -1)
+	WANPFX=$(ip -4 -o addr show dev "$TRDEV" scope global 2>/dev/null | sed -n 's/.* inet [^ ]*\/\([0-9]*\).*/\1/p' | head -1)
+fi
+# SY108 主业是蜂窝：出口不是 br-usb 就按蜂窝算
+if [ -n "$TRDEV" ] && [ "$TRDEV" != "br-usb" ]; then
+	WANPROTO="cellular"
+else
+	WANPROTO="dhcp"
+fi
+WANADDR="$TRDEV"
+LANIP=$(ip -4 -o addr show dev br-usb scope global 2>/dev/null | sed -n 's/.* inet \([^ ]*\)\/.*/\1/p' | head -1)
+LANPFX=$(ip -4 -o addr show dev br-usb scope global 2>/dev/null | sed -n 's/.* inet [^ ]*\/\([0-9]*\).*/\1/p' | head -1)
+WANGW=$(ip -4 route show default 2>/dev/null | sed -n 's/.*via \([^ ]*\).*/\1/p' | head -1)
+
+# --- wan traffic (累计收发字节) --------------------------------------------
+WD=${TRDEV:-wwan0}
+WRX=$(rd "/sys/class/net/$WD/statistics/rx_bytes"); is_num "$WRX" || WRX=0
+WTX=$(rd "/sys/class/net/$WD/statistics/tx_bytes"); is_num "$WTX" || WTX=0
+
+# --- egress (当前上网方式) -------------------------------------------------
+# 没有默认路由 = none；出口是 wwan0 = 蜂窝；是 USB 网卡 = 有线；是 br-usb = 管理口。
+if [ -z "$TRDEV" ]; then
+	EGK="none"
+elif [ "$TRDEV" = "wwan0" ]; then
+	EGK="cell"
+elif [ "$TRDEV" = "br-usb" ]; then
+	EGK="wired"
+else
+	EGK="wired"
+fi
+
+# --- online clients --------------------------------------------------------
+# 无 WiFi、无独立 LAN 口，只能数 dnsmasq 的租约。口径与首页「在线设备」不同，
+# 但这是 SY108 上唯一可得的来源。拿不到就是 0。
+CLIENTS=0
+if [ -r /tmp/dhcp.leases ]; then
+	CLIENTS=$(grep -c . /tmp/dhcp.leases 2>/dev/null); is_num "$CLIENTS" || CLIENTS=0
+fi
+
+# --- modem (no AT!) --------------------------------------------------------
+# 只报「有没有模组」，详细状态由 modem_ctrl 4 秒轮询提供。
+# 判据：wwan0 存在即认为有蜂窝模组（SY108 的数据口就是它）。
+HASMOD=0
+[ -d /sys/class/net/wwan0 ] && HASMOD=1
+
+# --- emit ------------------------------------------------------------------
+printf '{'
+printf '"model":"%s",' "$MODEL"
+printf '"board":"%s",' "$(json_str "$BOARD")"
+printf '"firmware":"%s",' "$(json_str "$FW")"
+printf '"uptime":%s,' "$UPTIME"
+printf '"cpu":{"ncpu":%s,"load1":%s,"mhz":%s},' "$NCPU" "$LOAD1" "$CPUMHZ"
+printf '"memory":{"total":%s,"avail":%s,"free":%s,"swap_total":%s,"swap_free":%s},' \
+	"$MEM_TOTAL" "$MEM_AVAIL" "$MEM_FREE" "$SWAP_TOTAL" "$SWAP_FREE"
+printf '"temperature":%s,' "$TEMP"
+printf '"storage":{"used":%s,"total":%s,"free":%s},' "$STOR_USED" "$STOR_TOTAL" "$STOR_FREE"
+printf '"ports":[%s],' "$port_json"
+printf '"usb":[%s],' "$usb_json"
+printf '"clients":%s,' "$CLIENTS"
+printf '"conns":0,'
+printf '"wan_ip":"%s",' "$(json_str "$WANIP")"
+printf '"wan_pfx":%s,' "${WANPFX:-0}"
+printf '"wan_proto":"%s",' "$WANPROTO"
+printf '"wan_addr":"%s",' "$(json_str "$WANADDR")"
+printf '"lan_ip":"%s",' "$(json_str "$LANIP")"
+printf '"lan_pfx":%s,' "${LANPFX:-0}"
+printf '"wan_rx":%s,' "$WRX"
+printf '"wan_tx":%s,' "$WTX"
+printf '"egress":{"kind":"%s","dev":"%s","gw":"%s"},' "$EGK" "$(json_str "$TRDEV")" "$(json_str "$WANGW")"
+printf '"modem":{"present":%s,"modconf":""}' "$HASMOD"
+printf '}\n'
