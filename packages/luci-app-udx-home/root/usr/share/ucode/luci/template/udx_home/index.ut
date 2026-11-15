@@ -1,0 +1,582 @@
+{%
+	/* SY108 移植版：原模板开头 71 行机型判定整段替换为常量。
+	   原逻辑按 /tmp/sysinfo/model + board_name 区分 H5000M/N5000/TR3000/E87N/MAX/Ultra,
+	   并检测 luci-app-display 是否存在来开关屏幕卡片。SY108 全部不适用：
+	     - 3D 图按用户决定先用 TR3000 的（后续换 SY108 实物图）
+	     - 无 NV3007 屏 -> screen_ok=false，屏幕卡片整块不渲染
+	     - 无用户自定义整机图 -> dev_custom=''
+	   保留变量名与原模板一致，避免改动下游 HTML/JS。 */
+	import { readfile, stat } from 'fs';
+
+	const dev_model = 'TR3000';
+	const dev_name  = 'Cudy TR3000';
+	const dev_img   = '/luci-static/router3d/tr3000.png';
+	const dev_custom = '';
+	const screen_ok = false;
+
+	const _swon = match(readfile('/proc/swaps') ?? '', /\n\//) != null;
+
+	const _mc = readfile('/tmp/modconf.conf') ?? '';
+	const _smsurl = (_mc == '' || index(_mc, 'MT5700') >= 0)
+		? '/cgi-bin/luci/admin/modem/smsc'
+		: '/cgi-bin/luci/admin/modem/webui' + (index(_mc, '未知') >= 0 ? '#/sms/center' : '#/sms/sms');
+
+	const _rs = '/www/luci-static/resources/';
+	const _sz = (f) => {
+		const t = stat(_rs + f);
+		return t ? t.size : 0;
+	};
+
+	let _dv = match(dev_name, /^(\S+)\s+(.+)$/);
+	const dv_b = _dv ? _dv[1] : null;
+	const dv_m = _dv ? _dv[2] : null;
+%}
+{% include('header', {}) %}
+<link rel="stylesheet" href="/fontawesome/all.min.css">
+{#
+ 原模板的样式是 <style> 内联的（285 KB），这里抽成外部文件，可被浏览器缓存。
+ 放在 body 内是 HTML5 允许的写法；header.ut 已经输出完 </head><body>，
+ 没有更早的插入点。
+#}
+<link rel="stylesheet" href="/luci-static/mwrt/mwrt-home.css">
+
+<div class="P" id="P">
+
+<select id="modem_selector_select"></select>
+
+<!-- Hero: 蜂窝信号(#hero-sig) / 系统信息(#hero-sys) 二选一, 区域本身永远保留
+     s40: 按用户要求放在最顶上(设备总览卡之前)。
+     s44 二轮: 原先读不到模组数据就整块 .hid; 现在没有蜂窝模组时改显示系统信息(#hero-sys),
+     由 MRT_HERO.set('cell'|'sys') 切换。首屏判不出来前整个 #hero-w 先 .hid(防止蜂窝板先闪一下系统信息)。 -->
+<div id="hero-w" class="hid"><div class="hero">
+<!-- 三块: h-id 运营商身份 / h-mx 四格指标 / h-sig 信号舱(布局说明见样式表 "Hero · 蜂窝信号")。
+     id 沿用旧版的 h-op / h-op-status / h-bdg / h-ring / h-bars / h-sl / h-logo / h-cellid, heroUp 照旧按 id 填 -->
+<div class="hero-sig" id="hero-sig"><div class="h-id"><div class="h-brand" id="h-brand"><i class="fas fa-broadcast-tower h-brand-ph" aria-hidden="true"></i><span class="h-brand-clip"><img id="h-logo" src="" alt="" style="display:none"></span></div><div class="h-id-t"><div class="h-op-row"><div class="h-op-name" id="h-op">--</div><div class="h-bdg" id="h-bdg"></div><div class="h-op-st"><span class="h-dot"></span><span id="h-op-status">读取中…</span></div></div></div></div><div class="h-mx"><div class="h-m" id="hm-rsrq"><div class="h-mk"><span><i class="fas fa-chart-bar"></i>RSRQ</span><b>--</b></div><div class="h-mv"><span class="n">--</span><small>dB</small></div><span class="h-mb"><span style="width:0"></span></span></div><div class="h-m" id="hm-sinr"><div class="h-mk"><span><i class="fas fa-bullseye"></i>SINR</span><b>--</b></div><div class="h-mv"><span class="n">--</span><small>dB</small></div><span class="h-mb"><span style="width:0"></span></span></div><div class="h-m h-m-tap" id="hm-band" role="button" tabindex="0" onclick="caPop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();caPop();}" title="查看载波聚合详情"><div class="h-mk"><span><i class="fas fa-wave-square"></i>频段 Band</span><b class="h-ca" id="h-ca" style="display:none"></b></div><div class="h-mv" id="h-band">--</div><div class="h-ms" id="h-band-s">--</div></div><div class="h-m h-m-tap" id="hm-sim" role="button" tabindex="0" onclick="simPop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();simPop();}" title="点击快速切换卡槽"><div class="h-mk"><span><i class="fas fa-sim-card"></i>卡槽 SIM</span><span class="h-swap" aria-hidden="true"><i class="fas fa-exchange-alt"></i></span></div><div class="h-mv h-mv-t" id="h-pci">--</div><div class="h-ms h-sim" id="h-cellid">读取中…</div></div></div><div class="h-sig"><div class="sig-rg" id="h-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="sr-tk" cx="50" cy="50" r="46"/><circle class="sr-bg" cx="50" cy="50" r="38"/><circle class="sr-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ct"><span class="v">--</span><span class="l">dBm</span></div></div><div class="sig-nfo"><div class="sig-k">RSRP · 信号强度</div><div class="sig-lv" id="h-lv">--</div><div class="sig-bars" id="h-bars"><span style="height:9px"></span><span style="height:13px"></span><span style="height:17px"></span><span style="height:21px"></span><span style="height:25px"></span></div><div class="sl" id="h-sl">读取中…</div></div></div></div>
+<!-- 系统信息版 hero: 无蜂窝模组时显示。结构与 #hero-sig 一一对应(h-id / h-mx / h-sig), id 全部以 hs- 开头, 和蜂窝版互不干扰 -->
+<div class="hero-sig hero-sys hid" id="hero-sys"><div class="hl"><div class="hl-l"><span class="hl-dot"></span><span class="hl-n" id="hl-name">--</span><i class="hl-sp"></i><span class="hl-s" id="hl-sub">读取中…</span></div><div class="hl-r" id="hl-chips"></div></div><div class="h-id"><div class="h-id-t"><div class="h-op-row"><div class="h-op-name" id="hs-name">--</div></div><div class="h-op-sub"><span class="hs-pill"><span class="h-dot"></span><span class="st" id="hs-st">读取中…</span></span><span class="h-fw" id="hs-fw">--</span></div></div></div><div class="h-mx"><div class="h-m" id="hs-up"><div class="h-mk"><span><i class="fas fa-clock"></i>运行时间</span></div><div class="h-mv" id="hs-up-v">--</div><div class="h-ms" id="hs-up-s">--</div></div><div class="h-m t-g" id="hs-cl"><div class="h-mk"><span><i class="fas fa-network-wired"></i>在线设备</span></div><div class="h-mv" id="hs-cl-v">--</div><div class="h-ms" id="hs-cl-s">--</div></div><div class="h-m t-o" id="hs-wan"><div class="h-mk"><span><i class="fas fa-arrows-alt-v"></i>WAN 流量</span></div><div class="h-mv" id="hs-wan-v">--</div><div class="h-ms" id="hs-wan-s">--</div></div><div class="h-m t-c" id="hs-sto"><div class="h-mk"><span><i class="fas fa-hdd"></i>存储</span><b id="hs-sto-b">--</b></div><div class="h-mv" id="hs-sto-v">--</div><span class="h-mb"><span id="hs-sto-bar" style="width:0"></span></span><div class="h-ms" id="hs-sto-s">--</div></div></div><div class="h-sig"><div class="sig-rg" id="hs-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="sr-tk" cx="50" cy="50" r="46"/><circle class="sr-bg" cx="50" cy="50" r="38"/><circle class="sr-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ct"><span class="v" id="hs-rv">--</span><span class="l">load1</span></div></div><div class="sig-nfo"><div class="sig-k">CPU 负载 · 系统状态</div><div class="sig-lv" id="hs-lv">--</div><div class="sig-bars" id="hs-bars"><span style="height:9px"></span><span style="height:13px"></span><span style="height:17px"></span><span style="height:21px"></span><span style="height:25px"></span></div><div class="sl" id="hs-sl">读取中…</div></div></div></div>
+</div></div>
+
+<!-- Device Overview: 产品图 + 指示灯 + 网口 实时状态
+     原来这上面还有一条 .hdr 标题栏(品牌字 + 「Mwrt-info Device Data Overview」副标题),
+     已经去掉: 这张卡里本来就有产品图和机型名(#dv-name), "这是哪台设备"已经讲清楚了,
+     再顶一条渐变字的横幅只是占掉首屏一截高度。
+     那条栏里唯一有功能的是白天/夜间切换键, 先挪到了这张卡的标题行右端; 后来标题行也删了,
+     现在和「设置向导」一起在右栏第一行(.dv-head)的右端。
+     #t-btn / #t-ico 两个 id 必须原样保留: 下面 window.onload 里那行
+     getElementById('t-btn').addEventListener 是裸的, 没有空值判断, id 一丢
+     就抛 TypeError 并把整个 onload 带走(new UI()/ui.gw()/ui.dev()/流量图全不执行)。 -->
+<div class="cd dv-card">
+<!-- 卡片标题行(fa-server 图标 + 「设备总览 · Device Overview」)已删, 整张卡不画任何边框, 见 CSS 侧 .dv-card 注释。
+     标题行右端原有的「设置向导」和白天/夜间键挪进右栏第一行(.dv-head), 和「系统状态」小标题同排。
+     放在文档流里而不是绝对定位到卡片右上角: 窄屏下 .dv-body 变单列, 卡片右上角正好是整机图的
+     相机/恢复工具键(.dv-imgtools), 绝对定位会叠在一起。 -->
+<div class="dv-body{% if (dev_model == 'E87N') %} dv-body-e87n{% endif %}">
+<div class="dv-stage">
+<!-- s63 → s74 当前上网方式: 产品图左上角一枚简约标识(图标 + 类型名: WiFi 桥接 / 有线 WAN / 蜂窝 / 未联网), 由设备总览那段 JS 的 netBadge() 按 router3d-data 的 egress 刷新。
+     只有 WiFi 桥接态可点(打开无线网桥窗口), 那时才给 role=button / tabindex -->
+<div class="dv-wlb" id="dv-wlb" style="display:none" onclick="if(this.classList.contains('k-wifi'))wlbOpen()" onkeydown="if(this.classList.contains('k-wifi')&&(event.key==='Enter'||event.key===' ')){event.preventDefault();wlbOpen();}">
+<span class="dv-wlb-ic"><i class="fas fa-wifi" id="dv-wlb-i" aria-hidden="true"></i></span>
+<span class="dv-wlb-tx" id="dv-wlb-k">WiFi 桥接</span>
+</div>
+<!-- s91 音乐正在播放: 网络标识下方一枚胶囊, 点一下打开音乐播放器(router3d-data 的 aplay 驱动, 见 audUi()) -->
+<button type="button" class="dv-aplay" id="dv-aplay" hidden title="正在播放，点击打开音乐播放器" aria-label="音乐正在播放，点击打开音乐播放器"><span class="ap-row"><span class="ap-eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="ap-tx" id="dv-aplay-t">正在播放</span></span></button>
+{% if (dev_model == 'E87N') %}<div class="dv-flip" id="dv-flip" data-v="f" role="group" aria-label="切换正面和背面视图"><span class="dv-flip-th" aria-hidden="true"></span><button type="button" data-v="f" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>正面</button><button type="button" data-v="b" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11v2M11 11v2M15 11v2"/></svg>背面</button></div>{% endif %}<div class="dv-shot"><span class="dv-floor" aria-hidden="true"></span><canvas class="dv-wvbg" id="dv-wvbg" data-w="out" aria-hidden="true"></canvas><span class="dv-wvp" id="dv-wvp" aria-hidden="true"></span><img id="dv-img" src="{{ dev_img }}" alt="{{ entityencode(dev_name, true) }}" onerror="this.style.display='none'">{% if (dev_model == 'E87N') %}<div class="dv-scrw" id="dv-scrw"><div class="dv-scr" id="dv-scr" title="点击放大预览并控制屏幕"><img id="mp-screen-img" alt="" style="display:none"><div id="mp-screen-ph" class="mp-ph"><i class="fas fa-desktop"></i></div></div></div><img id="dv-img-b" src="/luci-static/router3d/e87n_b.png?v=s111f" alt="" aria-hidden="true">{% endif %}<div class="dv-pts" id="dv-pts"></div></div>
+
+<div class="dv-name" id="dv-name">{% if (dv_b) %}<span class="dv-brand">{{ entityencode(dv_b, true) }}</span>{{ entityencode(dv_m, true) }}{% else %}{{ entityencode(dev_name, true) }}{% endif %}</div>
+<div class="dv-tf" role="group" aria-label="实时流量">
+<div class="tf-v"><span class="tf-p tf-dn" title="下行"><svg class="tf-a" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5v7M2 5.8l3 3 3-3"/></svg><b id="cv-rx">0</b><em id="cv-rxu">KB/s</em></span><span class="tf-p tf-up" title="上行"><svg class="tf-a" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5v-7M2 4.2l3-3 3 3"/></svg><b id="cv-tx">0</b><em id="cv-txu">KB/s</em></span></div>
+<div class="tf-c"><canvas id="traffic-canvas"></canvas></div>
+</div>
+<!-- 自定义整机图:右上角小图标,点击上传替换(仅当前机型) -->
+<div class="dv-imgtools" id="dv-tools">
+<button type="button" class="dv-about" id="dv-about" title="关于本机" aria-label="关于本机" aria-haspopup="dialog"><i class="fas fa-info-circle" aria-hidden="true"></i><span>状态</span></button>
+<button type="button" class="dv-fan" id="dv-fan" title="风扇设置" aria-label="风扇设置" aria-haspopup="dialog"><i class="fas fa-fan" aria-hidden="true"></i></button>
+<button type="button" class="dv-rp" id="dv-rp" title="故障报修" aria-label="故障报修" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3l8.4-8.4"/><path d="M14.7 6.3 11 10"/><path d="m9 3 1.5 3L8 7.5 5 6z"/></svg></button>
+<button type="button" class="dv-aud" id="dv-aud" data-pop="audio" hidden title="声卡设置" aria-label="声卡设置"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+<button type="button" class="dv-reset" id="dv-reset" title="恢复默认图片" style="display:none"><i class="fas fa-undo"></i></button>
+<button type="button" class="dv-edit" id="dv-edit" title="上传自定义图片替换"><i class="fas fa-camera"></i></button>
+</div>
+<input type="file" id="dv-file" accept="image/png,.png" style="display:none">
+</div>
+<div class="dv-side">
+<!-- 「设置向导」是一个指向 admin/system/mwrt_wizard 的普通链接: 全局的 mwrt-wizard-launch.js
+     在 document 上捕获 href 含 mwrt_wizard 的点击并就地开弹窗, 和点菜单栏「向导」走同一条路;
+     那个脚本没加载时就正常跳到向导页, 由那边的壳子开窗, 不会点了没反应。
+     #t-btn / #t-ico 的 id 不能动(window.onload 里是裸的 getElementById, 见卡片上方注释)。 -->
+<div class="dv-fl">
+<div class="dv-head"><div class="dv-sub"><b>系统状态</b><em>System</em></div><span class="dv-acts"><button type="button" class="wz-btn ph-btn" id="ph-btn" hidden title="拨号（测试通话）" aria-label="打开拨号"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="ph-t">拨号</span></button><a class="wz-btn" id="wz-btn" href="{{ '/cgi-bin/luci/admin/system/mwrt_wizard' }}" title="打开设置向导"><i class="fas fa-magic"></i><span class="wz-t">设置向导</span></a><button type="button" class="tbtn" id="t-btn" title="切换白天 / 夜间模式" aria-label="切换白天 / 夜间模式"><i class="fas fa-moon" id="t-ico"></i></button></span></div>
+<div class="dv-stats" id="dv-stats"><div class="empty-hint"><i class="fas fa-circle-notch fa-spin"></i> 读取中…</div></div>
+<div class="dv-ifc"><div class="dv-ports" id="dv-ports"></div><div class="dv-ips" id="dv-ips"></div></div>
+</div>
+<div class="dv-mini" id="dv-mini" data-t="full" data-mode="tv" role="group" aria-label="音乐播放器"><div class="mn-top"><span class="mn-ico"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><div class="mn-tt"><b class="mn-nm" id="mn-nm">音乐播放器</b><small class="mn-sub" id="mn-sub">接入 USB 声卡后可播放</small></div><button type="button" class="mn-ls" data-m="open" title="曲目与上传" aria-label="打开曲目列表" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button></div><canvas class="mn-cv" data-w="out" aria-hidden="true"></canvas><div class="mn-pg"><i id="mn-pgi"></i></div><div class="mn-bt"><span class="mn-tm" id="mn-tm"></span><div class="mn-ct"><button type="button" data-m="prev" aria-label="上一首"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 5v14"/><path d="M19 5.5v13L9.5 12z" fill="currentColor"/></svg></button><button type="button" class="big" data-m="pp" id="mn-pp" aria-label="播放"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></svg></button><button type="button" data-m="next" aria-label="下一首"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 5v14"/><path d="M5 5.5v13L14.5 12z" fill="currentColor"/></svg></button></div><span class="mn-du" id="mn-du"></span></div><div class="tv" id="dv-tv" aria-label="电子播报"></div></div>
+<div class="dv-meta" id="dv-meta"></div>
+</div>
+<button type="button" class="dv-fold" id="dv-fold" title="收起右侧状态栏" aria-label="收起右侧状态栏" aria-pressed="false"><i class="fas fa-chevron-right" aria-hidden="true"></i></button>
+
+</div>
+</div>
+
+<!-- Gauges —— 三个实时指标圆环, 按用户要求原样还原(处理器占用 / 内存剩余 / 设备温度)。
+     DOM 和 CSS 都是改动前的版本, 一个值没改, 对应的 av()+rng() 赋值也一并恢复。
+
+     这块在 #hero-w **之外**, 所以不受"读不到模组数据"那条 .hid 门控影响。
+     (同一轮删掉的 .hero-qs 快捷统计不还原: 它嵌在 #hero-w 里面, 没插卡时运行时间、
+     在线设备这些**系统**指标会跟蜂窝一起消失 —— 那是个真缺陷。那几项现在在设备总览
+     的连接信息里, 不受门控。)
+
+     和 dv-stats 磁贴的分工按"同一个数只出现一次"划: 圆环出瞬时百分比,
+     磁贴出圆环给不了的绝对量(存储已用/总量)和不同量纲的 load1 负载均值。
+     磁贴里原来的"内存占用"和"SoC 温度"和圆环重复, 已从磁贴那侧撤掉(见 render() 内注释)。 -->
+<div class="gauges">
+<div class="gx-rings">
+<div class="ga mp" id="ga-cpu" data-pop="cpu"><div class="ga-w" id="g-cpu"><svg viewBox="0 0 100 100"><circle class="ga-bg" cx="50" cy="50" r="38"/><circle class="ga-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ga-c"><span class="ga-v" id="gv-cpu">0%</span><span class="ga-s">占用</span></div></div><span class="ga-n"><i class="fas fa-microchip" aria-hidden="true"></i>处理器</span></div>
+<!-- 内存卡多一圈内环 = 虚拟内存(swap), 数据和配色见 .ga-sfg 那段 CSS 注释; 三张卡的 data-pop 是悬停浮层的钩子(MRT_POP)。
+     .sw 先在服务端按 /proc/swaps 有没有挂 swap 打上, 第一帧就画对, 不等 dev() 回来;
+     之后由 dev() 按 d["虚拟内存"] 维护(swap 中途被关掉也会撤掉)。 -->
+
+<div class="ga mg ga-dbl{{ _swon ? ' sw' : '' }}" id="ga-mem" data-pop="mem" ondblclick="memClean()"><span class="ga-tip" aria-hidden="true">双击清理</span><div class="ga-w" id="g-mem"><svg viewBox="0 0 100 100"><circle class="ga-bg" cx="50" cy="50" r="38"/><circle class="ga-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/><circle class="ga-sbg" cx="50" cy="50" r="31"/><circle class="ga-sfg" cx="50" cy="50" r="31" stroke-dasharray="194.8" stroke-dashoffset="194.8"/></svg><div class="ga-c"><span class="ga-v" id="gv-mem">0%</span><span class="ga-s">剩余</span></div></div><span class="ga-n"><i class="fas fa-memory" aria-hidden="true"></i>内存</span></div>
+<div class="ga mcy" id="ga-tmp" data-pop="tmp"><div class="ga-w" id="g-tmp"><svg viewBox="0 0 100 100"><circle class="ga-bg" cx="50" cy="50" r="38"/><circle class="ga-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ga-c"><span class="ga-v" id="gv-tmp">0℃</span><span class="ga-s">温度</span></div></div><span class="ga-n"><i class="fas fa-thermometer-half" aria-hidden="true"></i>温度</span></div>
+</div>
+<div class="gx-mod gx-nomod" id="gx-mod">
+<div class="gx-grid">
+<a class="gx-t" data-k-go="lockband" href="{{ '/cgi-bin/luci/admin/modem/webui' }}#/network/setting" title="锁频设置 · 前往网络设置页"><b>锁频设置</b></a>
+
+<a class="gx-t" href="{{ _smsurl }}" title="短信管理"><b>短信管理</b></a>
+<button type="button" class="gx-t" data-k="sim" disabled><b>SIM卡信息</b></button>
+<button type="button" class="gx-t" data-k="wifi" title="无线设置 · 修改 WiFi 名称与密码"><i class="fas fa-wifi gx-i" aria-hidden="true"></i><b>无线设置</b></button>
+<button type="button" class="gx-t" data-k="nb" disabled><b>附近小区</b></button>
+
+<button type="button" class="gx-t" data-k="topo" title="网络拓扑 · 出口链路 · 下挂设备" data-topo-url="{{ '/cgi-bin/luci/admin/modem/topo_data' }}" data-topo-v="{{ _sz('mwrt-topo-art.js') }}-{{ _sz('mwrt-topo.js') }}"><i class="fas fa-project-diagram gx-i" aria-hidden="true"></i><b>网络拓扑</b></button>
+</div>
+</div>
+</div>
+
+<!-- Realtime traffic chart -->
+<!-- s87: 实时流量已并入设备总览展台左下角(.dv-tf), 这里不再有独立卡 -->
+
+<!-- Fan: s113 起收进浮窗, 入口是产品图右上角的风扇键(#dv-fan) -->
+<div class="wfm fnw" id="fnw" role="dialog" aria-modal="true" aria-labelledby="fnw-t" aria-hidden="true">
+<div class="wfm-win fnw-win">
+<button type="button" class="wfm-x" id="fnw-x" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-fan" aria-hidden="true"></i><div><div class="wfm-t" id="fnw-t">风扇设置</div><div class="wfm-s">PWM 散热风扇 · 实时转速与智能温控</div></div></div>
+<div class="fnw-bd">
+<div class="fan-card" id="fan-card">
+<div class="fan-wind" id="fan-wind"></div>
+<div class="fan-wave"></div>
+<div class="fan-streaks" id="fan-streaks"></div>
+<div class="fan-top">
+<div class="fan-visual">
+<svg class="fan-svg" id="fan-svg" viewBox="0 0 100 100">
+<circle cx="50" cy="50" r="6" fill="var(--t2)"/>
+<path d="M50 44 C50 32,60 22,68 28 C76 34,68 44,56 46 Z" fill="#22d3ee" opacity="0.8"/>
+<path d="M56 50 C68 50,78 60,72 68 C66 76,56 68,54 56 Z" fill="#22d3ee" opacity="0.8"/>
+<path d="M50 56 C50 68,40 78,32 72 C24 66,32 56,44 54 Z" fill="#22d3ee" opacity="0.8"/>
+<path d="M44 50 C32 50,22 40,28 32 C34 24,44 32,46 44 Z" fill="#22d3ee" opacity="0.8"/>
+</svg>
+<div class="fan-ring-wrap"><svg viewBox="0 0 100 100"><circle class="fsr-bg" cx="50" cy="50" r="46"/><circle class="fsr-fg" id="fan-ring-fg" cx="50" cy="50" r="46" stroke-dasharray="289" stroke-dashoffset="289" stroke="#22d3ee"/></svg></div>
+</div>
+<div class="fan-meta">
+<div class="fm-title"><i class="fas fa-fan"></i> PWM 散热风扇</div>
+<div class="fm-sub">实时转速监控与智能温控</div>
+</div>
+</div>
+<div class="fan-stats">
+<div class="fan-stat"><div class="fs-v" id="fan-pct">0%</div><div class="fs-l">转速</div></div>
+<div class="fan-stat"><div class="fs-v" id="fan-temp">--</div><div class="fs-l">温度</div></div>
+<div class="fan-stat"><div class="fs-v" id="fan-mode">--</div><div class="fs-l">模式</div></div>
+<div class="fan-stat"><div class="fs-v" id="fan-pwm">--</div><div class="fs-l">PWM</div></div>
+</div>
+<div class="fan-ctrl">
+<button class="fc-btn" id="fc-smart" onclick="fanSet('fanst4','智能')"><i class="fas fa-brain"></i> 智能</button>
+<button class="fc-btn" id="fc-low" onclick="fanSet('fanstop','低速')"><i class="fas fa-wind"></i> 低速</button>
+<button class="fc-btn" id="fc-mid" onclick="fanSet('fanst1','中速')"><i class="fas fa-wind"></i> 中速</button>
+<button class="fc-btn" id="fc-high" onclick="fanSet('fanst2','高速')"><i class="fas fa-wind"></i> 高速</button>
+<button class="fc-btn" id="fc-max" onclick="fanSet('fanst3','全速')"><i class="fas fa-bolt"></i> 全速</button>
+<button class="fc-btn" id="fc-free" onclick="fanFree()"><i class="fas fa-sliders-h"></i> 无极</button>
+<a class="fc-btn fc-link" href="/cgi-bin/luci/admin/status/fancontrol"><i class="fas fa-cog"></i> 高级设置</a>
+</div>
+<div class="fan-slider" id="fan-slider-wrap" style="display:none">
+<label><i class="fas fa-wind"></i> 无极调速</label>
+<div class="slider-track"><input type="range" min="0" max="255" value="128" id="fan-range" oninput="document.getElementById('fan-range-val').textContent=this.value" onchange="fanSlider(this.value)"></div>
+<span class="fs-val" id="fan-range-val">128</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- 设备规格 —— 一张外层 .cd 卡装三个分区(固件 / 硬件 / 无线)。
+
+     之前这里是三块各自裸在页面上的东西: 固件横幅 + 两排彩色磁贴, 没有外壳也没有
+     标题。和上下文那些 .cd 卡(实时流量、网络通道、广域网)摆在一起, 读起来就是
+     几片散落的碎片。现在收进标准 .cd 卡, 内部按语义分区, 每区一条 .sp-h 小标题。
+
+     彩色玻璃磁贴(.fc + fp/fb/fcy/fg/fo/fpk 六个配色类)全部保留 —— 那是用户
+     点名要的设计, 只改了两处排布:
+       · 图标进 30px 圆角徽章, 和值/标签横排(原先是图标压在值上面的竖排三层)。
+         图标那一层只是分类提示, 不值一整行; 横排之后同样内容矮一截。
+       · 标签在上、值在下, 和连接信息的 .dv-cell 同序 —— 原版两处顺序相反,
+         会让人以为是两种不同的东西。
+
+     **内存容量 / 存储空间两块不放回来。** 这正是用户最初提的"有些信息和设备总览
+     冲突"那条 —— 内存剩余已经在圆环里(「内存 · 剩余%」), 存储已用/总量在设备总览的
+     dv-stats 磁贴里(「4% · 295M/7.3G」), 再摆两块就是同一个数在首屏出现第三次。
+
+     硬件区四块两两成对: 设备型号/处理器各占整行(值都长), 核心数/内核版本并排,
+     主机名再占一整行。固件区单独整行横幅: 版本号是一长串
+     "Mwrt @Manper-5.1.1139-24 by Padavanonly's ... r33382-861b29b0a9",
+     塞进半列宽会折成四五行、把整排磁贴拉高。
+
+     2.4G/5G 网络名放这里而不是下面的连接信息: SSID 只有 devinfo 这个接口给,
+     而连接信息(#dv-meta)是 router3d-data 每 1.8 秒整块重写 innerHTML 的
+     (返回里没有 ssid 字段), 塞进去会被下一轮冲掉、闪一下就没。
+     放在同样由 devinfo 填的这里才稳。
+
+     f-* 的 id 全部沿用原名, dev() 里的 s('f-model',…) 等赋值一行都不用改。
+     #wifi-wrap 也保持原 id —— dev() 里有个空态分支会重写它的 innerHTML。
+
+     外层卡**没有 .cd-t 标题**。原先这里顶着一条「设备规格 · Specifications」,
+     已经去掉: 卡里三条分区小标题(固件 / 硬件 / 无线)本来就把内容交代清楚了,
+     再在上面压一条总标题就是同一件事说两遍, 而且三条小标题紧跟在总标题下面,
+     四行标题字挤在一起比内容还抢眼。
+     去掉总标题后, 第一条 .sp-h 直接贴着 .cd 的 padding-top(16px), 和原先
+     标题占位时的上间距基本一致, 不用额外补 margin —— .sp-h:first-child 已经
+     把 margin-top 归零了。 -->
+<!-- s161 故障报修浮窗: 入口是产品图工具键 #dv-rp; 完整保留申请卡 + 在线聊天(原在 Mwrt设定页「故障报修」页签) -->
+<div class="wfm rpw" id="rpw" role="dialog" aria-modal="true" aria-labelledby="rpw-t" aria-hidden="true">
+<div class="wfm-win rpw-win">
+<button type="button" class="wfm-x" id="rpw-x" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><div class="rpw-ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3l8.4-8.4"/><path d="M14.7 6.3 11 10"/><path d="m9 3 1.5 3L8 7.5 5 6z"/></svg></div><div><div class="wfm-t" id="rpw-t">故障报修</div><div class="wfm-s">生成报修码 · 在线联系维护人员 · 远程协助</div></div></div>
+<div class="rpw-bd">
+<div class="rpw-l">
+<div id="rp">
+  <div class="rp-head">
+    <div class="rp-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3l8.4-8.4"/><path d="M14.7 6.3 11 10"/><path d="m9 3 1.5 3L8 7.5 5 6z"/></svg></div>
+    <div class="rp-ttl"><b>申请报修</b><small>遇到自己解决不了的问题时，生成报修码交给维护人员，对方确认后即可远程协助排查。</small></div>
+    <span class="rp-chip" id="rp-chip">未开启</span>
+  </div>
+
+  <div class="rp-body" id="rp-idle">
+    <ol class="rp-steps">
+      <li>点击下面的「申请故障处理」，设备会生成一个 <b>报修码</b>，有效期 12 小时。</li>
+      <li>把报修码发给维护人员，由对方在后台输入确认。</li>
+      <li>确认后维护人员可以远程查看并维护本设备；处理完点「结束报修」立即断开。</li>
+    </ol>
+    <div class="rp-btns"><button type="button" class="rp-btn" id="rp-apply">申请故障处理</button></div>
+    <div class="rp-note">说明：只有你点击申请后，设备才会主动连接维护服务器；没有维护人员输入报修码时，对方什么也访问不了。报修码 12 小时后自动失效，重启设备不会让它延长。</div>
+  </div>
+
+  <div class="rp-body" id="rp-act" style="display:none">
+    <div class="rp-codewrap">
+      <div class="rp-code" id="rp-code">----</div>
+      <button type="button" class="rp-btn ghost" id="rp-copy">复制报修码</button>
+    </div>
+    <div class="rp-bar"><i id="rp-fill"></i></div>
+    <div class="rp-meta"><span id="rp-left">剩余有效时间 --</span><span>报修码 12 小时内有效</span></div>
+    <div class="rp-st"><span class="rp-dot" id="rp-dot"></span><span id="rp-sttxt">正在连接维护服务器…</span></div>
+    <div class="rp-btns">
+      <button type="button" class="rp-btn ghost" id="rp-renew">重新生成报修码</button>
+      <button type="button" class="rp-btn danger" id="rp-stop">结束报修</button>
+    </div>
+  </div>
+  <div class="rp-body" style="padding-top:0"><div class="rp-msg" id="rp-msg" role="status" aria-live="polite"></div></div>
+</div>
+</div>
+<div class="rpw-r">
+<div id="rc" data-state="none">
+  <div class="rc-head">
+    <div class="rc-avw"><div class="rc-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="4" height="6" rx="1.5"/><rect x="18" y="14" width="4" height="6" rx="1.5"/><path d="M20 20c0 1.5-2 2-5 2"/></svg></div><i class="rc-dot" id="rc-dot"></i></div>
+    <div class="rc-ttl"><b>维护人员</b><div class="rc-sub" id="rc-sub">未开启</div></div>
+    <button type="button" class="rc-code" id="rc-code" style="display:none" aria-label="复制报修码" title="点击复制报修码"><span class="rc-cl">报修码</span><b id="rc-codet"></b><span class="rc-i" id="rc-codei"></span></button>
+  </div>
+  <div class="rc-banner" id="rc-banner" role="status"><span class="rc-i" id="rc-bico"></span><span id="rc-btxt"></span></div>
+  <div class="rc-wrap">
+    <div class="rc-list" id="rc-list" role="log" aria-live="polite" aria-relevant="additions text" aria-label="聊天记录" tabindex="0"></div>
+    <button type="button" class="rc-new" id="rc-new"></button>
+  </div>
+  <div class="rc-compose">
+    <div class="rc-quick" id="rc-quick" role="group" aria-label="常用语"></div>
+    <div class="rc-box" id="rc-box">
+      <textarea class="rc-ta" id="rc-ta" rows="1" maxlength="2000" aria-label="消息内容" disabled></textarea>
+      <button type="button" class="rc-send" id="rc-send" aria-label="发送消息" title="发送" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button>
+    </div>
+    <div class="rc-foot" id="rc-foot"><span class="rc-tip" id="rc-tip" role="alert"></span><span class="rc-cnt" id="rc-cnt"></span></div>
+  </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- s122 关于本机: 设备规格卡 .cd-q 不再占首页, 收进浮窗, 入口是产品图右上角的「关于本机」键(#dv-about)。
+     卡片节点原样搬进浮窗, 里面所有 f-* / ch-* id 与 wfmOpen / wlbOpen 都不动, 刷新照旧。 -->
+<div class="wfm abw" id="abw" role="dialog" aria-modal="true" aria-labelledby="abw-t" aria-hidden="true">
+<div class="wfm-win abw-win">
+<button type="button" class="wfm-x" id="abw-x" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-info-circle" aria-hidden="true"></i><div><div class="wfm-t" id="abw-t">关于本机</div><div class="wfm-s">固件版本 · 硬件规格 · 无线 · 联网状态</div></div></div>
+<div class="abw-bd">
+<div class="cd cd-q">
+<div class="spec-wrap q-g">
+<div class="fw-banner"><i class="fas fa-shield-alt"></i><div class="fw-txt"><div class="fw-lbl">当前固件版本</div><div class="fw-val" id="f-fw">--</div></div><div class="fw-act" aria-live="polite"><a class="fw-new" id="fw-new" href="{{ '/cgi-bin/luci/admin/system/ota' }}" hidden title="发现新固件，点击前往在线更新"><b>NEW</b><span id="fw-new-v">新版本</span></a><button type="button" class="fw-chk" id="fw-chk" onclick="fwCheck()"><i class="fas fa-sync-alt" id="fw-chk-i"></i><span id="fw-chk-t">检查更新</span></button></div></div>
+<div class="q-sp"></div>
+<div class="feat">
+<div class="fc full fp"><div class="fc-i"><i class="fas fa-server"></i></div><div class="fc-c"><div class="fc-l">设备型号</div><div class="fc-v" id="f-model">--</div></div></div>
+<div class="fc full fpk lg-mtk"><div class="fc-i"><i class="fas fa-bolt"></i></div><div class="fc-c"><div class="fc-l">处理器</div><div class="fc-v" id="f-cpu">--</div></div></div>
+<div class="fc fo"><div class="fc-i"><i class="fas fa-cube"></i></div><div class="fc-c"><div class="fc-l">核心数</div><div class="fc-v" id="f-cores">--</div></div></div>
+<div class="fc fcy"><div class="fc-i"><i class="fas fa-terminal"></i></div><div class="fc-c"><div class="fc-l">内核版本</div><div class="fc-v" id="f-kernel">--</div></div></div>
+<div class="fc fcy full"><div class="fc-i"><i class="fas fa-tag"></i></div><div class="fc-c"><div class="fc-l">主机名</div><div class="fc-v" id="f-host">--</div></div></div>
+</div><div class="feat" id="wifi-wrap">
+<div class="fc fb has-edit"><div class="fc-i"><i class="fas fa-wifi"></i></div><div class="fc-c"><div class="fc-l">2.4G 无线网络</div><div class="fc-v" id="f-wifi24">--</div></div><button type="button" class="fc-edit" data-band="2g" onclick="wfmOpen('2g')" title="修改 2.4G 无线设置" aria-label="修改 2.4G 无线设置"><i class="fas fa-pen"></i></button></div>
+<div class="fc fp has-edit"><div class="fc-i"><i class="fas fa-wifi"></i></div><div class="fc-c"><div class="fc-l">5G 无线网络</div><div class="fc-v" id="f-wifi5">--</div></div><button type="button" class="fc-edit" data-band="5g" onclick="wfmOpen('5g')" title="修改 5G 无线设置" aria-label="修改 5G 无线设置"><i class="fas fa-pen"></i></button></div>
+</div><div class="q-bt"><button type="button" class="sp-act" id="wlb-btn" onclick="wlbOpen()" title="无线网桥 · 桥接上游 WiFi"><i class="fas fa-link"></i><span id="wlb-btn-t">无线网桥</span></button></div>
+<div class="q-sp"></div>
+<div class="chs">
+<div class="ch"><div class="ch-ic w"><i class="fas fa-ethernet"></i></div><div><div class="ch-n">有线联网</div><div class="ch-s off" id="ch-w">--</div></div><div class="ch-d off" id="ch-w-d"></div></div>
+<div class="ch"><div class="ch-ic c"><i class="fas fa-satellite-dish"></i></div><div><div class="ch-n">蜂窝联网</div><div class="ch-s off" id="ch-c">--</div></div><div class="ch-d off" id="ch-c-d"></div></div>
+</div>
+<div class="kv">
+<div class="ir"><span class="ik">当前网关</span><span class="iv" id="gw-v">--</span></div>
+<div class="ir"><span class="ik">物理接口</span><span class="iv" id="if-v">--</span></div>
+</div>
+<span id="wlb-wan-badge" style="display:none"></span>
+<div class="chs">
+<div class="ch ch-sep"><div class="ch-ic"><i class="fas fa-plug"></i></div><div><div class="ch-n">连接状态</div><div class="ch-s on" id="f-wan">--</div></div><div class="ch-d off" id="f-wan-d"></div></div>
+<div class="ch ch-sep"><div class="ch-ic"><i class="fas fa-map-marker-alt"></i></div><div><div class="ch-n">公网地址</div><div class="ch-s" id="f-wanip" style="color:var(--t1)">--</div></div></div>
+</div>
+<div class="kv">
+<div class="ir"><span class="ik">接入协议</span><span class="iv" id="f-proto">--</span></div>
+<div class="ir"><span class="ik">在线时长</span><span class="iv" id="f-wtime">--</span></div>
+<div class="ir"><span class="ik">默认网关</span><span class="iv" id="f-gw">--</span></div>
+<div class="ir"><span class="ik">局域网地址</span><span class="iv" id="f-lan">--</span></div>
+<div class="ir"><span class="ik">DNS 服务器</span><span class="iv" id="f-dns">--</span></div>
+<div class="ir"><span class="ik">WAN 接口</span><span class="iv" id="f-wdev">--</span></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- WiFi 设置浮窗。放在规格卡后面而不是 .P 末尾: 它逻辑上属于无线那块,
+     position:fixed 之后在哪一层 DOM 都一样渲染。
+     role/aria-modal 让读屏软件知道这是对话框; aria-labelledby 指向标题。
+     点罩的空白处关闭(onclick 判断 e.target 就是罩本身), Esc 也关(见 JS)。 -->
+<div class="wfm" id="wfm" role="dialog" aria-modal="true" aria-labelledby="wfm-t" aria-hidden="true" onclick="if(event.target===this)wfmClose()">
+<div class="wfm-win">
+<button type="button" class="wfm-x" onclick="wfmClose()" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-wifi"></i><div><div class="wfm-t" id="wfm-t">无线设置</div><div class="wfm-s" id="wfm-sub">--</div></div></div>
+
+<div class="wfm-bd">
+<div class="wfm-c1">
+<div class="wfm-mg"><div><b>双频合一</b><span>2.4G 与 5G 使用同一个名称和密码</span></div><button type="button" class="wfm-sw" id="wfm-sw" role="switch" aria-checked="false" aria-label="双频合一" onclick="wfmMerge()"></button></div>
+<div class="wfm-tabs" id="wfm-tabs" hidden><button type="button" data-b="2g" onclick="wfmTab('2g')">2.4G</button><button type="button" data-b="5g" onclick="wfmTab('5g')">5G</button></div>
+<div class="wfm-mh" id="wfm-mh" hidden><i class="fas fa-link"></i><span>正在编辑<b>双频合一</b>: 这里的名称、密码和加密方式会同时应用到 2.4G 和 5G。</span></div>
+<div class="wfm-f"><label for="wfm-ssid">网络名称 · SSID</label>
+<input type="text" id="wfm-ssid" maxlength="32" autocomplete="off" spellcheck="false" placeholder="网络名称">
+<span class="wfm-hint">最多 32 字节(中文每字约 3 字节)</span></div>
+
+<div class="wfm-f"><label for="wfm-key">无线密码</label>
+<span class="wfm-pw"><input type="password" id="wfm-key" maxlength="63" autocomplete="new-password" spellcheck="false" placeholder="留空表示不修改"><button type="button" id="wfm-eye" onclick="wfmEye()" title="显示 / 隐藏密码" aria-label="显示或隐藏密码"><i class="fas fa-eye"></i></button></span>
+<span class="wfm-hint" id="wfm-kh">8 - 63 个字符。留空则保留原密码不变</span></div>
+
+<div class="wfm-f"><label for="wfm-enc">加密方式</label>
+<select id="wfm-enc" onchange="wfmEnc()">
+<option value="psk-mixed">WPA / WPA2 混合 (兼容性最好)</option>
+<option value="psk2">WPA2-PSK</option>
+<option value="sae-mixed">WPA2 / WPA3 混合</option>
+<option value="sae">WPA3-SAE (仅新设备)</option>
+<option value="none">不加密 (开放网络)</option>
+</select></div>
+
+</div>
+<div class="wfm-c2">
+<div class="wa" id="wa"><button type="button" class="wa-t" id="wa-t" aria-expanded="false" aria-controls="wa-b" onclick="waToggle()"><span><i class="fas fa-sliders-h" aria-hidden="true"></i>高级设置</span><i class="fas fa-chevron-down wa-c" aria-hidden="true"></i></button><div class="wa-b" id="wa-b" hidden><div class="wa-band" id="wa-band-2g" hidden><div class="wa-bh">2.4 GHz 射频</div><div class="wa-r"><div class="wa-l"><label for="wa-ht-2g">模式与带宽</label><small>带宽越大速度越快, 越容易受邻居干扰</small></div><select id="wa-ht-2g"></select></div><div class="wa-r"><div class="wa-l"><label for="wa-ch-2g">信道</label><small>选「自动」由路由器避开干扰</small></div><select id="wa-ch-2g"></select></div><div class="wa-r"><div class="wa-l"><label for="wa-tx-2g">发射功率</label><small>调低可减少对邻居的干扰, 覆盖范围也会变小</small></div><select id="wa-tx-2g"></select></div></div><div class="wa-band" id="wa-band-5g" hidden><div class="wa-bh">5 GHz 射频</div><div class="wa-r"><div class="wa-l"><label for="wa-ht-5g">模式与带宽</label><small>带宽越大速度越快, 越容易受邻居干扰</small></div><select id="wa-ht-5g"></select></div><div class="wa-r"><div class="wa-l"><label for="wa-ch-5g">信道</label><small>选「自动」由路由器避开干扰</small></div><select id="wa-ch-5g"></select></div><div class="wa-r"><div class="wa-l"><label for="wa-tx-5g">发射功率</label><small>调低可减少对邻居的干扰, 覆盖范围也会变小</small></div><select id="wa-tx-5g"></select></div></div><div class="wa-r"><div class="wa-l"><label>隐藏网络名称</label><small>开启后手机搜不到, 需手动输入名称才能连接; 可能影响漫游</small></div><button type="button" class="wfm-sw" id="wa-hid" role="switch" aria-checked="false" aria-label="隐藏网络名称" onclick="waSw('wa-hid')"></button></div><div class="wa-r"><div class="wa-l"><label>终端隔离</label><small>同一无线下的设备之间不能互相访问</small></div><button type="button" class="wfm-sw" id="wa-iso" role="switch" aria-checked="false" aria-label="终端隔离" onclick="waSw('wa-iso')"></button></div></div></div>
+</div>
+<div class="wfm-warn"><i class="fas fa-exclamation-triangle"></i><span id="wfm-warn-t">保存后无线会重启, 已连接的设备需要重新接入。如果你正通过 WiFi 访问本页面, 连接会中断, 请改用新名称和密码重连。</span></div>
+
+</div>
+<div class="wfm-ft">
+<div class="wfm-act"><a class="wfm-adv" id="wfm-adv" data-u="{{ '/cgi-bin/luci/admin/network/wireless' }}" href="{{ '/cgi-bin/luci/admin/network/wireless' }}" title="跳到「网络 → 无线」页, 打开该频段的完整设置"><i class="fas fa-sliders-h" aria-hidden="true"></i>专家设置</a><button type="button" onclick="wfmClose()">取消</button><button type="button" class="pri" id="wfm-ok" onclick="wfmSave()"><i class="fas fa-check"></i> 保存并应用</button></div>
+</div>
+</div>
+</div>
+
+<!-- s111 第2项: 网口卡片上的 WAN / LAN 设置浮窗(沿用 wfm 浮窗壳; 样式见 .pc-win) -->
+<div class="wfm" id="pcw" role="dialog" aria-modal="true" aria-labelledby="pcw-t" aria-hidden="true" onclick="if(event.target===this)pcClose('w')">
+<div class="wfm-win pc-win" id="pcw-win">
+<button type="button" class="wfm-x" onclick="pcClose('w')" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="pc-main">
+<div class="wfm-hd"><i class="fas fa-globe"></i><div><div class="wfm-t" id="pcw-t">WAN 口设置</div><div class="wfm-s" id="pcw-sub">--</div></div></div>
+<div class="wfm-tabs" role="radiogroup" aria-label="上网方式"><button type="button" data-p="dhcp" onclick="pcProto('dhcp')">DHCP</button><button type="button" data-p="pppoe" onclick="pcProto('pppoe')">宽带拨号</button><button type="button" data-p="static" onclick="pcProto('static')">静态 IP</button></div>
+<div class="pc-pd" id="pcw-pd"></div>
+<div id="pcw-f-pppoe" hidden>
+<div class="wfm-f"><label for="pcw-user">宽带账号</label><input type="text" id="pcw-user" maxlength="128" autocomplete="off" spellcheck="false" placeholder="运营商提供的宽带账号"></div>
+<div class="wfm-f"><label for="pcw-pass">宽带密码</label><span class="wfm-pw"><input type="password" id="pcw-pass" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="请输入宽带密码"><button type="button" id="pcw-eye" onclick="pcEye()" title="显示 / 隐藏密码" aria-label="显示或隐藏密码"><i class="fas fa-eye"></i></button></span></div>
+</div>
+<div id="pcw-f-static" class="pc-g" hidden>
+<div class="wfm-f"><label for="pcw-ip">IP 地址</label><input type="text" id="pcw-ip" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="例如 192.168.1.10"></div>
+<div class="wfm-f"><label for="pcw-mask">子网掩码</label><input type="text" id="pcw-mask" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="255.255.255.0"></div>
+<div class="wfm-f"><label for="pcw-gw">网关</label><input type="text" id="pcw-gw" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="例如 192.168.1.1"></div>
+<div class="wfm-f"><label for="pcw-dns">DNS 服务器</label><input type="text" id="pcw-dns" autocomplete="off" spellcheck="false" placeholder="多个用空格隔开"></div>
+</div>
+<div class="wfm-warn"><i class="fas fa-exclamation-triangle"></i><span>保存后网络会重新加载，约 10 秒内可能短暂断网；通过有线 WAN 以外的方式访问本页面不受影响。</span></div>
+<div class="pc-err" id="pcw-err" role="alert"><i class="fas fa-exclamation-circle"></i><span id="pcw-err-t"></span></div>
+<div class="wfm-act"><button type="button" onclick="pcClose('w')">取消</button><button type="button" class="pri" id="pcw-ok" onclick="pcWanSave()" disabled><i class="fas fa-check"></i> 保存并应用</button></div>
+</div>
+<div class="pc-ok" aria-live="polite"><i class="fas fa-check"></i><b>上网设置已保存</b><span id="pcw-done-t"></span><div class="wfm-act"><button type="button" class="pri" onclick="pcClose('w')">完成</button></div></div>
+</div>
+</div>
+
+<div class="wfm" id="pcl" role="dialog" aria-modal="true" aria-labelledby="pcl-t" aria-hidden="true" onclick="if(event.target===this)pcClose('l')">
+<div class="wfm-win pc-win" id="pcl-win">
+<button type="button" class="wfm-x" onclick="pcClose('l')" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="pc-main">
+<div class="wfm-hd"><i class="fas fa-sitemap"></i><div><div class="wfm-t" id="pcl-t">LAN 口设置</div><div class="wfm-s" id="pcl-sub">--</div></div></div>
+<div class="pc-g">
+<div class="wfm-f"><label for="pcl-ip">路由器 IP 地址</label><input type="text" id="pcl-ip" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="192.168.88.1" oninput="pcLanSync()"></div>
+<div class="wfm-f"><label for="pcl-mask">子网掩码</label><input type="text" id="pcl-mask" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="255.255.255.0" oninput="pcLanSync()"></div>
+</div>
+<div class="wfm-mg"><div><b>DHCP 服务器</b><span>自动给局域网设备分配 IP 地址</span></div><button type="button" class="wfm-sw" id="pcl-sw" role="switch" aria-checked="true" aria-label="DHCP 服务器" onclick="pcDhcp()"></button></div>
+<div id="pcl-dh">
+<div class="pc-g">
+<div class="wfm-f"><label for="pcl-start">起始地址（最后一段）</label><input type="text" id="pcl-start" inputmode="numeric" autocomplete="off" oninput="pcLanSync()"></div>
+<div class="wfm-f"><label for="pcl-limit">地址数量</label><input type="text" id="pcl-limit" inputmode="numeric" autocomplete="off" oninput="pcLanSync()"></div>
+</div>
+<div class="pc-rng" id="pcl-rng"></div>
+<div class="wfm-f"><label for="pcl-lease">租期</label><select id="pcl-lease"><option value="30m">30 分钟</option><option value="1h">1 小时</option><option value="2h">2 小时</option><option value="6h">6 小时</option><option value="12h">12 小时</option><option value="24h">24 小时</option><option value="3d">3 天</option><option value="7d">7 天</option></select></div>
+</div>
+<div class="wfm-warn"><i class="fas fa-exclamation-triangle"></i><span id="pcl-warn-t">保存后局域网会重新加载，已连接的设备需要重新获取地址。</span></div>
+<div class="pc-err" id="pcl-err" role="alert"><i class="fas fa-exclamation-circle"></i><span id="pcl-err-t"></span></div>
+<div class="wfm-act"><button type="button" onclick="pcClose('l')">取消</button><button type="button" class="pri" id="pcl-ok" onclick="pcLanSave()" disabled><i class="fas fa-check"></i> 保存并应用</button></div>
+</div>
+<div class="pc-ok" aria-live="polite"><i class="fas fa-check"></i><b>局域网设置已保存</b><span id="pcl-done-t"></span><div class="wfm-act"><button type="button" class="pri" id="pcl-done-b" onclick="pcClose('l')">完成</button></div></div>
+</div>
+</div>
+
+<!-- s63 第2项: 载波聚合浮窗。点首屏「频段 Band」卡弹出, 内容 = 载波聚合卡的
+     ca-hd + ca-grid(cxCaHtml(true) 生成)。壳子复用 .wfm 那套 fixed 罩, 但窗体更宽
+     (ca-grid 要容 260px 的载波卡), 单独一套 class(caw / caw-win)免得和 WiFi 窗相互干扰。 -->
+<div class="wfm caw" id="caw" role="dialog" aria-modal="true" aria-labelledby="caw-t" aria-hidden="true" onclick="if(event.target===this)caClose()">
+<div class="wfm-win caw-win">
+<button type="button" class="wfm-x" onclick="caClose()" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-layer-group"></i><div><div class="wfm-t" id="caw-t">载波聚合 · CA</div><div class="wfm-s">各成分载波的频段 · 带宽 · 频点</div></div></div>
+<div class="caw-body" id="caw-body"><div class="caw-empty"><i class="fas fa-circle-notch fa-spin"></i><span>读取中…</span></div></div>
+</div>
+</div>
+
+<!-- s87 蜂窝模组详情弹窗: gauges 区右侧面板的按钮点开, 内容 = #mrt-sec 里对应那张卡的克隆(MX 脚本维护) -->
+<div class="wfm caw mxm" id="mxm" role="dialog" aria-modal="true" aria-labelledby="mxm-t" aria-hidden="true" onclick="if(event.target===this)MX.close()">
+<div class="wfm-win caw-win mxm-win">
+<button type="button" class="wfm-x" onclick="MX.close()" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-microchip" id="mxm-i"></i><div><div class="wfm-t" id="mxm-t">蜂窝模组</div><div class="wfm-s" id="mxm-s"></div></div></div>
+<div class="caw-body mxm-b" id="mxm-b"></div>
+</div>
+</div>
+
+<!-- s63 第1项: 卡槽快速切换浮窗 -->
+<div class="wfm caw sim" id="sim" role="dialog" aria-modal="true" aria-labelledby="sim-t" aria-hidden="true" onclick="if(event.target===this)simClose()">
+<div class="wfm-win sim-win">
+<button type="button" class="wfm-x" onclick="simClose()" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-sim-card"></i><div><div class="wfm-t" id="sim-t">切换卡槽</div><div class="wfm-s" id="sim-sub">读取可用卡槽…</div></div></div>
+<div class="caw-body" id="sim-body"><div class="caw-empty"><i class="fas fa-circle-notch fa-spin"></i><span>读取中…</span></div></div>
+<div class="wfm-warn"><i class="fas fa-exclamation-triangle"></i><span>切换卡槽需要重启模组, 约 30 秒内会短暂断网; 期间请勿断电或拔卡。</span></div>
+</div>
+</div>
+
+<!-- s63 无线网桥浮窗: 两步(扫描列表 → 加入表单) -->
+<div class="wfm caw wlb" id="wlb" role="dialog" aria-modal="true" aria-labelledby="wlb-t" aria-hidden="true" onclick="if(event.target===this)wlbClose()">
+<div class="wfm-win wlb-win">
+<button type="button" class="wfm-x" onclick="wlbClose()" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-link"></i><div><div class="wfm-t" id="wlb-t">无线网桥</div><div class="wfm-s" id="wlb-sub">扫描并桥接上游 WiFi</div></div></div>
+<div id="wlb-body"><div class="caw-empty"><i class="fas fa-circle-notch fa-spin"></i><span>读取中…</span></div></div>
+</div>
+</div>
+
+<!-- s64: 智能 HQoS 配置浮窗已撤除(驱动未接通队列绑定, 等 SDK 后再放开) -->
+
+{% if (screen_ok && dev_model == 'E87N') %}
+<!-- s111 E87N: 点整机图上的屏幕弹出; 实时预览(428x142)和屏幕控制合在一起, 原来页面下方的"屏幕控制"卡片并入这里 -->
+<div class="wfm caw scrm" id="scrm" role="dialog" aria-modal="true" aria-labelledby="scrm-t" aria-hidden="true">
+<div class="wfm-win scrm-win" id="scr-card">
+<button type="button" class="wfm-x" id="scrm-x" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
+<div class="wfm-hd"><i class="fas fa-tv"></i><div class="wfm-t" id="scrm-t">屏幕</div></div>
+<div class="scrm-bd">
+<div class="scrm-bz"><div class="scrm-pv"><img id="scrm-img" alt="屏幕实时预览" style="display:none"><div id="scrm-ph" class="scrm-ph"><i class="fas fa-desktop"></i></div></div></div>
+<div class="scrm-cap"><span class="scrm-live"><i></i><span id="scr-mode">Mwrt面板</span></span><span>428×142</span></div>
+<div class="scr-ctrl">
+<button type="button" class="sc-btn" id="sc-mwrt" onclick="scrSet(5,'Mwrt面板')"><i class="fas fa-tachometer-alt"></i>面板</button>
+<button type="button" class="sc-btn" id="sc-text" onclick="scrSet(6,'文本显示')"><i class="fas fa-font"></i>文本</button>
+<button type="button" class="sc-btn" id="sc-api" onclick="scrSet(7,'API模式')"><i class="fas fa-code"></i>API</button>
+<button type="button" class="sc-btn" id="sc-media" onclick="scrSet(8,'图片视频')"><i class="fas fa-image"></i>媒体</button>
+<button type="button" class="sc-btn" id="sc-cell" onclick="scrSet(9,'蜂窝信息')"><i class="fas fa-signal"></i>蜂窝</button>
+</div>
+<div class="scr-slider" id="scr-slider-wrap"><i class="fas fa-sun" aria-hidden="true"></i>
+<div class="slider-track"><input type="range" min="0" max="100" value="72" id="scr-range" aria-label="屏幕亮度" style="--pct:72%" oninput="scrDim(this.value);this.style.setProperty('--pct',this.value+'%');document.getElementById('scr-bright').textContent=this.value+'%';document.getElementById('scr-range-val').textContent=this.value+'%'" onchange="scrBright(this.value)"></div>
+<span class="fs-val" id="scr-range-val">72%</span>
+</div>
+<span class="scrm-hid"><span id="scr-bright">72%</span><span id="scr-status">运行中</span></span>
+<a class="scrm-adv" href="/cgi-bin/luci/admin/system/display">高级显示设置 <i class="fas fa-angle-right"></i></a>
+</div>
+</div>
+</div>
+{% else if (screen_ok) %}
+<!-- Screen Control -->
+<div class="scr-card" id="scr-card">
+<div class="scr-top">
+<div class="scr-icon"><i class="fas fa-tv"></i><span class="scr-pulse"></span></div>
+<div class="scr-meta">
+<div class="sm-title">屏幕控制</div>
+<div class="sm-sub">NV3007 · 428×142 · RGB565</div>
+</div>
+</div>
+<div class="scr-stats">
+<div class="scr-stat"><div class="ss-v" id="scr-mode">Mwrt面板</div><div class="ss-l">当前模式</div></div>
+<div class="scr-stat"><div class="ss-v" id="scr-bright">72%</div><div class="ss-l">亮度</div></div>
+<div class="scr-stat"><div class="ss-v" id="scr-status">运行中</div><div class="ss-l">状态</div></div>
+</div>
+<div class="scr-ctrl">
+<button class="sc-btn" id="sc-mwrt" onclick="scrSet(5,'Mwrt面板')"><i class="fas fa-tachometer-alt"></i> 面板</button>
+<button class="sc-btn" id="sc-text" onclick="scrSet(6,'文本显示')"><i class="fas fa-font"></i> 文本</button>
+<button class="sc-btn" id="sc-api" onclick="scrSet(7,'API模式')"><i class="fas fa-code"></i> API</button>
+<button class="sc-btn" id="sc-media" onclick="scrSet(8,'图片视频')"><i class="fas fa-image"></i> 媒体</button>
+<button class="sc-btn" id="sc-cell" onclick="scrSet(9,'蜂窝信息')"><i class="fas fa-signal"></i> 蜂窝</button>
+<a class="sc-btn" href="/cgi-bin/luci/admin/system/display"><i class="fas fa-sliders-h"></i> 高级</a>
+</div>
+<div class="scr-slider" id="scr-slider-wrap">
+<label><i class="fas fa-sun"></i> 亮度</label>
+<div class="slider-track"><input type="range" min="0" max="100" value="72" id="scr-range" oninput="document.getElementById('scr-bright').textContent=this.value+'%'" onchange="scrBright(this.value)"></div>
+<span class="fs-val" id="scr-range-val">72%</span>
+</div>
+</div>
+
+{% endif %}
+
+<!-- Traffic stats removed, now in chart card -->
+
+<div id="mrt-sec"></div>
+<div class="toast" id="mrt-toast"></div>
+</div>
+
+{% if (dev_model == 'MAX') %}
+
+{% endif %}
+{#
+	原模板的 14 段 <script> 全部内联在 body 各处（合计 308 KB），这里合并成外部文件、
+	统一放到 body 末尾。安全性依据：实测这 14 段全部位于 body 内（原模板无 </head>），
+	且都在各自依赖的 DOM 之后定义函数；移到末尾时 DOM 已完全就绪，内联事件处理器
+	（onclick 等）要到用户交互时才调用，因此不会出现「函数未定义」。
+	加载顺序有依赖，不可调整：
+	  topo-art -> topo      拓扑（art 是绘制库）
+	  cat-art  -> catcage   猫（art 是绘制库）
+	  home                  主逻辑，必须最后
+#}
+<script src="/luci-static/resources/mwrt-topo-art.js?v={{ _sz('mwrt-topo-art.js') }}"></script>
+<script src="/luci-static/resources/mwrt-topo.js?v={{ _sz('mwrt-topo.js') }}"></script>
+<script src="/luci-static/resources/mwrt-cat-art.js?v={{ _sz('mwrt-cat-art.js') }}"></script>
+<script src="/luci-static/resources/mwrt-catcage.js?v={{ _sz('mwrt-catcage.js') }}"></script>
+<script src="/luci-static/resources/mwrt-notice.js?v={{ _sz('mwrt-notice.js') }}"></script>
+<script src="/luci-static/resources/mwrt-portsw.js?v={{ _sz('mwrt-portsw.js') }}"></script>
+<script src="/luci-static/resources/mwrt-wizard-launch.js?v={{ _sz('mwrt-wizard-launch.js') }}"></script>
+<script src="/luci-static/resources/mwrt-home.js?v={{ _sz('mwrt-home.js') }}"></script>
+{% include('footer', {}) %}
+

@@ -1,0 +1,311 @@
+{
+ "admin/modeminfo": {
+  "title": "首页",
+  "order": 2,
+  "action": {
+   "type": "template",
+   "path": "udx_home/index"
+  }
+ },
+ "admin/fancontrol/devinfo": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_devinfo"
+  }
+ },
+ "admin/fancontrol/devpop": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_devpop"
+  }
+ },
+ "admin/fancontrol/memfree": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_memfree"
+  }
+ },
+ "admin/fancontrol/modem_ctrl": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_modem_ctrl"
+  }
+ },
+ "admin/modem/audio_state": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_state"
+  }
+ },
+ "admin/modem/audio_wave": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_wave"
+  }
+ },
+ "admin/modem/camframe": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_camframe"
+  }
+ },
+ "admin/modem/lan_get": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_lan_get"
+  }
+ },
+ "admin/modem/modem_present": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_modem_present"
+  }
+ },
+ "admin/modem/simslots": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_simslots"
+  }
+ },
+ "admin/modem/simstat": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_simstat"
+  }
+ },
+ "admin/modem/topo_data": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_topo_data"
+  }
+ },
+ "admin/modem/wan_get": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wan_get"
+  }
+ },
+ "admin/modem/wifi_get": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wifi_get"
+  }
+ },
+ "admin/modem/wlbridge_status": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wlbridge_status"
+  }
+ },
+ "admin/modem/qmodem/get_modem_cfg": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_qmodem_get_modem_cfg"
+  }
+ },
+ "admin/modeminfo/cellx": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modeminfo_cellx"
+  }
+ },
+ "admin/display/status": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "display_status"
+  }
+ },
+ "admin/network/mwrt_assurance_status": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "network_mwrt_assurance_status"
+  }
+ },
+ "admin/fancontrol/fanswj": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_fanswj"
+  }
+ },
+ "admin/modem/audio_ctl": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_ctl"
+  }
+ },
+ "admin/modem/audio_del": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_del"
+  }
+ },
+ "admin/modem/audio_mic": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_mic"
+  }
+ },
+ "admin/modem/audio_mute": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_mute"
+  }
+ },
+ "admin/modem/audio_play": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_play"
+  }
+ },
+ "admin/modem/audio_upload": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_upload"
+  }
+ },
+ "admin/modem/audio_vol": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_audio_vol"
+  }
+ },
+ "admin/modem/camstart": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_camstart"
+  }
+ },
+ "admin/modem/camstop": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_camstop"
+  }
+ },
+ "admin/modem/lan_set": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_lan_set"
+  }
+ },
+ "admin/modem/simset": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_simset"
+  }
+ },
+ "admin/modem/wan_set": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wan_set"
+  }
+ },
+ "admin/modem/wifi_set": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wifi_set"
+  }
+ },
+ "admin/modem/wlbridge_join": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wlbridge_join"
+  }
+ },
+ "admin/modem/wlbridge_leave": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wlbridge_leave"
+  }
+ },
+ "admin/modem/wlbridge_scan": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_wlbridge_scan"
+  }
+ },
+ "admin/display/set_screen": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "display_set_screen"
+  }
+ },
+ "admin/display/set_brightness": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "display_set_brightness"
+  }
+ },
+ "admin/display/screenshot": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "display_screenshot"
+  }
+ },
+ "admin/fancontrol/*": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_wildcard"
+  }
+ },
+ "admin/mwrtrepair/*": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "mwrtrepair_wildcard"
+  }
+ },
+ "admin/fancontrol/devimg_upload/*": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "devimg_upload"
+  }
+ },
+ "admin/fancontrol/devimg_reset/*": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "devimg_reset"
+  }
+ }
+}
