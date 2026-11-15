@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# Register and activate the Mwrt theme on a fresh install only.
+# Upgrades (PKG_UPGRADE=1) skip the whole uci batch, so the theme the
+# user picked is never overwritten on upgrade.
+#
+# Named 99_ on purpose, not 30_ like the other two themes. /etc/uci-defaults
+# scripts all run unconditionally at first boot and are then deleted; they set
+# luci.main.mediaurlbase and the last one to run wins. Execution order there is
+# plain dictionary order, so 30_luci-theme-aurora < 30_luci-theme-mwrt <
+# 30_luci-theme-outline -- outline would land last and a freshly flashed box
+# would still boot into outline, defeating the point of shipping this theme.
+# 99_ puts us after all three 30_ scripts (and after 99-sy108-ports, since
+# '-' sorts before '_'). Verified against the real image: run #72's rootfs
+# listed the three theme scripts as entries 11/12/13 in that exact order.
+if [ "$PKG_UPGRADE" != 1 ]; then
+	uci batch <<-EOF
+		set luci.themes.Mwrt=/luci-static/mwrt
+		set luci.main.mediaurlbase=/luci-static/mwrt
+		set mwrt.theme.nav_type=sidebar
+		set mwrt.theme.toolbar_enabled=0
+		set mwrt.theme.logo_svg=logo.svg
+		set mwrt.theme.favicon_ico=favicon.ico
+		set mwrt.theme.pwa_apple_touch=apple-touch-icon.png
+		set mwrt.theme.icon_cache_version=1
+		commit luci
+		commit mwrt
+	EOF
+fi
+
+exit 0

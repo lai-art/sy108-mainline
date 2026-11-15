@@ -11,7 +11,7 @@ packages/luci-theme-mwrt/
 ├── FEATURES.md                      16 个 mwrt 功能的移植状态表
 └── root/
     ├── etc/uci-defaults/
-    │   └── 30_luci-theme-mwrt       注册主题 + mediaurlbase
+    │   └── 99_luci-theme-mwrt       注册主题 + mediaurlbase
     ├── usr/share/ucode/luci/template/themes/mwrt/
     │   ├── header.ut                580 行，全站头模板（含静态资源接线）
     │   ├── footer.ut                页脚 / 菜单渲染
@@ -34,7 +34,8 @@ packages/luci-theme-mwrt/
 ```
 
 - `Makefile`：`PKG_NAME=luci-theme-mwrt`、`PKG_VERSION=1.0.0`；`DEPENDS` 与 `packages/luci-theme-aurora/Makefile:18` 一致，另加 `ucode-mod-fs`（header.ut 用 `readfile`/`lsdir`）与 `jsonfilter`。本包无 po 翻译文件，故不含 `po2lmo` 段。
-- `root/etc/uci-defaults/30_luci-theme-mwrt`：首次安装时注册 `luci.themes.Mwrt=/luci-static/mwrt` 与 `luci.main.mediaurlbase=/luci-static/mwrt`；`PKG_UPGRADE=1` 时整段跳过，不覆盖用户已选主题。
+- `root/etc/uci-defaults/99_luci-theme-mwrt`：首次安装时注册 `luci.themes.Mwrt=/luci-static/mwrt` 与 `luci.main.mediaurlbase=/luci-static/mwrt`，并写入 6 项 `mwrt.theme.*` 默认值；`PKG_UPGRADE=1` 时整段跳过，不覆盖用户已选主题。
+  **必须用 `99_` 前缀，不能改成 `30_`**：`/etc/uci-defaults/` 的脚本在首启时按**字典序**依次执行、执行完即删除，三个主题都写 `luci.main.mediaurlbase`，**最后执行的赢**。用 `30_` 时顺序是 `30_luci-theme-aurora` < `30_luci-theme-mwrt` < `30_luci-theme-outline`，outline 会盖掉 mwrt，新刷的机器开机还是 outline。`99_` 排在全部 `30_` 之后（也排在 `99-sy108-ports` 之后，因为 `-`(0x2D) < `_`(0x5F)）。此结论经 run #72 的 rootfs 实测验证：三个主题脚本确实位于第 11/12/13 条，顺序如上述。
 - `README.md`：本文件。
 
 ## 2. 构建系统如何扫描到本包（已核实，非推测）
