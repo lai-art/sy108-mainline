@@ -11,6 +11,19 @@ include $(INCLUDE_DIR)/package.mk
 
 Build/Prepare = $(call SY108/Prepare,$(PKG_BUILD_DIR))
 
+# Empty on purpose — do NOT delete this block.
+#
+# include/package.mk ships a default Build/Compile that runs
+#   $(MAKE) -C $(PKG_BUILD_DIR)/
+# This package is pure resources (ucode templates + css/js); SY108/Prepare lays
+# the sources out under $(PKG_BUILD_DIR)/packages/luci-theme-mwrt/ and leaves no
+# Makefile at the root of $(PKG_BUILD_DIR). Without this override make dies with
+# "No targets specified and no makefile found", which is exactly how run #71
+# failed. The other two themes in this repo (aurora, outline) never hit it
+# because their po/ directories force a real Build/Compile (po2lmo).
+define Build/Compile
+endef
+
 define Package/luci-theme-mwrt
   SECTION:=luci
   CATEGORY:=LuCI
