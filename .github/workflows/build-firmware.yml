@@ -121,6 +121,29 @@ jobs:
             echo "target patches unchanged: reusing the prepared kernel tree"
           fi
 
+      # ucode 语法门禁 —— 这个包已经因为语法问题翻车两次（run #71/#74），
+      # 两次都是"能打包、能刷机、打开页面才 500"，靠真机才发现。
+      # 这两条规则在目标机上实测过，写错必然编译失败或运行时抛错：
+      #   1. 模板块标签：if/elif/for 必须带冒号；else/endif 不能带冒号；
+      #      不支持 elseif，也不支持 else if（必须 elif）。
+      #   2. ucode 的数组没有 JS 那套方法（.push/.map/.filter/.forEach…），
+      #      追加要用 push(arr, x)。写成 arr.push(x) 会报
+      #      "Type error: left-hand side is not a function"，而且是运行时错，
+      #      编译期查不出来。
+      - name: Lint ucode templates and controllers
+        run: |
+          files=$(find packages -path '*udx_home/index.ut' -o -name 'udx_home.uc' 2>/dev/null | tr '\n' ' ')
+          if [ -z "$files" ]; then
+            echo "::error::no ucode files found under packages/"
+            exit 1
+          fi
+          echo "checking: $files"
+          if grep -nE '\{%[[:space:]]*(if|elif|elseif|for)[[:space:]]*\([^%]*\)[[:space:]]*%\}|\{%[[:space:]]*else[[:space:]]*:[[:space:]]*%\}|\{%[[:space:]]*else[[:space:]]+if|\{%[[:space:]]*elseif|[A-Za-z_][A-Za-z0-9_]*\.(push|pop|shift|unshift|forEach|filter|map|join|slice|splice)\(' $files; then
+            echo "::error::ucode syntax gate failed (lines above)"
+            exit 1
+          fi
+          echo "ucode syntax gate: clean"
+
       - name: Bootstrap build tree
         run: |
           python3 tools/bootstrap.py

@@ -91,7 +91,7 @@
 <button type="button" class="dv-aplay" id="dv-aplay" hidden title="正在播放，点击打开音乐播放器" aria-label="音乐正在播放，点击打开音乐播放器"><span class="ap-row"><span class="ap-eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="ap-tx" id="dv-aplay-t">正在播放</span></span></button>
 {% if (dev_model == 'E87N'): %}<div class="dv-flip" id="dv-flip" data-v="f" role="group" aria-label="切换正面和背面视图"><span class="dv-flip-th" aria-hidden="true"></span><button type="button" data-v="f" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>正面</button><button type="button" data-v="b" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11v2M11 11v2M15 11v2"/></svg>背面</button></div>{% endif %}<div class="dv-shot"><span class="dv-floor" aria-hidden="true"></span><canvas class="dv-wvbg" id="dv-wvbg" data-w="out" aria-hidden="true"></canvas><span class="dv-wvp" id="dv-wvp" aria-hidden="true"></span><img id="dv-img" src="{{ dev_img }}" alt="{{ entityencode(dev_name, true) }}" onerror="this.style.display='none'">{% if (dev_model == 'E87N'): %}<div class="dv-scrw" id="dv-scrw"><div class="dv-scr" id="dv-scr" title="点击放大预览并控制屏幕"><img id="mp-screen-img" alt="" style="display:none"><div id="mp-screen-ph" class="mp-ph"><i class="fas fa-desktop"></i></div></div></div><img id="dv-img-b" src="/luci-static/router3d/e87n_b.png?v=s111f" alt="" aria-hidden="true">{% endif %}<div class="dv-pts" id="dv-pts"></div></div>
 
-<div class="dv-name" id="dv-name">{% if (dv_b): %}<span class="dv-brand">{{ entityencode(dv_b, true) }}</span>{{ entityencode(dv_m, true) }}{% else: %}{{ entityencode(dev_name, true) }}{% endif %}</div>
+<div class="dv-name" id="dv-name">{% if (dv_b): %}<span class="dv-brand">{{ entityencode(dv_b, true) }}</span>{{ entityencode(dv_m, true) }}{% else %}{{ entityencode(dev_name, true) }}{% endif %}</div>
 <div class="dv-tf" role="group" aria-label="实时流量">
 <div class="tf-v"><span class="tf-p tf-dn" title="下行"><svg class="tf-a" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5v7M2 5.8l3 3 3-3"/></svg><b id="cv-rx">0</b><em id="cv-rxu">KB/s</em></span><span class="tf-p tf-up" title="上行"><svg class="tf-a" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5v-7M2 4.2l3-3 3 3"/></svg><b id="cv-tx">0</b><em id="cv-txu">KB/s</em></span></div>
 <div class="tf-c"><canvas id="traffic-canvas"></canvas></div>
@@ -528,7 +528,7 @@
 </div>
 </div>
 </div>
-{% elseif (screen_ok): %}
+{% elif (screen_ok): %}
 <!-- Screen Control -->
 <div class="scr-card" id="scr-card">
 <div class="scr-top">
