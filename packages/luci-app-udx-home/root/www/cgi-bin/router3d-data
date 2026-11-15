@@ -183,29 +183,50 @@ fi
 HASMOD=0
 [ -d /sys/class/net/wwan0 ] && HASMOD=1
 
+# --- sanitize ---------------------------------------------------------------
+# 任何一个数值字段为空，都会让 JSON 变成 "key":, 从而整条响应非法，
+# 前端直接判定请求失败。这里统一兜底，宁可给 0 也不能留空。
+fixnum() { case "$1" in ''|*[!0-9.-]*) printf '0';; *) printf '%s' "$1";; esac; }
+UPTIME=$(fixnum "$UPTIME")
+LOAD1=$(fixnum "$LOAD1")
+NCPU=$(fixnum "$NCPU")
+CPUMHZ=$(fixnum "$CPUMHZ")
+MEM_TOTAL=$(fixnum "$MEM_TOTAL")
+MEM_AVAIL=$(fixnum "$MEM_AVAIL")
+MEM_FREE=$(fixnum "$MEM_FREE")
+SWAP_TOTAL=$(fixnum "$SWAP_TOTAL")
+SWAP_FREE=$(fixnum "$SWAP_FREE")
+TEMP=$(fixnum "$TEMP")
+STOR_TOTAL=$(fixnum "$STOR_TOTAL")
+STOR_USED=$(fixnum "$STOR_USED")
+STOR_FREE=$(fixnum "$STOR_FREE")
+CLIENTS=$(fixnum "$CLIENTS")
+WANPFX=$(fixnum "$WANPFX")
+LANPFX=$(fixnum "$LANPFX")
+WRX=$(fixnum "$WRX")
+WTX=$(fixnum "$WTX")
+HASMOD=$(fixnum "$HASMOD")
+[ "$NCPU" -gt 0 ] 2>/dev/null || NCPU=1
+
 # --- emit ------------------------------------------------------------------
-printf '{'
-printf '"model":"%s",' "$MODEL"
-printf '"board":"%s",' "$(json_str "$BOARD")"
-printf '"firmware":"%s",' "$(json_str "$FW")"
-printf '"uptime":%s,' "$UPTIME"
-printf '"cpu":{"ncpu":%s,"load1":%s,"mhz":%s},' "$NCPU" "$LOAD1" "$CPUMHZ"
-printf '"memory":{"total":%s,"avail":%s,"free":%s,"swap_total":%s,"swap_free":%s},' \
-	"$MEM_TOTAL" "$MEM_AVAIL" "$MEM_FREE" "$SWAP_TOTAL" "$SWAP_FREE"
-printf '"temperature":%s,' "$TEMP"
-printf '"storage":{"used":%s,"total":%s,"free":%s},' "$STOR_USED" "$STOR_TOTAL" "$STOR_FREE"
-printf '"ports":[%s],' "$port_json"
-printf '"usb":[%s],' "$usb_json"
-printf '"clients":%s,' "$CLIENTS"
-printf '"conns":0,'
-printf '"wan_ip":"%s",' "$(json_str "$WANIP")"
-printf '"wan_pfx":%s,' "${WANPFX:-0}"
-printf '"wan_proto":"%s",' "$WANPROTO"
-printf '"wan_addr":"%s",' "$(json_str "$WANADDR")"
-printf '"lan_ip":"%s",' "$(json_str "$LANIP")"
-printf '"lan_pfx":%s,' "${LANPFX:-0}"
-printf '"wan_rx":%s,' "$WRX"
-printf '"wan_tx":%s,' "$WTX"
-printf '"egress":{"kind":"%s","dev":"%s","gw":"%s"},' "$EGK" "$(json_str "$TRDEV")" "$(json_str "$WANGW")"
-printf '"modem":{"present":%s,"modconf":""}' "$HASMOD"
-printf '}\n'
+# 字段名必须与 mwrt 原版逐字一致，前端 mwrt-home.js 是按这些键名取值的：
+#   mem / temp / fw / kernel 一旦写成 memory / temperature / firmware，
+#   前端拿到 undefined，界面就显示 0% / -- / 读不到。
+# 原版还有 wifi / wlb / aplay 三个对象，SY108 没有对应硬件，给安全空值，
+# 但键必须在，否则前端访问 d.wifi.gen 之类会抛异常。
+WIFI_JSON='{"gen":"","ssid":"","bands":[]}'
+WLB_JSON='{"bridged":false,"associated":false,"ssid":"","band":"","signal":null,"primary_on":false}'
+APLAY='null'
+
+KERNEL=$(uname -r 2>/dev/null)
+[ -n "$KERNEL" ] || KERNEL="--"
+
+printf '{"model":"%s","board":"%s","fw":"%s","kernel":"%s","uptime":%s,"cpu":{"load1":%s,"ncpu":%s},"mem":{"total":%s,"avail":%s},"temp":%s,"storage":{"total":%s,"used":%s},"clients":%s,"conns":%s,"wan_ip":"%s","wan_pfx":%s,"lan_ip":"%s","lan_pfx":%s,"wan_rx":%s,"wan_tx":%s,"ports":[%s],"usb":[%s],"egress":{"dev":"%s","kind":"%s","gw":"%s"},"wan_proto":"%s","wan_addr":"%s","modem":{"present":%s,"modconf":"%s","sim_sel":"%s","csq":%s},"wifi":%s,"wlb":%s,"aplay":%s}\n' \
+	"$(json_str "$MODEL")" "$(json_str "$BOARD")" "$(json_str "$FW")" "$(json_str "$KERNEL")" "$UPTIME" \
+	"$LOAD1" "$NCPU" "$MEM_TOTAL" "$MEM_AVAIL" "$TEMP" "$STOR_TOTAL" "$STOR_USED" \
+	"$CLIENTS" 0 \
+	"$(json_str "$WANIP")" "$WANPFX" "$(json_str "$LANIP")" "$LANPFX" "$WRX" "$WTX" \
+	"$port_json" "$usb_json" \
+	"$(json_str "$TRDEV")" "$EGK" "$(json_str "$WANGW")" "$WANPROTO" "$(json_str "$WANADDR")" \
+	"$HASMOD" "" "" 99 \
+	"$WIFI_JSON" "$WLB_JSON" "$APLAY"

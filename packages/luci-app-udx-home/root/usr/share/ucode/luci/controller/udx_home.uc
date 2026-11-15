@@ -22,7 +22,7 @@
  *   ubus network.interface dump                     WAN/LAN 地址、DNS、在线时长
  */
 
-import { readfile, writefile } from 'fs';
+import { readfile, writefile, lsdir } from 'fs';
 
 /* ---------- 小工具 ---------- */
 
@@ -54,18 +54,27 @@ function _dur(s) {
 }
 
 function _meminfo_kb(key) {
-	let m = match(_rd('/proc/meminfo'), new RegExp('^' + key + ':\\s+(\\d+)', 'm'));
-	return m ? _int(m[1], 0) : 0;
+	/* 不用 new RegExp(..., 'm')：ucode 的多行标志行为与 PCRE 不完全一致，
+	   而且 /proc/meminfo 的键顺序会随内核版本变。逐行比对最稳。 */
+	for (let line in split(_rd('/proc/meminfo'), '\n')) {
+		let m = match(line, /^([A-Za-z_()0-9]+):\s+(\d+)/);
+		if (m && m[1] == key) return _int(m[2], 0);
+	}
+	return 0;
 }
 
 function _temp_max() {
-	let max = 0;
-	for (let i = 0; i < 16; i++) {
-		let v = _int(_rd(sprintf('/sys/class/thermal/thermal_zone%d/temp', i)), 0);
+	/* 不用固定编号 0..15 遍历：真机 thermal_zone 编号不保证连续，
+	   而且 /sys/class/thermal 在部分内核里是符号链接，直接 lsdir 最稳。 */
+	let max = 0, seen = [];
+	for (let name in (lsdir('/sys/class/thermal') ?? [])) {
+		if (!match(name, /^thermal_zone\d+$/)) continue;
+		let v = _int(_rd('/sys/class/thermal/' + name + '/temp'), 0);
 		if (v > 1000) v = int(v / 1000);
+		seen.push(name + '=' + v);
 		if (v > max) max = v;
 	}
-	return max;
+	return { max: max, seen: seen };
 }
 
 function _cpu_cores() {
@@ -194,6 +203,7 @@ function devinfo() {
 		}
 	}
 
+	let tmp = _temp_max();
 	let mem_total = _meminfo_kb('MemTotal');
 	let mem_avail = _meminfo_kb('MemAvailable');
 	let swap_total = _meminfo_kb('SwapTotal');
@@ -209,6 +219,25 @@ function devinfo() {
 	let fwm = match(rel, /DISTRIB_DESCRIPTION='([^']*)'/);
 	let fwv = fwm ? fwm[1] : trim(_rd('/etc/openwrt_version'));
 	let kvm = match(_rd('/proc/version'), /Linux version (\S+)/);
+
+	/* 诊断快照：设备不在开发机网络里，出问题时靠这个文件定位，
+	   比让用户开 F12 看接口响应省事。每次 devinfo 调用覆盖一次。 */
+	try {
+		writefile('/tmp/udx-home-debug.json', sprintf('%J', {
+			ts: time(),
+			mem: { total: mem_total, avail: mem_avail, swap_total: swap_total, swap_free: swap_free,
+			       remain_pct: mem_remain_pct },
+			temp: { max: tmp.max, zones: tmp.seen },
+			cpu: { cores: cores, usage_total: usage.total, per_core: length(usage.cores), sample: usage.cores },
+			load1: load1,
+			wan: { up: wan_up, dev: wan_dev, proto: wan_proto, ip: wan_ip, gw: wan_gw,
+			       dns: dns, uptime: wan_uptime, route_cnt: length(wan?.route ?? []) },
+			lan_ip: lan_ip,
+			ifaces: map(_iface_list(), x => x?.interface),
+			traffic: { rx: rx, tx: tx },
+			rel: { fw: fwv, kvm: kvm ? kvm[1] : null }
+		}, '\n'));
+	} catch (e) { }
 
 	http.prepare_content('application/json; charset=UTF-8');
 	http.write_json({
@@ -250,7 +279,7 @@ function devinfo() {
 		},
 
 		'WiFi温度': null,
-		'设备温度': _temp_max(),
+		'设备温度': tmp.max,
 
 		/* SY108 无 PWM（CONFIG_PWM is not set）、无风扇。给 null 让前端风扇卡
 		   显示 "--"；滑块本身无效，属已知的「卡片留着但不可用」 */
@@ -268,9 +297,25 @@ function devinfo() {
 /* 每个 key 对应 menu.d 里的一条 "type":"function" 路由。
  * 名称规则：路径 admin/x/y -> x_y（斜杠换下划线）。 */
 
+/* mwrt 有两个页面 SY108 没有：设置向导（admin/system/mwrt_wizard）与 OTA
+   （admin/system/ota）。首页模板里的链接和历史书签会点到它们，不注册就是
+   整页 404。这里注册成重定向，落到 SY108 真实存在的页面上，比留个死链好。
+
+   - 向导 -> 首页（SY108 没有首次配置向导，配置都在「移动网络」六个页签里）
+   - OTA  -> 系统升级（LuCI 标准页 admin/system/flash） */
+function redirect_wizard() {
+	http.redirect(dispatcher.build_url('admin', 'modeminfo'));
+}
+
+function redirect_ota() {
+	http.redirect(dispatcher.build_url('admin', 'system', 'flash'));
+}
+
 return {
 	/* 已实现 */
 	fancontrol_devinfo: devinfo,
+	redirect_wizard: redirect_wizard,
+	redirect_ota: redirect_ota,
 
 	/* 只读，暂返回空对象 */
 	fancontrol_devpop: _empty,
