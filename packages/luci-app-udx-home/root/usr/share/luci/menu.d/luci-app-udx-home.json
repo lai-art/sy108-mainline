@@ -214,7 +214,8 @@
   "action": {
    "type": "function",
    "module": "luci.controller.udx_home",
-   "function": "modem_lan_set"
+   "function": "modem_lan_set",
+   "post": true
   }
  },
  "admin/modem/simset": {
@@ -228,7 +229,8 @@
   "action": {
    "type": "function",
    "module": "luci.controller.udx_home",
-   "function": "modem_wan_set"
+   "function": "modem_wan_set",
+   "post": true
   }
  },
  "admin/modem/wifi_set": {

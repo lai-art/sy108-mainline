@@ -48,6 +48,11 @@
  没有更早的插入点。
 #}
 <link rel="stylesheet" href="/luci-static/mwrt/mwrt-home.css">
+{# s131: 版式覆盖 —— mwrt-home.css 把 .P 限在 1200px 居中（宽屏两侧留白），
+     用户明确要求全宽。放在 link 之后, 同特异性下后出者胜, 再加 !important 兜底。 #}
+<style>
+html .P{max-width:none !important;}
+</style>
 
 <div class="P" id="P">
 
@@ -418,6 +423,19 @@
 <div class="wfm-hd"><i class="fas fa-globe"></i><div><div class="wfm-t" id="pcw-t">WAN 口设置</div><div class="wfm-s" id="pcw-sub">--</div></div></div>
 <div class="wfm-tabs" role="radiogroup" aria-label="上网方式"><button type="button" data-p="dhcp" onclick="pcProto('dhcp')">DHCP</button><button type="button" data-p="pppoe" onclick="pcProto('pppoe')">宽带拨号</button><button type="button" data-p="static" onclick="pcProto('static')">静态 IP</button></div>
 <div class="pc-pd" id="pcw-pd"></div>
+<!-- s130: WAN=蜂窝模组时的只读信息块（pcWanCell 填充, 拨号表单整体隐藏） -->
+<div id="pcw-cell" hidden>
+<div class="pc-g">
+<div class="wfm-f"><label>连接状态</label><span id="pcw-cell-state" style="align-self:center;font-weight:600">--</span></div>
+<div class="wfm-f"><label>运营商</label><span id="pcw-cell-op" style="align-self:center;font-weight:600">--</span></div>
+<div class="wfm-f"><label>网络</label><span id="pcw-cell-rat" style="align-self:center;font-weight:600">--</span></div>
+<div class="wfm-f"><label>接入点 (APN)</label><span id="pcw-cell-apn" style="align-self:center;font-weight:600">--</span></div>
+<div class="wfm-f"><label>信号 (RSRP)</label><span id="pcw-cell-rsrp" style="align-self:center;font-weight:600">--</span></div>
+<div class="wfm-f"><label>WAN 地址</label><span id="pcw-cell-ip" style="align-self:center;font-weight:600;font-family:monospace">--</span></div>
+</div>
+<div class="pc-pd">本机 WAN 是蜂窝模组（wwan0），由「移动网络」页管理；宽带拨号 / 静态 IP 不适用于这台设备。</div>
+<div class="wfm-act"><a class="wfm-adv" id="pcw-cell-go" href="{{ '/cgi-bin/luci/admin/udx/network' }}" title="APN、网络模式、频段与小区锁都在「移动网络」页"><i class="fas fa-tower-broadcast" aria-hidden="true"></i>前往移动网络</a><button type="button" onclick="pcClose('w')">关闭</button></div>
+</div>
 <div id="pcw-f-pppoe" hidden>
 <div class="wfm-f"><label for="pcw-user">宽带账号</label><input type="text" id="pcw-user" maxlength="128" autocomplete="off" spellcheck="false" placeholder="运营商提供的宽带账号"></div>
 <div class="wfm-f"><label for="pcw-pass">宽带密码</label><span class="wfm-pw"><input type="password" id="pcw-pass" maxlength="128" autocomplete="new-password" spellcheck="false" placeholder="请输入宽带密码"><button type="button" id="pcw-eye" onclick="pcEye()" title="显示 / 隐藏密码" aria-label="显示或隐藏密码"><i class="fas fa-eye"></i></button></span></div>
