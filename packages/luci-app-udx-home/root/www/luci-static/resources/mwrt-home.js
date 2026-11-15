@@ -663,14 +663,37 @@ function pcProto(p){
  wfmEl('pcw-f-pppoe').hidden=p!=='pppoe';
  wfmEl('pcw-f-static').hidden=p!=='static';
 }
+/* s130: WAN=蜂窝模组(wwan0)——没有 PPPoE/DHCP/静态可配, 弹窗改只读信息
+   + 「前往移动网络」, 不再进宽带拨号表单(在本机必然保存失败)。 */
+function pcWanCell(d,m){
+ var T=function(id,v){var e=wfmEl(id);if(e)e.textContent=(v==null||v==='')?'--':v;};
+ T('pcw-cell-state',d.state);T('pcw-cell-op',d.operator);
+ T('pcw-cell-rat',(d.rat||'--')+(d.band?' · band '+d.band:''));
+ T('pcw-cell-apn',d.apn);T('pcw-cell-ip',d.ip);
+ T('pcw-cell-rsrp',(d.rsrp!=null?Math.round(d.rsrp)+' dBm':'--'));
+ var cb=m.querySelector('#pcw-cell');if(cb)cb.hidden=false;
+ ['pcw-f-pppoe','pcw-f-static'].forEach(function(id){var e=wfmEl(id);if(e)e.hidden=true;});
+ var tabs=m.querySelector('.wfm-tabs');if(tabs)tabs.hidden=true;
+ var pd=wfmEl('pcw-pd');if(pd)pd.hidden=true;
+ var warn=m.querySelector('.pc-main .wfm-warn');if(warn)warn.hidden=true;
+ var ok=wfmEl('pcw-ok');if(ok){ok.disabled=true;ok.hidden=true;}
+ wfmEl('pcw-sub').textContent=(d.device||'wwan0')+' · '+(d.state||'蜂窝');
+}
 function pcWanOpen(){
  var m=pcOpenBox('w');if(!m)return;
+ /* 重置蜂窝信息块与被隐藏的表单区（上次打开可能进过蜂窝分支） */
+ var cb0=m.querySelector('#pcw-cell');if(cb0)cb0.hidden=true;
+ var tabs0=m.querySelector('.wfm-tabs');if(tabs0)tabs0.hidden=false;
+ var pd0=wfmEl('pcw-pd');if(pd0)pd0.hidden=false;
+ var warn0=m.querySelector('.pc-main .wfm-warn');if(warn0)warn0.hidden=false;
+ var ok0=wfmEl('pcw-ok');if(ok0){ok0.hidden=false;ok0.disabled=true;}
  var my=++pcSeq,ids=['user','pass','ip','mask','gw','dns'],i;
  for(i=0;i<ids.length;i++)wfmEl('pcw-'+ids[i]).value='';
  wfmEl('pcw-pass').type='password';wfmEl('pcw-eye').innerHTML='<i class="fas fa-eye"></i>';
  wfmEl('pcw-sub').textContent='读取当前配置…';wfmEl('pcw-ok').disabled=true;
  XHR.get(PC_URL.wg,{},function(x,d){
   if(my!==pcSeq)return;
+  if(d&&d.cellular){pcWanCell(d,m);return;}
   if(!d||!d.ok){wfmEl('pcw-sub').textContent=(d&&d.error)||'读取失败，请稍后重试';return;}
   var st=d.proto==='static',PN={dhcp:'DHCP',pppoe:'宽带拨号',static:'静态 IP'};
   pcHasPass=!!d.has_pass;
@@ -2695,12 +2718,19 @@ function render(d){
  pw.className='dv-ports'+(ports.length<=1?' single':'');
  tlSet(pw,ports.map(function(p,ix){
   var link=!!p.carrier,spd=+p.speed||0,role=p.role||'',lan=(role==='LAN'),cog=(role==='LAN'||role==='WAN');
+  /* s130: SY108 没有以太网 PHY —— wwan0 是蜂窝数据口, br-usb 是 USB 桥。
+     speed=-1 是内核对无 PHY 口的真实值, 原样渲染会变成 "-1 Mbps"。 */
+  var isCell=(p.id==='wwan0'),vv,bb,tt;
+  if(!link){vv='<small class="dn">未接入</small>';bb=0;tt='未接入';}
+  else if(isCell){vv='<small>蜂窝</small>';bb=100;tt='蜂窝数据已接入';}
+  else if(spd>0){vv=(spd>=1000?(spd/1000)+'<small>Gbps</small>':spd+'<small>Mbps</small>');bb=Math.max(6,Math.min(100,spd/25));tt='链路速率 '+speedTxt(spd);}
+  else{vv='<small>已接入</small>';bb=60;tt='链路已接入';}
   return {k:'p'+ix,ic:'fa-ethernet',lb:role||'网口',cls:link?'on':'off',
    x:'<em class="pid">'+esc(p.id||'')+'</em>'+
     (psw?'<button type="button" class="psw" onclick="pwmOpen()" title="切换网口角色（当前 '+esc(role)+'）" aria-label="切换网口角色（当前 '+esc(role)+'）"><i class="fas fa-exchange-alt" aria-hidden="true"></i></button>':'')+
     (cog?'<button type="button" class="pcfg" onclick="'+(lan?'pcLanOpen()':'pcWanOpen()')+'" title="'+esc(role)+' 口设置" aria-label="'+esc(role)+' 口设置"><i class="fas fa-cog" aria-hidden="true"></i></button>':''),
-   v:'<span class="lk"></span>'+(link?(spd>=1000?(spd/1000)+'<small>Gbps</small>':(spd||'')+'<small>'+(spd?'Mbps':'已接入')+'</small>'):'<small class="dn">未接入</small>'),
-   b:[link?Math.max(6,Math.min(100,spd/25)):0],bt:[link?'链路速率 '+speedTxt(spd):'未接入']};
+   v:'<span class="lk"></span>'+vv,
+   b:[bb],bt:[tt]};
  }),'无网口数据');
  /* Connectivity: 只放下方蜂窝区块没有的独有信息(不重复模组/SIM)。
     「内核」那一格去掉了 —— 内核版本是静态规格, 已经在设备规格卡里, 不属于"连接信息"。
@@ -2737,19 +2767,23 @@ function render(d){
   v:ipx(d.wan_ip,0),b:[100],bt:[egk?egk[1]:'已联网']});
  /* s64: 硬件加速 HNAT: 加速类型 + PPE 绑定占比, 点开看详情; Full Cone NAT(全锥)= 游戏加速, 单独点出来。数据来自 HNAT_D(hnatFetch 5 秒一轮)。
     s124: 数值取总占比, 底部细条按 PPE 分段(一条 PPE 一段, 悬停看绑定数) */
- var hn=window.MRT_HNAT||HNAT_D;
- if(hn){
-  var isFC=/full ?cone|全锥/i.test(hn.fullcone||'');
-  var typeTxt=isFC?'游戏加速':esc((hn.fastpath||'HNAT').replace(/ \/.*$/,'').replace(/MediaTek /i,'MTK '));
-  var pl=Array.isArray(hn.ppe)?hn.ppe:[];
-  var tot=(hn.pct_total!=null&&isFinite(+hn.pct_total))?Math.round(+hn.pct_total):(pl.length?Math.round(pl.reduce(function(a,x){return a+(+x.pct||0);},0)/pl.length):0);
-  ips.push({k:'hnat',ic:'fa-bolt',lb:'HNAT 加速',x:'<span class="tg">'+typeTxt+'</span>',v:tot+'<small>%</small>',pop:'hnat',
-   b:pl.length?pl.map(function(x){return +x.pct||0;}):[tot],
-   bt:pl.length?pl.map(function(x){return 'PPE'+x.n+' 绑定 '+(x.bind||0)+'/'+(x.all||0)+'（'+(x.pct||0)+'%）';}):['总占比 '+tot+'%']});
- }else{
-  ips.push({k:'hnat',ic:'fa-bolt',lb:'HNAT 加速',x:'',v:'—<small>读取中…</small>',b:[0],pop:'hnat'});
- }
- /* 在线设备 / 活动连接: 带趋势线和环比标记。
+ /* s130: 原「HNAT 加速」是 MTK 特性, SY108 没有 turboacc, 卡片整体改为「信号强度」。
+   数据仍走 devpop?k=hnat (服务端读 udx.cellular status, 5 秒一轮):
+   rsrp/rsrq/sinr/rat_txt/band/operator/state。真机口径: csq=99 是 AT 的
+   「未知」占位值, 可信信号只有服务小区的 RSRP/RSRQ/SINR (2026-11-15 实测)。 */
+  var hn=window.MRT_HNAT||HNAT_D;
+  if(hn&&hn.rsrp!=null){
+   var rv=+hn.rsrp,rl=rv>=-85?'极佳':rv>=-95?'良好':rv>=-105?'一般':'较弱';
+   var rp=Math.max(4,Math.min(100,Math.round((rv+140)/70*100)));
+   ips.push({k:'hnat',ic:'fa-signal',lb:'信号强度',x:'<span class="tg">'+esc(hn.rat_txt||'蜂窝')+(hn.band?' '+esc(hn.band):'')+'</span>',v:Math.round(rv)+'<small>dBm</small>',pop:'hnat',
+    b:[rp],
+    bt:['RSRP '+rv.toFixed(1)+' dBm（信号'+rl+'） · RSRQ '+(hn.rsrq!=null?hn.rsrq.toFixed(1):'--')+' dB · SINR '+(hn.sinr!=null?hn.sinr.toFixed(1):'--')+' dB']});
+  }else if(hn&&hn.noready){
+   ips.push({k:'hnat',ic:'fa-signal',lb:'信号强度',x:'',v:'--<small>无信号</small>',b:[0],pop:'hnat'});
+  }else{
+   ips.push({k:'hnat',ic:'fa-signal',lb:'信号强度',x:'',v:'—<small>读取中…</small>',b:[0],pop:'hnat'});
+  }
+  /* 在线设备 / 活动连接: 带趋势线和环比标记。
     线色取各自格子的强调色(绿/粉), 和徽章同色系, 不另引入第七种颜色。
     深浅两色共用这两个十六进制值 —— 线是 1.5px 细描边, 在白底上
     #34d399/#f472b6 的对比度够用; 真正在白底上发飘的是大面积色罩和
@@ -3736,23 +3770,27 @@ function rConns(){
 /* s64: 硬件加速 HNAT 详情浮层。数据用页面那轮缓存的 window.MRT_HNAT(devpop?k=hnat)。
    列:加速引擎 / 全锥 NAT(游戏加速)/ 各 PPE 绑定表项占比, 末尾挂 USB 网卡通道 + 虚拟网卡名 HNAT 说明。 */
 function rHnat(){
+ /* s130: 原 HNAT 详情浮层(加速引擎/全锥/PPE)已随磁贴整体改为「信号强度详情」。
+    数据 = window.MRT_HNAT (devpop?k=hnat, 弹窗开着时 3 秒一轮)。 */
  var p=window.MRT_HNAT||(cache.hnat&&cache.hnat.d);
- var o=head('fa-bolt','硬件加速 HNAT','');
+ var o=head('fa-signal','信号强度详情','');
  if(!p)return o+'<div class="gp-n">读取中…</div>';
- var isFC=/full ?cone|全锥/i.test(p.fullcone||'');
+ if(p.rsrp==null)return o+'<div class="gp-n">'+h(p.state||'暂无信号数据')+'</div>';
+ var rv=+p.rsrp,rl=rv>=-85?'极佳':rv>=-95?'良好':rv>=-105?'一般':'较弱';
  var g='';
- g+='<span class="gp-k">加速引擎</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h((p.fastpath||'未知').replace(/ \/ /g,' · '))+'</span>';
- g+='<span class="gp-k">全锥 NAT</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(isFC?('<span style="color:var(--ac);font-weight:700">'+h(p.fullcone)+'</span> · 游戏加速'):h(p.fullcone||'未启用'))+'</span>';
- var l=Array.isArray(p.ppe)?p.ppe:[];
- l.forEach(function(x){
-  g+='<span class="gp-k">PPE'+h(x.n)+' 表项</span>'+bar(x.pct||0)+'<span class="gp-v">'+(x.bind||0)+'<small>/ '+(x.all||0)+'</small></span>';
- });
- if(p.all_total)g+='<span class="gp-k">合计占用</span>'+bar(p.pct_total||0)+'<span class="gp-v">'+(p.pct_total||0)+'%</span>';
- /* s64: 智能 HQoS 开关/状态行已撤除 —— 当前专有 mtkhnat 驱动没接通 DSCP→QDMA 队列绑定,
-    往 qdma_txq 写限速是空转(实测下载 200M 不限), 会误导用户。等拿到联发科完整 QoS SDK
-    把"按流绑队列"那环补上后再放开。HNAT 加速信息(引擎/全锥/PPE 占比)仍保留展示。 */
+ g+='<span class="gp-k">连接状态</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.state||'--')+'</span>';
+ g+='<span class="gp-k">运营商</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.operator||'--')+(p.plmn?'<small>（'+h(p.plmn)+'）</small>':'')+'</span>';
+ g+='<span class="gp-k">网络</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.rat_txt||'--')+(p.band?'<small> · band '+h(p.band)+'</small>':'')+'</span>';
+ g+='<span class="gp-k">RSRP</span>'+bar(Math.max(4,Math.min(100,Math.round((rv+140)/70*100))))+'<span class="gp-v">'+rv.toFixed(1)+'<small> dBm · 信号'+rl+'</small></span>';
+ g+='<span class="gp-k">RSRQ</span><span class="gp-v">'+(p.rsrq!=null?p.rsrq.toFixed(1)+'<small> dB</small>':'--')+'</span>';
+ g+='<span class="gp-k">SINR</span><span class="gp-v">'+(p.sinr!=null?p.sinr.toFixed(1)+'<small> dB</small>':'--')+'</span>';
+ g+='<span class="gp-k">物理小区 PCI</span><span class="gp-v">'+(p.pci!=null?h(String(p.pci)):'--')+'</span>';
+ g+='<span class="gp-k">跟踪区 TAC</span><span class="gp-v">'+(p.tac?h(String(p.tac)):'--')+'</span>';
+ g+='<span class="gp-k">APN</span><span class="gp-v">'+h(p.apn||'--')+'</span>';
+ g+='<span class="gp-k">WAN 地址</span><span class="gp-v">'+h(p.ip||'--')+'</span>';
+ /* RSRP 判档: ≥-85 极佳 / ≥-95 良好 / ≥-105 一般 / 更弱较差, 与磁贴一致。 */
  return o+'<div class="gp-g">'+g+'</div>'+
-  '<div class="gp-f">本固件已实现 USB 网卡通道 HNAT 加速，虚拟网卡名称：<b style="color:var(--ac)">HNAT</b>。PPE 表项即已卸载到硬件的连接数，越多表示越多流量走硬件转发。</div>';
+  '<div class="gp-f">RSRP 反映基站信号强度：≥-85 极佳、-95~-85 良好、-105~-95 一般、低于 -105 较弱。速率上不去时先看这里和 RSRQ/SINR。</div>';
 }
 /* s71/s74: 产品图网口 / USB 的浮层 —— 直接吃 router3d-data 那一轮(MRT_R3D, 1.8 秒), 不另发请求 */
 /* 字节 → 1.2 GB / 356 MB */

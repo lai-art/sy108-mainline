@@ -75,6 +75,8 @@ done
 
 # --- storage (overlay, KB) -------------------------------------------------
 # 用 stat -f 取 overlay 的块数/可用块数/块大小，统一折算成 KB。
+# 真机（2026-11-15 采集）上 /overlay 不存在 → 全 0，前端存储卡变成 0B/0B。
+# 兜底：stat 拿不到就用 df -k / （squashfs+overlay 布局下 / 就是可写层视图）。
 STOR_TOTAL=0; STOR_FREE=0
 if [ -d /overlay ]; then
 	SZ=$(stat -f -c '%S' /overlay 2>/dev/null); is_num "$SZ" || SZ=1024
@@ -83,6 +85,16 @@ if [ -d /overlay ]; then
 	AVA=$(stat -f -c '%f' /overlay 2>/dev/null); is_num "$AVA" || AVA=0
 	STOR_TOTAL=$(( BLK * SZ / 1024 ))
 	STOR_FREE=$(( AVA * SZ / 1024 ))
+fi
+if [ "$STOR_TOTAL" -le 0 ] 2>/dev/null; then
+	DL=$(df -k / 2>/dev/null | tail -n 1)
+	set -- $DL
+	case "$2" in ''|*[!0-9]*) ;; *)
+		case "$3" in ''|*[!0-9]*) ;; *)
+			STOR_TOTAL=$2
+			STOR_FREE=$(( $2 - $3 ))
+		;; esac
+	;; esac
 fi
 STOR_USED=$(( STOR_TOTAL - STOR_FREE ))
 [ "$STOR_USED" -ge 0 ] || STOR_USED=0
