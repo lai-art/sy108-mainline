@@ -307,5 +307,19 @@
    "module": "luci.controller.udx_home",
    "function": "devimg_reset"
   }
+ },
+ "admin/system/mwrt_wizard": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "redirect_wizard"
+  }
+ },
+ "admin/system/ota": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "redirect_ota"
+  }
  }
 }
