@@ -1,0 +1,268 @@
+/* Hide all default argon elements */
+.login-page,.main-bg,.video,.login-container,.login-form,.brand{display:none !important}
+body{margin:0;padding:0;overflow:hidden}
+
+/* =====================================================================
+   登录页(s130 按首页「胶囊」风格重做:浅蓝渐变底 + 远山剪影 + 磨砂玻璃卡片 + 渐变主按钮;
+   四个小角色站在卡片上沿,眼睛跟随指针、输入密码时转头、显示密码时紫色那只偷看,动画逻辑一行没动)
+   统一前缀 .al- ;关于/免责声明弹窗沿用 .ab- 前缀
+   配色全走 .al 上的自定义属性;深色(localStorage mwrt-theme=dark,或 auto 且系统深色)只覆盖这几个变量。
+   本页不加载 boot.js/chrome.css,所以颜色都是写死的。
+   注意:argon 的 cascade.css 给全局 h1/button/input/footer/table 都加了规则,
+   下面所有选择器都挂在 .al 下并对关键属性加 !important 压回去,别删。
+   ===================================================================== */
+.al{--s:1;--al-h:100vh;
+--al-brand:#2f7de1;--al-brand2:#22b8e8;--al-rgb:47 125 225;
+--al-tx:#1f2b44;--al-tx2:#4a5a78;--al-tx3:#8d9ab4;
+--al-card:rgba(255,255,255,.78);--al-cbd:rgba(255,255,255,.95);--al-ln:rgba(31,43,68,.08);
+--al-in:#f3f6fb;--al-inb:#dfe6f2;--al-inh:#fff;--al-ph:#b4bfd3;--al-pre:#9aa8c2;
+--al-sh:0 28px 64px -22px rgba(47,125,225,.42),0 3px 10px rgba(31,43,68,.06);
+position:fixed;left:0;top:0;width:100%;height:var(--al-h);z-index:1000;display:flex;overflow-x:hidden;overflow-y:auto;
+-webkit-overflow-scrolling:touch;overscroll-behavior:none;color:var(--al-tx);
+background:radial-gradient(54% 48% at 10% 6%,rgb(var(--al-rgb) / .22),transparent 70%),radial-gradient(48% 44% at 94% 90%,rgb(34 184 232 / .17),transparent 70%),linear-gradient(180deg,#f6f9fe,#eaf1fb);
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@supports (height:100dvh){.al{--al-h:100dvh}}
+.al *,.al *::before,.al *::after{box-sizing:border-box}
+.al.al-dk{--al-brand:#5b9bff;--al-rgb:91 155 255;--al-tx:#e8ecf6;--al-tx2:#aab4cc;--al-tx3:#6f7b95;
+--al-card:rgba(20,25,38,.74);--al-cbd:rgba(255,255,255,.09);--al-ln:rgba(255,255,255,.08);
+--al-in:rgba(255,255,255,.05);--al-inb:rgba(255,255,255,.11);--al-inh:rgba(255,255,255,.09);--al-ph:#5d6a85;--al-pre:#7a88a6;
+--al-sh:0 28px 64px -22px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.03);
+background:radial-gradient(54% 48% at 10% 6%,rgb(var(--al-rgb) / .20),transparent 70%),radial-gradient(48% 44% at 94% 90%,rgb(34 184 232 / .12),transparent 70%),linear-gradient(180deg,#0d1018,#080b12)}
+
+/* ---------- 远山剪影(与首页轮播卡同款山形) ---------- */
+.al-bgd{position:fixed;left:0;right:0;bottom:0;height:40%;z-index:0;pointer-events:none}
+.al-bgd svg{display:block;width:100%;height:100%}
+.al-dk .al-bgd{opacity:.55}
+
+/* ---------- 居中列:角色 + 卡片 ---------- */
+.al-wrap{position:relative;z-index:2;margin:auto;width:100%;max-width:440px;display:flex;flex-direction:column;align-items:center;
+padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.al-slot{position:relative;z-index:1;flex:none;display:flex;align-items:flex-end;justify-content:center;width:100%;
+height:clamp(104px,calc(var(--al-h) * .2),164px);margin-bottom:-3px}
+
+/* 角色舞台:内部固定 450x400,整体按 --s 缩放;--s 由脚本按 .al-slot 实际大小算 */
+.al-box{position:relative;flex:0 0 auto;width:calc(450px * var(--s));height:calc(400px * var(--s))}
+.al-stage{position:absolute;left:0;top:0;width:450px;height:400px;transform:scale(var(--s));transform-origin:0 0;
+-webkit-user-select:none;user-select:none;pointer-events:none}
+.al-ch{position:absolute;bottom:0;transform-origin:bottom center;will-change:transform}
+.al-pu{left:70px;width:180px;height:400px;background:linear-gradient(180deg,#8366fa,#6C3FF5);border-radius:18px 18px 0 0;z-index:1}
+.al-bl{left:240px;width:120px;height:310px;background:linear-gradient(180deg,#3a4256,#2a3042);border-radius:16px 16px 0 0;z-index:2}
+.al-or{left:0;width:240px;height:200px;background:linear-gradient(180deg,#ffb48d,#FF9B6B);border-radius:120px 120px 0 0;z-index:3}
+.al-ye{left:310px;width:140px;height:230px;background:linear-gradient(180deg,#f3df6a,#E8D754);border-radius:70px 70px 0 0;z-index:4}
+.al-face{position:absolute;display:flex;will-change:transform}
+.al-pu .al-face{left:45px;top:40px;gap:32px}
+.al-bl .al-face{left:26px;top:32px;gap:24px}
+.al-or .al-face{left:82px;top:90px;gap:32px}
+.al-ye .al-face{left:52px;top:40px;gap:24px}
+/* 角色整体缩得很小,眼睛比原版放大一圈才看得清 */
+.al-eyeball{flex:0 0 auto;width:var(--sz);height:var(--sz);border-radius:50%;background:#fff;overflow:hidden;
+display:flex;align-items:center;justify-content:center;transition:height .08s ease-in}
+.al-eb18{--sz:26px}
+.al-eb16{--sz:23px}
+.al-ep{flex:0 0 auto;border-radius:50%;background:#2D2D2D;will-change:transform}
+.al-eb18 .al-ep{width:11px;height:11px}
+.al-eb16 .al-ep{width:10px;height:10px}
+.al-dot{flex:0 0 auto;width:17px;height:17px;border-radius:50%;background:#2D2D2D;will-change:transform}
+.al-mouth{position:absolute;left:40px;top:88px;width:80px;height:7px;border-radius:9999px;background:#2D2D2D;will-change:transform}
+.al-stage .al-eyeball.al-blink{height:2px}
+.al-squint .al-eyeball{height:calc(var(--sz) * .7)}
+
+/* ---------- 磨砂玻璃卡片 ---------- */
+.al-card{position:relative;z-index:2;width:100%;padding:26px 28px 12px;border-radius:24px;background:var(--al-card);
+-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);
+border:1px solid var(--al-cbd);box-shadow:var(--al-sh),inset 0 1px 0 rgba(255,255,255,.55);animation:alIn .55s cubic-bezier(.2,.8,.3,1) both}
+.al-card::before{content:"";position:absolute;left:14%;right:14%;top:-1px;height:2px;border-radius:2px;pointer-events:none;
+background:linear-gradient(90deg,transparent,rgb(var(--al-rgb) / .75),rgb(34 184 232 / .6),transparent)}
+@keyframes alIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.al-head{text-align:center;margin-bottom:22px}
+.al-brand{display:inline-flex;align-items:center;gap:10px;margin-bottom:14px}
+.al-logo{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;color:#fff;
+background:linear-gradient(135deg,#5aa0f8,var(--al-brand) 55%,var(--al-brand2));
+box-shadow:0 10px 20px -8px rgb(var(--al-rgb) / .75),inset 0 1px 0 rgba(255,255,255,.4)}
+.al-logo svg{width:20px;height:20px;display:block}
+.al-bn{font-size:15px;font-weight:700;letter-spacing:.5px;color:var(--al-tx)}
+.al .al-title{margin:0 0 6px;padding:0;border:0;background:none;box-shadow:none;font-size:18px;font-weight:700;
+letter-spacing:-.01em;color:var(--al-tx);line-height:1.3 !important}
+.al .al-sub{margin:0;font-size:12px;color:var(--al-tx3);line-height:1.6}
+.al-field{margin:0 0 16px}
+.al .al-label{display:block;margin:0 0 6px;font-size:11.5px;font-weight:600;color:var(--al-tx2);letter-spacing:.3px;line-height:1.4}
+.al-inp{position:relative;display:block}
+.al .al-pre{position:absolute;left:14px;top:50%;margin-top:-7px;width:14px;height:14px;color:var(--al-pre);pointer-events:none;display:block;transition:color .2s}
+.al-inp:focus-within .al-pre{color:var(--al-brand)}
+.al .al-in{display:block;width:100%;height:44px;margin:0;padding:0 14px 0 40px;background:var(--al-in);border:1px solid var(--al-inb);
+border-radius:13px;color:var(--al-tx);font-size:14px;font-weight:400;line-height:normal !important;font-family:inherit;
+-webkit-appearance:none;appearance:none;box-shadow:none;outline:0;transition:border-color .2s,box-shadow .2s,background-color .2s}
+.al .al-in.al-pw{padding-right:50px}
+.al input::-ms-reveal,.al input::-ms-clear{display:none !important}
+.al input::-webkit-credentials-auto-fill-button,.al input::-webkit-contacts-auto-fill-button{visibility:hidden;display:none !important;pointer-events:none;position:absolute;right:0}
+.al .al-in::placeholder{color:var(--al-ph);opacity:1}
+.al .al-in:hover{border-color:rgb(var(--al-rgb) / .55)}
+.al .al-in:focus{border-color:var(--al-brand);background:var(--al-inh);box-shadow:0 0 0 4px rgb(var(--al-rgb) / .16)}
+/* 浏览器自动填充:底色钉回输入框本色,避免黄/蓝底 */
+.al .al-in:-webkit-autofill,.al .al-in:-webkit-autofill:hover{-webkit-text-fill-color:var(--al-tx);caret-color:var(--al-tx);
+-webkit-box-shadow:0 0 0 1000px #f3f6fb inset;box-shadow:0 0 0 1000px #f3f6fb inset;transition:background-color 99999s ease-in-out 0s}
+.al.al-dk .al-in:-webkit-autofill,.al.al-dk .al-in:-webkit-autofill:hover{-webkit-box-shadow:0 0 0 1000px #1a2030 inset;box-shadow:0 0 0 1000px #1a2030 inset}
+.al .al-in:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #fff inset,0 0 0 4px rgb(var(--al-rgb) / .16);
+box-shadow:0 0 0 1000px #fff inset,0 0 0 4px rgb(var(--al-rgb) / .16)}
+.al.al-dk .al-in:-webkit-autofill:focus{-webkit-box-shadow:0 0 0 1000px #222a3e inset,0 0 0 4px rgb(var(--al-rgb) / .2);box-shadow:0 0 0 1000px #222a3e inset,0 0 0 4px rgb(var(--al-rgb) / .2)}
+.al .al-eye{position:absolute;right:0;top:0;width:48px;min-width:44px;height:100%;min-height:44px;margin:0;padding:0;border:0;
+border-radius:0 13px 13px 0;background:none;box-shadow:none;color:var(--al-pre);cursor:pointer;display:flex;align-items:center;
+justify-content:center;line-height:1 !important;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;
+transition:color .2s}
+.al .al-eye:hover,.al .al-eye.al-on{color:var(--al-brand)}
+.al .al-eye svg{width:17px;height:17px;display:block}
+.al .al-eye .al-eye-off{display:none}
+.al .al-eye.al-on .al-eye-on{display:none}
+.al .al-eye.al-on .al-eye-off{display:block}
+.al .al-eye:focus-visible,.al .al-btn:focus-visible,.al .al-about:focus-visible{outline:2px solid var(--al-brand);outline-offset:2px}
+.al-err{display:flex;align-items:flex-start;gap:8px;margin:0 0 16px;padding:9px 14px;font-size:12px;line-height:1.5;
+color:#dc2626;background:rgba(254,242,242,.9);border:1px solid #fecaca;border-radius:12px}
+.al-dk .al-err{color:#fca5a5;background:rgba(220,38,38,.12);border-color:rgba(248,113,113,.3)}
+.al-err svg{width:16px;height:16px;flex:0 0 auto;margin-top:2px}
+.al .al-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:44px;margin:4px 0 0;
+padding:0 16px;border:0;border-radius:13px;color:#fff;font-family:inherit;font-size:14px;font-weight:600;
+background:linear-gradient(135deg,#5aa0f8 0%,var(--al-brand) 55%,#2a9ad9 100%);
+letter-spacing:2px;line-height:1 !important;cursor:pointer;-webkit-appearance:none;appearance:none;
+box-shadow:0 12px 24px -10px rgb(var(--al-rgb) / .7),inset 0 1px 0 rgba(255,255,255,.3);
+-webkit-tap-highlight-color:transparent;transition:filter .2s,transform .15s,box-shadow .2s}
+.al .al-btn:hover{filter:brightness(1.07) saturate(1.05);transform:translateY(-1px);box-shadow:0 16px 28px -10px rgb(var(--al-rgb) / .78),inset 0 1px 0 rgba(255,255,255,.34)}
+.al .al-btn:active{transform:translateY(0) scale(.99);filter:brightness(.97)}
+.al .al-btn.al-busy{opacity:.78;cursor:default;pointer-events:none}
+.al-spin{display:none;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+animation:alSpin .8s linear infinite}
+.al-busy .al-spin{display:block}
+@keyframes alSpin{to{transform:rotate(360deg)}}
+.al-foot{margin-top:16px;padding-top:4px;border-top:1px solid var(--al-ln);display:flex;flex-direction:column;align-items:center;
+gap:0;text-align:center;font-size:11px;color:var(--al-tx3);line-height:1.6}
+.al .al-about{display:inline-flex;align-items:center;gap:6px;min-height:42px;margin:0;padding:0 12px;border:0;border-radius:10px;
+background:none;box-shadow:none;color:var(--al-brand);font-family:inherit;font-size:12px;font-weight:500;line-height:1.4 !important;
+cursor:pointer;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;transition:background .2s}
+.al .al-about:hover{background:rgb(var(--al-rgb) / .09)}
+.al .al-about svg{width:15px;height:15px;flex:0 0 auto;display:block}
+.al-ft-b{color:var(--al-tx2)}
+.al-ft-c{color:var(--al-tx3)}
+.al-fw-m{margin:0 0 8px;font-size:11px;letter-spacing:.2px}
+
+/* 键盘弹出时(脚本给 .al 加 .al-kb 并把高度收成可视视口):压缩角色,表单优先 */
+.al-kb .al-slot{height:clamp(70px,calc(var(--al-h) * .15),104px)}
+
+/* ---------- 矮屏竖放(如 360x640):收紧竖向间距,争取不出滚动条 ---------- */
+@media (max-height:700px) and (max-width:899px){
+.al-card{padding:20px 22px 8px}
+.al-head{margin-bottom:14px}
+.al-brand{margin-bottom:8px}
+.al-logo{width:32px;height:32px;border-radius:10px}
+.al-logo svg{width:17px;height:17px}
+.al .al-title{font-size:17px;margin-bottom:4px}
+.al-field{margin-bottom:12px}
+.al-foot{margin-top:10px}
+}
+/* ---------- 手机横屏 / 低高度:去掉角色与副标题,表单整屏可见 ---------- */
+@media (max-height:520px){
+.al-slot{display:none}
+.al-card{margin:8px 0;padding:16px 22px 6px}
+.al-brand,.al .al-sub{display:none}
+.al-head{margin-bottom:10px}
+.al .al-title{font-size:17px;margin:0}
+.al-field{margin-bottom:10px}
+.al .al-label{margin-bottom:4px}
+.al .al-in,.al .al-btn{height:42px}
+.al-err{margin-bottom:10px;padding:8px 12px}
+.al-foot{margin-top:6px}
+.al-fw-m{display:none}
+}
+@media (max-width:380px){
+.al-card{padding-left:18px;padding-right:18px}
+.al .al-title{font-size:17px}
+}
+
+/* ---------- 右上角日夜切换:磨砂圆钮,太阳/月亮图标交叉旋转淡入(白天显示月亮=点了变夜间,夜间显示太阳) ---------- */
+.al .al-tg{position:fixed;z-index:6;top:max(14px,env(safe-area-inset-top));right:max(14px,env(safe-area-inset-right));width:38px;height:38px;margin:0;padding:0;
+display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;color:var(--al-tx2);line-height:1 !important;
+background:var(--al-card);border:1px solid var(--al-cbd);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
+box-shadow:0 8px 20px -10px rgb(var(--al-rgb) / .5),inset 0 1px 0 rgba(255,255,255,.5);-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;
+transition:color .25s,transform .2s,box-shadow .25s,background-color .3s,border-color .3s}
+.al .al-tg:hover{color:var(--al-brand);transform:translateY(-1px);box-shadow:0 12px 24px -10px rgb(var(--al-rgb) / .62),inset 0 1px 0 rgba(255,255,255,.55)}
+.al .al-tg:active{transform:scale(.94)}
+.al .al-tg:focus-visible{outline:2px solid var(--al-brand);outline-offset:2px}
+.al .al-tg svg{position:absolute;width:17px;height:17px;display:block;transition:transform .45s cubic-bezier(.3,.9,.3,1.1),opacity .3s}
+.al .al-tg .al-ic-sun{opacity:0;transform:rotate(-90deg) scale(.4)}
+.al .al-tg .al-ic-moon{opacity:1;transform:none}
+.al.al-dk .al-tg .al-ic-sun{opacity:1;transform:none}
+.al.al-dk .al-tg .al-ic-moon{opacity:0;transform:rotate(90deg) scale(.4)}
+/* 切换瞬间让背景/卡片/输入框颜色柔和过渡一下(只在点击后短暂挂 .al-sw,避免首屏加载时闪) */
+.al.al-sw,.al.al-sw .al-card,.al.al-sw .al-in,.al.al-sw .al-err{transition:background-color .35s,color .35s,border-color .35s,box-shadow .35s}
+@media (max-height:520px){.al .al-tg{width:34px;height:34px;top:8px;right:10px}}
+/* 触屏上输入框保持 16px,防止 iOS 聚焦时自动放大页面 */
+@media (pointer:coarse){.al .al-in{font-size:16px}}
+
+/* ---- 关于 Mwrt:弹窗(入口在表单卡片底部 .al-about) ---- */
+.ab-mask{position:fixed;left:0;top:0;right:0;bottom:0;z-index:12000;display:none;align-items:center;justify-content:center;padding:20px;
+background:rgba(15,23,42,0.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .25s}
+.ab-mask.ab-open{display:flex}
+.ab-mask.ab-in{opacity:1}
+.ab-box{width:100%;max-width:600px;max-height:88vh;display:flex;flex-direction:column;background:#fff;
+border-radius:22px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.3);
+transform:translateY(16px) scale(.97);transition:transform .28s cubic-bezier(.2,.8,.3,1)}
+@supports (height:100dvh){.ab-box{max-height:88dvh}}
+.ab-mask.ab-in .ab-box{transform:none}
+/* 注意:argon 的 cascade.css 给全局 h3 加了 background:#fff + padding + 圆角,
+   给全局 button 加了 padding/border/line-height。下面这些看似多余的
+   归零声明都是用来压掉它们的,别删。line-height 那条在主题里带 !important。 */
+.ab-hd{position:relative;display:flex;align-items:center;gap:13px;padding:17px 20px;flex:0 0 auto;
+background:linear-gradient(135deg,#1f5fc0 0%,#2f7de1 55%,#3aa7e6 100%);color:#fff;overflow:hidden}
+.ab-hd-ico{position:relative;z-index:1;flex:0 0 auto;width:34px;height:34px;border-radius:10px;
+display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.14);
+box-shadow:inset 0 0 0 1px rgba(255,255,255,.22)}
+.ab-hd-ico svg{width:19px;height:19px}
+.ab-hd-txt{position:relative;z-index:1;flex:1 1 auto;min-width:0}
+.ab-hd h3{margin:0;padding:0;width:auto;background:none;border-radius:0;color:#fff;
+font-size:16.5px;font-weight:600;letter-spacing:.6px;line-height:1.25 !important}
+.ab-hd-sub{margin-top:3px;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;
+color:rgba(255,255,255,.7);font-weight:600}
+.ab-x{position:relative;z-index:1;flex:0 0 auto;width:44px;height:44px;padding:0;margin:-7px -8px -7px 0;border:0;
+border-radius:50%;background:none;color:#fff;cursor:pointer;line-height:1 !important;
+display:flex;align-items:center;justify-content:center;transition:background .2s;
+-webkit-appearance:none;appearance:none;box-shadow:none;-webkit-tap-highlight-color:transparent}
+.ab-x svg{width:16px;height:16px;display:block}
+.ab-x:hover{background:rgba(255,255,255,.16)}
+.ab-x:focus-visible,.ab-tab:focus-visible{outline:2px solid #93c5fd;outline-offset:-2px}
+
+/* 选项卡:介绍 / 免责声明 */
+.ab-tabs{display:flex;flex:0 0 auto;border-bottom:1px solid #eef1f5;background:#fafbfc}
+/* border-radius / line-height 同样是压主题的全局 button 规则 */
+.ab-tab{flex:1 1 0;min-height:44px;padding:12px 8px;margin:0;border:0;border-radius:0;line-height:1.5 !important;
+background:none;-webkit-appearance:none;appearance:none;box-shadow:none;cursor:pointer;font-size:13.5px;font-weight:600;
+color:#64748b;border-bottom:2px solid transparent;transition:all .2s;-webkit-tap-highlight-color:transparent}
+.ab-tab.on{color:#2f7de1;border-bottom-color:#2f7de1;background:#fff}
+
+.ab-bd{padding:18px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;
+font-size:13.5px;line-height:1.75;color:#374151}
+.ab-pane{display:none}
+.ab-pane.on{display:block}
+.ab-bd p{margin:0 0 12px;text-align:justify}
+.ab-bd b{color:#2f7de1;font-weight:600}
+/* argon 在窄屏对全局 table 有 font-size:.7rem !important,这里压回正常字号 */
+.ab-kv{width:100%;border-collapse:collapse;margin:0 0 4px;font-size:13px !important}
+.ab-kv td{padding:7px 0;border-bottom:1px solid #f1f4f8;vertical-align:top}
+.ab-kv td:first-child{width:34%;color:#64748b;font-size:12.5px}
+.ab-kv td:last-child{color:#1f2a3d;font-weight:500;word-break:break-all}
+.ab-kv tr:last-child td{border-bottom:0}
+.ab-sec{margin:14px 0 8px;font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:1px}
+.ab-ft{padding:12px 22px 16px;flex:0 0 auto;border-top:1px solid #eef1f5;background:#fafbfc;
+text-align:center;font-size:11.5px;color:#94a3b8}
+
+@media(max-width:768px){
+.ab-mask{padding:12px}
+.ab-box{max-height:92vh;border-radius:14px}
+.ab-hd{padding:14px 16px;gap:11px}
+.ab-hd h3{font-size:15.5px}
+.ab-hd-ico{width:31px;height:31px;border-radius:9px}
+.ab-hd-ico svg{width:17px;height:17px}
+.ab-hd-sub{font-size:9.5px;letter-spacing:1.1px}
+.ab-bd{padding:15px 18px;font-size:13px}
+.ab-kv td:first-child{width:38%;font-size:12px}
+.ab-ft{padding:10px 18px calc(14px + env(safe-area-inset-bottom))}
+}
+@media(max-width:768px){@supports (height:100dvh){.ab-box{max-height:92dvh}}}
