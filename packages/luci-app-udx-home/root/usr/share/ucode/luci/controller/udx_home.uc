@@ -177,7 +177,13 @@ function _cell() {
 	try { st = ubus.call('udx.cellular', 'status'); } catch (e) { st = null; }
 	if (type(st) != 'object') return null;
 	let cells = (type(st.cells) == 'array' && length(st.cells) > 0) ? st.cells : [];
-	return { raw: st, serving: (length(cells) > 0) ? cells[0] : null };
+	/* 2026-11-16 真机实锤：EN-DC 下 cells[0] 可能是 NR 邻区（serving=false 的 n28 测量值），
+	   信号/频段必须取驻留小区（serving=true），找不到才退回 cells[0] */
+	let serving = null;
+	for (let i = 0; i < length(cells); i++) {
+		if (cells[i]?.serving === true) { serving = cells[i]; break; }
+	}
+	return { raw: st, serving: (serving != null) ? serving : ((length(cells) > 0) ? cells[0] : null) };
 }
 
 /* 归一化的蜂窝信号视图：给 devinfo / devpop(信号卡) / topo_data / wan_get 共用。
@@ -665,7 +671,9 @@ function network_mwrt_assurance_status() {
 /* ---------- topo_data：网络拓扑（mwrt-topo.js） ----------
  * 契约从 mwrt-topo.js 反推（2026-11-15，键全集核对过）：
  *   egress{kind,dev,ip,gw,proto,rtt_ms,rx_bps,tx_bps}  kind='cell' → 基站链路
- *   cell{plmn,operator,rat,module{model}}              plmn=46000 → 运营商配色/名称
+ *   cell{plmn,operator,rat,band,arfcn,pci,cell_id,rsrp,rsrq,sinr,state,apn,ip,module{model}}
+ *                                                      plmn=46000 → 运营商配色/名称；
+ *                                                      2026-11-16 补齐塔/本设备面板要用的全部字段
  *   lan{ip,mask,ssid24,ch24,w24}  counts{wired,wifi,total}
  *   ports[{name,role,up,speed}]   speed=null → fmtMbps(null)='—'，比 -1 安全
  *   clients[{ip,mac,name,vendor,type}]  type='wifi' 归无线组，其余有线
@@ -712,7 +720,19 @@ function modem_topo_data() {
 			operator: cell.operator,
 			rat: cell.rat_txt,
 			band: cell.band,
+			/* 2026-11-16：塔面板的 ARFCN/PCI/小区 ID、RSRQ/SINR 与「本设备」面板的
+			   模组分区都从这里取，缺一个前端就渲染「—」（cell_id/tac 由
+			   _cell_signal() 从 registration 兜底，cells[] 里没有这两个键） */
+			arfcn: cell.arfcn,
+			pci: cell.pci,
+			cell_id: cell.cell_id,
+			tac: cell.tac,
 			rsrp: cell.rsrp,
+			rsrq: cell.rsrq,
+			sinr: cell.sinr,
+			state: cell.state,
+			apn: cell.apn,
+			ip: cell.ip,
 			module: { model: 'UDX710' }
 		} : null,
 		uplink_wifi: null,
