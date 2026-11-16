@@ -182,12 +182,13 @@ else
 fi
 
 # --- online clients --------------------------------------------------------
-# 无 WiFi、无独立 LAN 口，只能数 dnsmasq 的租约。口径与首页「在线设备」不同，
-# 但这是 SY108 上唯一可得的来源。拿不到就是 0。
-CLIENTS=0
-if [ -r /tmp/dhcp.leases ]; then
-	CLIENTS=$(grep -c . /tmp/dhcp.leases 2>/dev/null); is_num "$CLIENTS" || CLIENTS=0
-fi
+# DHCP 租约 + ARP 邻居(br-usb) 按 MAC 去重计数。只数租约会漏掉静态地址设备
+# ——本机 PC 走 USB 直连、可能没有租约（用户 2026-11-16 指出），ARP 补齐。
+# /proc/net/arp 列: IP  HW type  Flags  HW address  Mask  Device
+CLIENTS=$( ( awk '{print $2}' /tmp/dhcp.leases 2>/dev/null; \
+             awk '$6=="br-usb" && $3!="0x0" && $4 ~ /:/ {print tolower($4)}' /proc/net/arp 2>/dev/null ) \
+           | tr 'A-F' 'a-f' | sort -u | grep -c . )
+is_num "$CLIENTS" || CLIENTS=0
 
 # --- modem (no AT!) --------------------------------------------------------
 # 只报「有没有模组」，详细状态由 modem_ctrl 4 秒轮询提供。

@@ -584,7 +584,8 @@ function artFor(A, t, D) {
     case 'onu': return A.onu({});
     case 'nic': return A.usbNic({});
     case 'phone': return A.phone(tf && tf.kind || 'unknown');
-    case 'router': return A.router(modelPng(D.model), {});
+    /* s132: 本设备=5G 模组 UDX710（topo_data.model='udx710'）——本机不是路由器, 用模组工艺图,
+     与 5G 模组节点同源; 机型名走 modelName() 兜底大写, 正好显示 UDX710 */case 'router': return (String(D.model||'').toLowerCase()==='udx710') ? A.module5g({ model: 'UDX710' }) : A.router(modelPng(D.model), {});
   }
   return A.cloud({});
 }

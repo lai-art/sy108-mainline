@@ -1993,15 +1993,15 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)ui.modem()
 
 /* Device Overview panel — polls免鉴权 /cgi-bin/router3d-data (只读 /sys,无 AT) */
 (function(){
-var IMG={Ultra:'/luci-static/router3d/ultra.png',MAX:'/luci-static/router3d/max.png',E87N:'/luci-static/router3d/e87n.png?v=s111f',H5000M:'/luci-static/router3d/h5000m.png',N5000:'/luci-static/router3d/n5000.png',TR3000:'/luci-static/router3d/tr3000.png'};
-var NAMES={Ultra:'NRadio C2000 Ultra',MAX:'NRadio C2000 MAX',E87N:'EdgePi E87N',H5000M:'Hiveton H5000M',N5000:'NRadio N5000',TR3000:'Cudy TR3000'};
+var IMG={Ultra:'/luci-static/router3d/ultra.png',MAX:'/luci-static/router3d/max.png',E87N:'/luci-static/router3d/e87n.png?v=s111f',H5000M:'/luci-static/router3d/h5000m.png',N5000:'/luci-static/router3d/n5000.png',TR3000:'/luci-static/router3d/udx710.svg'};
+var NAMES={Ultra:'NRadio C2000 Ultra',MAX:'NRadio C2000 MAX',E87N:'EdgePi E87N',H5000M:'Hiveton H5000M',N5000:'NRadio N5000',TR3000:'5G模组（UDX710）'};
 var IS_E87N=false;
 // 网口格的「切换 WAN/LAN」按钮:只有单网口的 C2000 MAX 有(浮窗和后端接口也只在 MAX 上存在)
 var PORTSW=false;
 // 本机机型(服务端判定,固定不变)+ 该机型的自定义整机图(存在才非空)。
 // 自定义图按机型隔离(custom_<机型>.png),换机型互不影响。
 var DEV_MODEL='TR3000';
-var DEV_NAME="Cudy TR3000";
+var DEV_NAME="5G模组（UDX710）";
 var CUSTOM_IMG='';
 var UP_URL='/cgi-bin/luci/admin/fancontrol/devimg_upload/TR3000';
 var RST_URL='/cgi-bin/luci/admin/fancontrol/devimg_reset/TR3000';
@@ -2503,6 +2503,9 @@ function ptsJblHtml(f){return '<span class="pt-jbl'+(f?' '+f:'')+'" data-pop="au
 function ptsJblPut(box,img,X0,W){var je=box.querySelector('.pt-jbl');if(!je)return null;var stg=box.closest('.dv-stage'),rb=box.getBoundingClientRect(),jw=je.offsetWidth,jh=je.offsetHeight,ia=img.getBoundingClientRect(),st0=stg?stg.getBoundingClientRect():null,ymin=st0?Math.round(st0.top-rb.top)+42:2,x0=Math.round(ia.right-rb.left-jw*0.42)+38,y0=Math.round(ia.top-rb.top-jh*0.5)-24;
  x0=Math.max(X0,Math.min(x0,W-jw-4));y0=Math.max(ymin,Math.min(y0,box.offsetHeight-jh-4));je.style.left=x0+'px';je.style.top=y0+'px';return [x0,y0,jw,jh];}
 function ptsDraw(d,model){
+ /* s132: 本设备按 5G 模组 UDX710 显示（模组工艺图, 无实体网口可指），
+    WAN/LAN 热点整段跳过；PORTMAP.TR3000 保留给将来换实物图用。 */
+ if(DEV_MODEL==='TR3000'&&!CUSTOM_IMG)return;
  PT.d=d;PT.m=model;
  var box=$('dv-pts'),img=$('dv-img');if(!box||!img)return;
  if(!img._ptl){img._ptl=1;img.addEventListener('load',function(){box._s=null;if(PT.d)ptsDraw(PT.d,PT.m);});window.addEventListener('resize',function(){if(PT.d)ptsDraw(PT.d,PT.m);});}
@@ -3781,13 +3784,13 @@ function rHnat(){
  g+='<span class="gp-k">连接状态</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.state||'--')+'</span>';
  g+='<span class="gp-k">运营商</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.operator||'--')+(p.plmn?'<small>（'+h(p.plmn)+'）</small>':'')+'</span>';
  g+='<span class="gp-k">网络</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.rat_txt||'--')+(p.band?'<small> · band '+h(p.band)+'</small>':'')+'</span>';
- g+='<span class="gp-k">RSRP</span>'+bar(Math.max(4,Math.min(100,Math.round((rv+140)/70*100))))+'<span class="gp-v">'+rv.toFixed(1)+'<small> dBm · 信号'+rl+'</small></span>';
- g+='<span class="gp-k">RSRQ</span><span class="gp-v">'+(p.rsrq!=null?p.rsrq.toFixed(1)+'<small> dB</small>':'--')+'</span>';
- g+='<span class="gp-k">SINR</span><span class="gp-v">'+(p.sinr!=null?p.sinr.toFixed(1)+'<small> dB</small>':'--')+'</span>';
- g+='<span class="gp-k">物理小区 PCI</span><span class="gp-v">'+(p.pci!=null?h(String(p.pci)):'--')+'</span>';
- g+='<span class="gp-k">跟踪区 TAC</span><span class="gp-v">'+(p.tac?h(String(p.tac)):'--')+'</span>';
- g+='<span class="gp-k">APN</span><span class="gp-v">'+h(p.apn||'--')+'</span>';
- g+='<span class="gp-k">WAN 地址</span><span class="gp-v">'+h(p.ip||'--')+'</span>';
+ g+='<span class="gp-k">RSRP</span>'+bar(Math.max(4,Math.min(100,Math.round((rv+140)/70*100))))+'<span class="gp-v">'+rv.toFixed(1)+'<small> dBm</small></span>';
+ g+='<span class="gp-k">RSRQ</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.rsrq!=null?p.rsrq.toFixed(1)+'<small> dB</small>':'--')+'</span>';
+ g+='<span class="gp-k">SINR</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.sinr!=null?p.sinr.toFixed(1)+'<small> dB</small>':'--')+'</span>';
+ g+='<span class="gp-k">物理小区 PCI</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.pci!=null?h(String(p.pci)):'--')+'</span>';
+ g+='<span class="gp-k">跟踪区 TAC</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.tac?h(String(p.tac)):'--')+'</span>';
+ g+='<span class="gp-k">APN</span><span class="gp-v" style="grid-column:2/-1;text-align:left;word-break:break-all">'+h(p.apn||'--')+'</span>';
+ g+='<span class="gp-k">WAN 地址</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.ip||'--')+'</span>';
  /* RSRP 判档: ≥-85 极佳 / ≥-95 良好 / ≥-105 一般 / 更弱较差, 与磁贴一致。 */
  return o+'<div class="gp-g">'+g+'</div>'+
   '<div class="gp-f">RSRP 反映基站信号强度：≥-85 极佳、-95~-85 良好、-105~-95 一般、低于 -105 较弱。速率上不去时先看这里和 RSRQ/SINR。</div>';

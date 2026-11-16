@@ -2,15 +2,18 @@
 	/* SY108 移植版：原模板开头 71 行机型判定整段替换为常量。
 	   原逻辑按 /tmp/sysinfo/model + board_name 区分 H5000M/N5000/TR3000/E87N/MAX/Ultra,
 	   并检测 luci-app-display 是否存在来开关屏幕卡片。SY108 全部不适用：
-	     - 3D 图按用户决定先用 TR3000 的（后续换 SY108 实物图）
+	     - 本设备就是 5G 模组 UDX710（用户 2026-11-16 确认）：图与名都按模组显示。
+	       udx710.svg 用 mwrt-topo-art.js 的 module5g 工艺生成（内嵌 defs+样式，
+	       烘焙浅色皮肤），与拓扑里的模组节点同一张图
 	     - 无 NV3007 屏 -> screen_ok=false，屏幕卡片整块不渲染
 	     - 无用户自定义整机图 -> dev_custom=''
-	   保留变量名与原模板一致，避免改动下游 HTML/JS。 */
+	   dev_model 保留 'TR3000' 作内部键：mwrt-home.js 的 IMG/NAMES/缓存键都按它
+	   索引，只换显示层（IMG.TR3000 的值与 NAMES.TR3000 的文案），不动机型判断。 */
 	import { readfile, stat } from 'fs';
 
 	const dev_model = 'TR3000';
-	const dev_name  = 'Cudy TR3000';
-	const dev_img   = '/luci-static/router3d/tr3000.png';
+	const dev_name  = '5G模组（UDX710）';
+	const dev_img   = '/luci-static/router3d/udx710.svg';
 	const dev_custom = '';
 	const screen_ok = false;
 
