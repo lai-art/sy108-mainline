@@ -1994,14 +1994,14 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)ui.modem()
 /* Device Overview panel — polls免鉴权 /cgi-bin/router3d-data (只读 /sys,无 AT) */
 (function(){
 var IMG={Ultra:'/luci-static/router3d/ultra.png',MAX:'/luci-static/router3d/max.png',E87N:'/luci-static/router3d/e87n.png?v=s111f',H5000M:'/luci-static/router3d/h5000m.png',N5000:'/luci-static/router3d/n5000.png',TR3000:'/luci-static/router3d/udx710.svg'};
-var NAMES={Ultra:'NRadio C2000 Ultra',MAX:'NRadio C2000 MAX',E87N:'EdgePi E87N',H5000M:'Hiveton H5000M',N5000:'NRadio N5000',TR3000:'5G模组（UDX710）'};
+var NAMES={Ultra:'NRadio C2000 Ultra',MAX:'NRadio C2000 MAX',E87N:'EdgePi E87N',H5000M:'Hiveton H5000M',N5000:'NRadio N5000',TR3000:'本设备（5G模组udx710）'};
 var IS_E87N=false;
 // 网口格的「切换 WAN/LAN」按钮:只有单网口的 C2000 MAX 有(浮窗和后端接口也只在 MAX 上存在)
 var PORTSW=false;
 // 本机机型(服务端判定,固定不变)+ 该机型的自定义整机图(存在才非空)。
 // 自定义图按机型隔离(custom_<机型>.png),换机型互不影响。
 var DEV_MODEL='TR3000';
-var DEV_NAME="5G模组（UDX710）";
+var DEV_NAME="本设备（5G模组udx710）";
 var CUSTOM_IMG='';
 var UP_URL='/cgi-bin/luci/admin/fancontrol/devimg_upload/TR3000';
 var RST_URL='/cgi-bin/luci/admin/fancontrol/devimg_reset/TR3000';

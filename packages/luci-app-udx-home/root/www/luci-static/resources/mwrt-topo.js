@@ -565,7 +565,9 @@ var HGT = { cloud: 96, tower: 150, module: 124, uprouter: 112, onu: 96, ghost: 1
 function chainOf(D) {
   var e = D.egress || {}, k = KINDS[e.kind] ? e.kind : 'none';
   var up = (e.proto === 'pppoe' || (e.gw && !isPrivIp(e.gw))) ? 'onu' : 'uprouter';
-  if (k === 'cell') return ['cloud', 'tower', 'module'];
+  /* s134: 本设备本身就是 5G 模组 UDX710, 直连基站 —— 链路里不再画中间"5G 模组"节点。
+     布局会自动把 router 节点接在链尾(651 行), 故链只到 tower 为止: 云→塔→本设备 */
+  if (k === 'cell') return (String(D.model||'').toLowerCase()==='udx710') ? ['cloud', 'tower'] : ['cloud', 'tower', 'module'];
   if (k === 'wifi') return ['cloud', 'uprouter'];
   if (k === 'wired') return ['cloud', up];
   if (k === 'usbnic') return ['cloud', up, 'nic'];
@@ -943,8 +945,10 @@ function texts(D) {
   var cs = carrierOf(c);
   T['lb:cloud'] = '互联网';
   T['ls:cloud'] = kind === 'none' ? '无法访问' : (has(e.ip) ? '出口 ' + e.ip : '已连接');
-  T['lb:router'] = '本设备';
-  T['ls:router'] = modelName(D.model) + (lan.ip ? ' · ' + lan.ip : '');
+  /* s134: 本设备=5G 模组 UDX710 时主标签用全名, 副标签只留 LAN IP(机型已在主标签里) */
+  var isUdx = String(D.model||'').toLowerCase()==='udx710';
+  T['lb:router'] = isUdx ? '本设备（5G模组udx710）' : '本设备';
+  T['ls:router'] = isUdx ? (lan.ip || modelName(D.model)) : (modelName(D.model) + (lan.ip ? ' · ' + lan.ip : ''));
   T['lb:tower'] = (c && c.operator ? c.operator : (kind === 'tether' ? '手机蜂窝' : '运营商')) + (kind === 'tether' ? '' : ' 基站');
   T['ls:tower'] = kind === 'tether' ? '移动网络' : ((c ? [ratText(c), c.band].filter(has).join(' · ') : '') || '蜂窝信号');
   T['lb:module'] = '5G 模组';
@@ -1067,7 +1071,9 @@ function panelFor(id, D, S) {
     secs.push({ h: '出口', rows: [RW('k', '出口类型', KINDS[kind].t), RW('dev', '出口接口', e.dev), RW('ip', '出口 IP', e.ip), RW('gw', '网关', e.gw), RW('pr', '接入协议', PROTO_ZH[e.proto] || e.proto)] });
     secs.push({ h: '实时流量', rows: ratebits().concat([RW('rtt', '往返延迟', num(e.rtt_ms) != null ? e.rtt_ms + ' ms' : null)]) });
   } else if (id === 'router') {
-    title = '本设备'; sub = modelName(D.model);
+    var isUdxR = String(D.model||'').toLowerCase()==='udx710';
+    title = isUdxR ? '本设备（5G模组udx710）' : '本设备';
+    sub = isUdxR ? (lan.ip || modelName(D.model)) : modelName(D.model);
     var cn = D.counts || {};
     secs.push({ h: '局域网', rows: [RW('lip', 'LAN 地址', lan.ip ? lan.ip + (num(lan.mask) != null ? ' / ' + lan.mask : '') : null)] });
     var wr = [];

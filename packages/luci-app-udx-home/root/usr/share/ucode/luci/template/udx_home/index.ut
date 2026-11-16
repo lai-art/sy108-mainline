@@ -12,7 +12,7 @@
 	import { readfile, stat } from 'fs';
 
 	const dev_model = 'TR3000';
-	const dev_name  = '5G模组（UDX710）';
+	const dev_name  = '本设备（5G模组udx710）';
 	const dev_img   = '/luci-static/router3d/udx710.svg';
 	const dev_custom = '';
 	const screen_ok = false;
