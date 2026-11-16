@@ -22,7 +22,7 @@
  *   ubus network.interface dump                     WAN/LAN 地址、DNS、在线时长
  */
 
-import { readfile, writefile, lsdir, statvfs } from 'fs';
+import { readfile, writefile, lsdir, popen } from 'fs';
 import { cursor } from 'uci';
 
 /* ---------- 小工具 ---------- */
@@ -310,29 +310,38 @@ function _leases() {
 	return out;
 }
 
-/* 存储分区：/proc/mounts 里挑四个有意义的挂载点 × statvfs。
- * 数值统一折算成 KB（前端 sz() 按 KB 起算）。 */
+/* 存储分区：popen df -k 读四个挂载点，按 used 从大到小。
+ * 绝不用 statvfs —— 本设备的 ucode-mod-fs 没有这个导出（真机
+ * "Module does not export statvfs"，import 阶段就炸，整个控制器
+ * 所有路由 500，2026-11-16 刷 #82 后实测）。popen 在 fs 模块里
+ * 存在（真机验证），busybox df 输出按空白切列直接解析。 */
 function _parts() {
 	let out = [];
-	for (let line in split(_rd('/proc/mounts'), '\n')) {
+	let txt = '';
+	let p = null;
+	try {
+		p = popen('df -k / /overlay /rom /boot 2>/dev/null', 'r');
+		if (p != null) txt = p.read('all') ?? '';
+	} catch (e) { txt = ''; }
+	if (p != null) { try { p.close(); } catch (e) { } }
+	if (txt == '') return out;
+
+	for (let line in split(txt, '\n')) {
 		let f = split(trim(line), /\s+/);
-		if (f == null || length(f) < 3) continue;
-		let mp = f[1], fst = f[2];
+		/* 合法行至少 6 列：Filesystem 1K-blocks Used Available Use% Mounted-on；
+		   表头与 "df: /boot: can't find mount point" 这类行都不到 6 列 */
+		if (f == null || length(f) < 6) continue;
+		if (f[0] == 'Filesystem') continue;
+		let total = _int(f[1], 0);
+		let used = _int(f[2], 0);
+		let mp = f[length(f) - 1];
 		if (mp != '/' && mp != '/overlay' && mp != '/rom' && mp != '/boot') continue;
-		let v = null;
-		try { v = statvfs(mp); } catch (e) { v = null; }
-		if (type(v) != 'object') continue;
-		let fr = _int(v.frsize ?? v.bsize, 1024);
-		if (fr <= 0) fr = 1024;
-		let total = _int(v.blocks, 0) * fr;
-		let free = _int(v.bavail, 0) * fr;
 		if (total <= 0) continue;
-		let used = total - free;
 		push(out, {
-			fs: fst,
+			fs: f[0],
 			mount: mp,
-			total: int(total / 1024),
-			used: int(used / 1024),
+			total: total,
+			used: used,
 			pct: int(used * 100 / total)
 		});
 	}
