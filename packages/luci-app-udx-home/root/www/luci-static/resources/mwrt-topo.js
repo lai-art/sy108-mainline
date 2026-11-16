@@ -1076,13 +1076,33 @@ function panelFor(id, D, S) {
     sub = isUdxR ? (lan.ip || modelName(D.model)) : modelName(D.model);
     var cn = D.counts || {};
     secs.push({ h: '局域网', rows: [RW('lip', 'LAN 地址', lan.ip ? lan.ip + (num(lan.mask) != null ? ' / ' + lan.mask : '') : null)] });
-    var wr = [];
-    wr.push(RW('s24', '2.4G 热点', lan.ssid24));
-    wr.push(RW('c24', '2.4G 信道', has(lan.ch24) ? '信道 ' + lan.ch24 + (lan.w24 ? ' · ' + lan.w24 : '') : null));
-    wr.push(RW('s5', '5G 热点', lan.ssid5));
-    wr.push(RW('c5', '5G 信道', has(lan.ch5) ? '信道 ' + lan.ch5 + (lan.w5 ? ' · ' + lan.w5 : '') : null));
-    secs.push({ h: '本机无线', rows: wr });
-    var pr = (D.ports || []).map(function (p) { return RW('p:' + p.name, p.name + ' · ' + (p.role === 'WAN' ? 'WAN' : 'LAN'), p.up ? fmtMbps(p.speed) : '未连接'); });
+    /* s135: 本设备=5G 模组 → 蜂窝数值直接进「本设备」面板（数据源 topo_data.cell，
+       2026-11-16 用户要求「点击本设备应该显示 5G 模组的那些数值」）。
+       空分区一律不渲染：无 SSID 不出「本机无线」；模组机型网口无速率概念，不出「网口」。 */
+    var cc = D.cell;
+    if (cc) secs.push({ h: '蜂窝模组', rows: [
+      RW('cst', '状态', cc.state),
+      RW('cop', '运营商', cc.operator ? cc.operator + (cc.plmn ? '（' + cc.plmn + '）' : '') : null),
+      RW('crat', '网络制式', cc.rat),
+      RW('cbd', '频段', cc.band),
+      MR('crsrp', 'RSRP', cc.rsrp, 'dBm', -140, -44, qRsrp, '-140', '-44 dBm'),
+      MR('crsrq', 'RSRQ', cc.rsrq, 'dB', -20, -3, qRsrq, '-20', '-3 dB'),
+      MR('csinr', 'SINR', cc.sinr, 'dB', -5, 30, qSinr, '-5', '30 dB'),
+      RW('car', '频点 / PCI', [cc.arfcn, cc.pci].filter(has).join(' / ') || null),
+      RW('ccid', '小区 ID', cc.cell_id),
+      RW('capn', 'APN', cc.apn),
+      RW('cip', '蜂窝 IP', e.ip || cc.ip)] });
+    else if (isUdxR) secs.push({ h: '蜂窝模组', rows: [RW('cna', '状态', '模组不可用')] });
+    if (lan.ssid24 || lan.ssid5) {
+      var wr = [];
+      wr.push(RW('s24', '2.4G 热点', lan.ssid24));
+      wr.push(RW('c24', '2.4G 信道', has(lan.ch24) ? '信道 ' + lan.ch24 + (lan.w24 ? ' · ' + lan.w24 : '') : null));
+      wr.push(RW('s5', '5G 热点', lan.ssid5));
+      wr.push(RW('c5', '5G 信道', has(lan.ch5) ? '信道 ' + lan.ch5 + (lan.w5 ? ' · ' + lan.w5 : '') : null));
+      secs.push({ h: '本机无线', rows: wr });
+    }
+    var pr = (D.ports || []).filter(function (p) { return !isUdxR || (p.up && p.speed != null); })
+      .map(function (p) { return RW('p:' + p.name, p.name + ' · ' + (p.role === 'WAN' ? 'WAN' : 'LAN'), p.up ? fmtMbps(p.speed) : '未连接'); });
     if (pr.length) secs.push({ h: '网口', rows: pr });
     secs.push({ h: '在线设备', rows: [RW('nw', '有线', cn.wired), RW('nf', '无线', cn.wifi), RW('nt', '合计', cn.total)] });
     tag = { t: kind === 'none' ? '无出口' : KINDS[kind].t, tn: kind === 'none' ? 'bad' : 'good' };
