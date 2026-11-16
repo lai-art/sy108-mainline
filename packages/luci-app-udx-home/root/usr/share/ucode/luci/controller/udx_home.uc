@@ -296,16 +296,36 @@ function _dhcp_sec(c) {
  * {} 会走进渲染分支然后各字段 undefined，比直接不给更糟（假成功）。
  * 契约全部从 mwrt-home.js 的 rCpuTop/rCli/rStorage/rConns/rTmp 反推。 */
 
-/* /tmp/dhcp.leases → [{ip,mac,name,band}]，拓扑与「在线设备」浮层共用。
- * 租约格式: "<expiry> <mac> <ip> <hostname> <clientid>"，hostname 可能带空格吗？
- * dnsmasq 会转义空格为 \x20，所以第 4 段就是完整主机名。 */
+/* /tmp/dhcp.leases + /proc/net/arp → [{ip,mac,name,band}]，拓扑与「在线设备」浮层共用。
+ * 只数租约会漏掉静态地址设备——本机 PC 就是 USB 直连、可能不走 DHCP
+ * （用户 2026-11-16 指出「下挂设备应该有本机」）。所以再并上 br-usb 的
+ * ARP 邻居：/proc/net/arp 列为 IP / HW type / Flags / HW address / Mask / Device，
+ * Flags=0x0 是 INCOMPLETE 要跳过；按 MAC 小写去重，租约优先（有主机名）。
+ * 租约格式: "<expiry> <mac> <ip> <hostname> <clientid>"，dnsmasq 会把
+ * 主机名里的空格转义成 \x20，所以第 4 段就是完整主机名。 */
 function _leases() {
 	let out = [];
+	let seen = {};
 	for (let line in split(_rd('/tmp/dhcp.leases'), '\n')) {
 		let f = split(trim(line), /[ \t]+/);
 		if (f == null || length(f) < 4) continue;
 		if (!match(f[2], /^\d+\.\d+\.\d+\.\d+$/)) continue;
+		let mac = lc(f[1]);
+		if (!match(mac, /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/)) continue;
+		seen[mac] = 1;
 		push(out, { ip: f[2], mac: f[1], name: f[3], vendor: '', band: 'wired', type: 'wired' });
+	}
+	for (let line in split(_rd('/proc/net/arp'), '\n')) {
+		let f = split(trim(line), /\s+/);
+		if (f == null || length(f) < 6) continue;
+		if (f[5] != 'br-usb') continue;
+		if (f[2] == '0x0') continue;
+		let ip = f[0], mac = lc(f[3]);
+		if (!match(ip, /^\d+\.\d+\.\d+\.\d+$/)) continue;
+		if (!match(mac, /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/)) continue;
+		if (seen[mac]) continue;
+		seen[mac] = 1;
+		push(out, { ip: ip, mac: f[3], name: '', vendor: '', band: 'wired', type: 'wired' });
 	}
 	return out;
 }
@@ -673,7 +693,10 @@ function modem_topo_data() {
 
 	http.prepare_content('application/json; charset=UTF-8');
 	http.write_json({
-		model: 'tr3000',
+		/* 本设备就是 5G 模组 UDX710（用户 2026-11-16 确认）：
+		   拓扑「本设备」节点用模组工艺图 + UDX710 名（mwrt-topo.js artFor 按
+		   'udx710' 走 module5g，modelName 兜底大写正好显示 UDX710） */
+		model: 'udx710',
 		egress: {
 			kind: up ? 'cell' : 'none',
 			dev: 'wwan0',
