@@ -64,18 +64,42 @@ function _meminfo_kb(key) {
 	return 0;
 }
 
+/* 温区类型 → 中文名。SY108 每个温区的 type 文件就是 DT 里写的字符串：
+   apcpu0/apcpu1=AP 两大核、cluster0=CPU 集群、nrcp=5G 基带基带处理器、soc=主 SoC、
+   pa/pa5g=功放、board=主板；ank0/ank1 是展锐的 ANK 子系统，没有公认中文名，
+   保持原名透出，不硬编一个可能是错的翻译（用户 2026-11-19 反馈「温度中文名没有同步过来」，
+   此前浮层上十行全是 thermal_zone0..9）。 */
+const THERMAL_NAMES = {
+	'apcpu0-thermal':   'CPU0',
+	'apcpu1-thermal':   'CPU1',
+	'cluster0-thermal': 'CPU 集群',
+	'nrcp-thermal':     '5G 基带',
+	'soc-thermal':      'SoC',
+	'pa-thermal':       '功放 PA',
+	'pa5g-thermal':     '5G 功放',
+	'board-thermal':    '主板',
+	'ank0-thermal':     'ANK0',
+	'ank1-thermal':     'ANK1'
+};
+
 function _temp_max() {
 	/* 不用固定编号 0..15 遍历：真机 thermal_zone 编号不保证连续，
 	   而且 /sys/class/thermal 在部分内核里是符号链接，直接 lsdir 最稳。
-	   zl 是结构化的 {name,temp}（devpop k=tmp 的温度浮层用），
+	   zl 是结构化的 {name,label,type,temp}（devpop k=tmp 的温度浮层用），
 	   seen 是 "zone=温度" 字符串（debug 快照用），两份数据同源。 */
 	let max = 0, seen = [], zl = [];
 	for (let name in (lsdir('/sys/class/thermal') ?? [])) {
 		if (!match(name, /^thermal_zone\d+$/)) continue;
 		let v = _int(_rd('/sys/class/thermal/' + name + '/temp'), 0);
 		if (v > 1000) v = int(v / 1000);
-		push(seen, name + '=' + v);
-		push(zl, { name: name, temp: v });
+		let t = trim(_rd('/sys/class/thermal/' + name + '/type'));
+		push(seen, name + '=' + v + '(' + t + ')');
+		push(zl, {
+			name: name,
+			type: t,
+			label: (t != '') ? (THERMAL_NAMES[t] ?? t) : name,
+			temp: v
+		});
 		if (v > max) max = v;
 	}
 	return { max: max, seen: seen, zones: zl };
@@ -647,7 +671,9 @@ function fancontrol_devpop() {
 		http.write_json({ clients: _leases() });
 	} else if (k == 'tmp') {
 		let t = _temp_max();
-		http.write_json({ zones: t.zones });
+		/* wifi_hw：本机有没有无线硬件。没有的话前端不该显示「WiFi / 无线驱动未提供温度」那行
+		   —— SY108 主线没有无线网卡，那行是纯噪音（2026-11-19 用户截图里就在最上面）。 */
+		http.write_json({ zones: t.zones, wifi_hw: (length(lsdir('/sys/class/ieee80211') ?? []) > 0) });
 	} else if (k == 'storage') {
 		http.write_json({ parts: _parts() });
 	} else if (k == 'conns') {
@@ -962,6 +988,101 @@ function modem_sms_del() {
 	http.write_json(res);
 }
 
+/* ---------- ota_check：首页「检查更新」 ----------
+ * mwrt 原版走 rpcd 的 luci.mwrt-ota（它自己的更新服务器），SY108 没有这个对象，
+ * 点「检查更新」必然 reject → 弹一句「检查失败」（用户 2026-11-19 反馈点了没反应）。
+ *
+ * 改成查 GitHub Releases：CI 的 release job 在打 tag 时会把 sysupgrade.bin /
+ * SHA256SUMS / build.json 挂到 release 上，所以 releases/latest 就是「线上最新构建」
+ * 的权威来源；仓库是公开的，不需要 token。设备侧实测 curl + CA 都可用。
+ *
+ * 只负责「查」。下载与刷机仍走「关于本机 → NEW → 系统升级页」那条 LuCI 标准路径，
+ * 有哈希校验、有 boot_accept 回滚兜底 —— 不在首页直接触发 sysupgrade。
+ */
+function _ota_local() {
+	return trim(_rd('/etc/udx-system-build'));
+}
+
+/* 'sy108-v2026.11.19-hotfix-s138' → 'v2026.11.19-hotfix-s138' */
+function _ota_tag(s) {
+	let m = match(s, /(v[0-9]{4}\.[0-9]{2}\.[0-9]{2}[A-Za-z0-9._-]*)/);
+	return m ? m[1] : s;
+}
+
+/* 'v2026.11.19-…' → '2026-11-19'；取不到日期返回 null */
+function _ota_date(s) {
+	let m = match(s, /v([0-9]{4})\.([0-9]{2})\.([0-9]{2})/);
+	return m ? sprintf('%s-%s-%s', m[1], m[2], m[3]) : null;
+}
+
+function ota_check() {
+	http.prepare_content('application/json; charset=UTF-8');
+
+	let cachef = '/tmp/.udx-ota.json';
+	let now = time();
+	let what = http.formvalue('what') ?? 'check';
+
+	let cached = null;
+	try { cached = json(_rd(cachef)); } catch (e) { cached = null; }
+
+	/* what=latest：开首页时那次只读调用。6 小时内的缓存直接用，别每开一次首页就打一次 GitHub */
+	if (what == 'latest' && type(cached) == 'object' && cached?.t != null && (now - cached.t) < 21600) {
+		http.write_json(cached.d);
+		return;
+	}
+
+	/* 取 JSON 用 system + -o 落临时文件，不要用 popen 直接读：
+	   实测本机 ucode 的 popen 给 curl 时管道会被提前关掉，curl 报
+	   "Failure writing output to destination"、读到 0 字节。system 是本文件里
+	   已经在用的方式（_run），稳。 */
+	let tmpf = '/tmp/.udx-ota-rel.json';
+	let cmd = "curl -sS -m 10 -H 'Accept: application/vnd.github+json' "
+	        + "-H 'User-Agent: sy108-ota' -o " + tmpf + " "
+	        + "https://api.github.com/repos/lai-art/sy108-mainline/releases/latest 2>/dev/null";
+	try { system(cmd); } catch (e) { }
+	let raw = _rd(tmpf);
+
+	let rel = null;
+	try { rel = json(raw); } catch (e) { rel = null; }
+	if (type(rel) != 'object' || rel?.tag_name == null) {
+		http.write_json({ ok: false, error: 'nonet', local: _ota_local() });
+		return;
+	}
+
+	let local = _ota_local(), ltag = _ota_tag(local), rtag = rel.tag_name;
+	let ld = _ota_date(ltag), rd = _ota_date(rtag);
+
+	/* 两边都带日期就按日期判新旧；判不出来时给 null —— 前端只报「已查询 + 两个版本号」，
+	   不硬说有没有新版（本地是手工热修戳时会走到这条） */
+	let update = null;
+	if (ld != null && rd != null) update = (rd > ld);
+	else if (rtag == ltag) update = false;
+
+	let out = {
+		ok: true,
+		update: update,
+		version: rtag,
+		local: local,
+		local_tag: ltag,
+		url: rel.html_url ?? null,
+		published: rel.published_at ?? null,
+		asset: null,
+		size: null
+	};
+	if (type(rel.assets) == 'array') {
+		for (let a in rel.assets) {
+			if (a?.name == 'sysupgrade.bin') {
+				out.asset = a.browser_download_url ?? null;
+				out.size = a.size ?? null;
+				break;
+			}
+		}
+	}
+
+	writefile(cachef, sprintf('%J', { t: now, d: out }));
+	http.write_json(out);
+}
+
 /* ---------- mwrt_assurance_status：首页连接状态区（gw()） ----------
  * 前端只取四个中文键，值含「在线/Online」时点亮状态点。 */
 
@@ -1223,6 +1344,8 @@ return {
 	modem_band_set: modem_band_set,
 	modem_sms_list: modem_sms_list,
 	modem_sms_del: modem_sms_del,
+	/* 首页「检查更新」：查 GitHub Releases（原来是 rpcd luci.mwrt-ota，SY108 没有） */
+	ota_check: ota_check,
 	redirect_wizard: redirect_wizard,
 	redirect_ota: redirect_ota,
 	network_mwrt_assurance_status: network_mwrt_assurance_status,

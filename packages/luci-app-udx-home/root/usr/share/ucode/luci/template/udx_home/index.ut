@@ -112,7 +112,6 @@ html .P{max-width:none !important;}
 <div class="dv-imgtools" id="dv-tools">
 <button type="button" class="dv-about" id="dv-about" title="关于本机" aria-label="关于本机" aria-haspopup="dialog"><i class="fas fa-info-circle" aria-hidden="true"></i><span>状态</span></button>
 <button type="button" class="dv-fan" id="dv-fan" title="风扇设置" aria-label="风扇设置" aria-haspopup="dialog"><i class="fas fa-fan" aria-hidden="true"></i></button>
-<button type="button" class="dv-rp" id="dv-rp" title="故障报修" aria-label="故障报修" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3l8.4-8.4"/><path d="M14.7 6.3 11 10"/><path d="m9 3 1.5 3L8 7.5 5 6z"/></svg></button>
 <button type="button" class="dv-aud" id="dv-aud" data-pop="audio" hidden title="声卡设置" aria-label="声卡设置"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
 <button type="button" class="dv-reset" id="dv-reset" title="恢复默认图片" style="display:none"><i class="fas fa-undo"></i></button>
 <button type="button" class="dv-edit" id="dv-edit" title="上传自定义图片替换"><i class="fas fa-camera"></i></button>
@@ -120,12 +119,14 @@ html .P{max-width:none !important;}
 <input type="file" id="dv-file" accept="image/png,.png" style="display:none">
 </div>
 <div class="dv-side">
-<!-- 「设置向导」是一个指向 admin/system/mwrt_wizard 的普通链接: 全局的 mwrt-wizard-launch.js
-     在 document 上捕获 href 含 mwrt_wizard 的点击并就地开弹窗, 和点菜单栏「向导」走同一条路;
-     那个脚本没加载时就正常跳到向导页, 由那边的壳子开窗, 不会点了没反应。
+<!-- s140: 这里原来是「设置向导」，指向 admin/system/mwrt_wizard。那个页面靠 mwrt-wizard-launch.js
+     L.require('mwrt.wizard') 去拉 resources/mwrt/wizard.js —— 本移植包**没有这个资源**，
+     require 直接 reject，所以点了完全没反应（用户 2026-11-19 反馈）。
+     现在改成普通链接，直接去「移动网络」：连接策略 / 频段与小区 / 运营商 / APN 都在这页，
+     也就是「向导」本来要引导用户配的东西。
      #t-btn / #t-ico 的 id 不能动(window.onload 里是裸的 getElementById, 见卡片上方注释)。 -->
 <div class="dv-fl">
-<div class="dv-head"><div class="dv-sub"><b>系统状态</b><em>System</em></div><span class="dv-acts"><button type="button" class="wz-btn ph-btn" id="ph-btn" hidden title="拨号（测试通话）" aria-label="打开拨号"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="ph-t">拨号</span></button><a class="wz-btn" id="wz-btn" href="{{ '/cgi-bin/luci/admin/system/mwrt_wizard' }}" title="打开设置向导"><i class="fas fa-magic"></i><span class="wz-t">设置向导</span></a><button type="button" class="tbtn" id="t-btn" title="切换白天 / 夜间模式" aria-label="切换白天 / 夜间模式"><i class="fas fa-moon" id="t-ico"></i></button></span></div>
+<div class="dv-head"><div class="dv-sub"><b>系统状态</b><em>System</em></div><span class="dv-acts"><button type="button" class="wz-btn ph-btn" id="ph-btn" hidden title="拨号（测试通话）" aria-label="打开拨号"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span class="ph-t">拨号</span></button><a class="wz-btn" id="wz-btn" href="{{ '/cgi-bin/luci/admin/udx/network' }}" title="打开「移动网络」设置（连接策略 / 频段 / 运营商 / APN）"><i class="fas fa-sliders-h"></i><span class="wz-t">网络设置</span></a><button type="button" class="tbtn" id="t-btn" title="切换白天 / 夜间模式" aria-label="切换白天 / 夜间模式"><i class="fas fa-moon" id="t-ico"></i></button></span></div>
 <div class="dv-stats" id="dv-stats"><div class="empty-hint"><i class="fas fa-circle-notch fa-spin"></i> 读取中…</div></div>
 <div class="dv-ifc"><div class="dv-ports" id="dv-ports"></div><div class="dv-ips" id="dv-ips"></div></div>
 </div>
@@ -263,71 +264,6 @@ html .P{max-width:none !important;}
      去掉总标题后, 第一条 .sp-h 直接贴着 .cd 的 padding-top(16px), 和原先
      标题占位时的上间距基本一致, 不用额外补 margin —— .sp-h:first-child 已经
      把 margin-top 归零了。 -->
-<!-- s161 故障报修浮窗: 入口是产品图工具键 #dv-rp; 完整保留申请卡 + 在线聊天(原在 Mwrt设定页「故障报修」页签) -->
-<div class="wfm rpw" id="rpw" role="dialog" aria-modal="true" aria-labelledby="rpw-t" aria-hidden="true">
-<div class="wfm-win rpw-win">
-<button type="button" class="wfm-x" id="rpw-x" title="关闭" aria-label="关闭"><i class="fas fa-times"></i></button>
-<div class="wfm-hd"><div class="rpw-ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3l8.4-8.4"/><path d="M14.7 6.3 11 10"/><path d="m9 3 1.5 3L8 7.5 5 6z"/></svg></div><div><div class="wfm-t" id="rpw-t">故障报修</div><div class="wfm-s">生成报修码 · 在线联系维护人员 · 远程协助</div></div></div>
-<div class="rpw-bd">
-<div class="rpw-l">
-<div id="rp">
-  <div class="rp-head">
-    <div class="rp-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6 12.6 21a2.1 2.1 0 0 1-3-3l8.4-8.4"/><path d="M14.7 6.3 11 10"/><path d="m9 3 1.5 3L8 7.5 5 6z"/></svg></div>
-    <div class="rp-ttl"><b>申请报修</b><small>遇到自己解决不了的问题时，生成报修码交给维护人员，对方确认后即可远程协助排查。</small></div>
-    <span class="rp-chip" id="rp-chip">未开启</span>
-  </div>
-
-  <div class="rp-body" id="rp-idle">
-    <ol class="rp-steps">
-      <li>点击下面的「申请故障处理」，设备会生成一个 <b>报修码</b>，有效期 12 小时。</li>
-      <li>把报修码发给维护人员，由对方在后台输入确认。</li>
-      <li>确认后维护人员可以远程查看并维护本设备；处理完点「结束报修」立即断开。</li>
-    </ol>
-    <div class="rp-btns"><button type="button" class="rp-btn" id="rp-apply">申请故障处理</button></div>
-    <div class="rp-note">说明：只有你点击申请后，设备才会主动连接维护服务器；没有维护人员输入报修码时，对方什么也访问不了。报修码 12 小时后自动失效，重启设备不会让它延长。</div>
-  </div>
-
-  <div class="rp-body" id="rp-act" style="display:none">
-    <div class="rp-codewrap">
-      <div class="rp-code" id="rp-code">----</div>
-      <button type="button" class="rp-btn ghost" id="rp-copy">复制报修码</button>
-    </div>
-    <div class="rp-bar"><i id="rp-fill"></i></div>
-    <div class="rp-meta"><span id="rp-left">剩余有效时间 --</span><span>报修码 12 小时内有效</span></div>
-    <div class="rp-st"><span class="rp-dot" id="rp-dot"></span><span id="rp-sttxt">正在连接维护服务器…</span></div>
-    <div class="rp-btns">
-      <button type="button" class="rp-btn ghost" id="rp-renew">重新生成报修码</button>
-      <button type="button" class="rp-btn danger" id="rp-stop">结束报修</button>
-    </div>
-  </div>
-  <div class="rp-body" style="padding-top:0"><div class="rp-msg" id="rp-msg" role="status" aria-live="polite"></div></div>
-</div>
-</div>
-<div class="rpw-r">
-<div id="rc" data-state="none">
-  <div class="rc-head">
-    <div class="rc-avw"><div class="rc-av"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><rect x="2" y="14" width="4" height="6" rx="1.5"/><rect x="18" y="14" width="4" height="6" rx="1.5"/><path d="M20 20c0 1.5-2 2-5 2"/></svg></div><i class="rc-dot" id="rc-dot"></i></div>
-    <div class="rc-ttl"><b>维护人员</b><div class="rc-sub" id="rc-sub">未开启</div></div>
-    <button type="button" class="rc-code" id="rc-code" style="display:none" aria-label="复制报修码" title="点击复制报修码"><span class="rc-cl">报修码</span><b id="rc-codet"></b><span class="rc-i" id="rc-codei"></span></button>
-  </div>
-  <div class="rc-banner" id="rc-banner" role="status"><span class="rc-i" id="rc-bico"></span><span id="rc-btxt"></span></div>
-  <div class="rc-wrap">
-    <div class="rc-list" id="rc-list" role="log" aria-live="polite" aria-relevant="additions text" aria-label="聊天记录" tabindex="0"></div>
-    <button type="button" class="rc-new" id="rc-new"></button>
-  </div>
-  <div class="rc-compose">
-    <div class="rc-quick" id="rc-quick" role="group" aria-label="常用语"></div>
-    <div class="rc-box" id="rc-box">
-      <textarea class="rc-ta" id="rc-ta" rows="1" maxlength="2000" aria-label="消息内容" disabled></textarea>
-      <button type="button" class="rc-send" id="rc-send" aria-label="发送消息" title="发送" disabled><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg></button>
-    </div>
-    <div class="rc-foot" id="rc-foot"><span class="rc-tip" id="rc-tip" role="alert"></span><span class="rc-cnt" id="rc-cnt"></span></div>
-  </div>
-</div>
-</div>
-</div>
-</div>
-</div>
 
 <!-- s122 关于本机: 设备规格卡 .cd-q 不再占首页, 收进浮窗, 入口是产品图右上角的「关于本机」键(#dv-about)。
      卡片节点原样搬进浮窗, 里面所有 f-* / ch-* id 与 wfmOpen / wlbOpen 都不动, 刷新照旧。 -->

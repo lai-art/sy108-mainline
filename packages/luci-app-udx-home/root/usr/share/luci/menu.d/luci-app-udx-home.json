@@ -63,6 +63,13 @@
    "function": "modem_sms_del"
   }
  },
+ "admin/fancontrol/ota_check": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "ota_check"
+  }
+ },
  "admin/modem/audio_state": {
   "action": {
    "type": "function",
