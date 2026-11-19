@@ -83,15 +83,16 @@ const THERMAL_NAMES = {
 };
 
 /* 「这条固件有没有无线能力」——注意不是「现在有没有无线网卡」：
-   HOST 线（wifi-host 分支）编了 kmod-mt7921u，用户明确要求温度浮层里的 WiFi 行
-   在 HOST 上必须一直在，即使没插网卡 / 驱动没加载。
-   所以先看 /lib/modules 下有没有 mt7921 的 ko（编译期就决定了），
-   再退一步看运行时有没有 phy（主线插 USB 网卡也能识别）。 */
+   HOST 线（wifi-host 分支）用户明确要求温度浮层里的 WiFi 行一直在，即使没插网卡。
+   判断依据不能看驱动 .ko：HOST 的 MT7921U 是**编进内核**的（config-7.3 里
+   CONFIG_MT7921U=y），rootfs 里根本没有 mt7921u.ko —— 按 .ko 判断会永远 false
+   （2026-11-19 用户追问「是不是识别到网卡还是要 wifi」时才发现写错了）。
+   改用 HOST 线独有的用户态组件做标记（两条线的 config 差异就只有这三个包）：
+     wifi-scripts → /sbin/wifi      wpad-mbedtls → /usr/sbin/wpad      iw → /usr/sbin/iw
+   最后再兜一层运行时 phy：主线插 USB 网卡时 /sys/class/ieee80211 也会出现。 */
 function _wifi_line() {
-	for (let kd in (lsdir('/lib/modules') ?? [])) {
-		for (let f in (lsdir('/lib/modules/' + kd) ?? []))
-			if (match(f, /^mt7921.*\.ko/)) return true;
-	}
+	for (let p in ['/sbin/wifi', '/usr/sbin/iw', '/usr/sbin/wpad'])
+		if (stat(p) != null) return true;
 	return (length(lsdir('/sys/class/ieee80211') ?? []) > 0);
 }
 
