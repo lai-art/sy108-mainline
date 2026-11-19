@@ -3429,3 +3429,18 @@ html[data-darkmode="true"] .alert-message.error:not(#mwrt-nope):not(#mwrt-s149) 
 html[data-darkmode="true"] .alert-message.success *:not(#mwrt-nope):not(#mwrt-s149),
 html[data-darkmode="true"] .alert-message.danger *:not(#mwrt-nope):not(#mwrt-s149),
 html[data-darkmode="true"] .alert-message.error *:not(#mwrt-nope):not(#mwrt-s149) { color: inherit; }
+
+/* s136-final: SY108 子页卡片(.udx-card)与面板(.udx-panel)统一首页卡片风格。
+   放在这里(而非 udx.js 的 JS 注入): 本文件由 header.ut 以 ?v=asset_version 引用,
+   bump /etc/udx-system-build 后必定刷新; JS 注入那套靠 require 加载, 缓存键是
+   luci-base 版本, bump 管不到。
+   ⚠️ 背景必须用主题变量 var(--udx-surface) 自动适配明暗, 绝不硬编码 #2a3350:
+      本主题深色模式下主内容区仍是浅色、文字仍是深色, 硬编码深底会让文字全糊掉。
+      只在 surface 上叠一层紫渐变 + 14px 圆角 + 轻投影, 明暗都可读。 */
+.udx-page .udx-card, .udx-page .udx-panel {
+  border-radius:14px;
+  background:radial-gradient(120% 160% at 0% 0%,rgba(124,92,252,0.10),rgba(124,92,252,0) 55%),var(--udx-surface,#fff);
+  border:1px solid var(--udx-line,rgba(20,28,60,0.09));
+  box-shadow:0 1px 2px rgba(20,28,60,0.05); }
+.udx-page .udx-card { padding:16px 18px 14px; }
+.udx-page .udx-card:hover, .udx-page .udx-panel:hover { box-shadow:0 3px 12px rgba(124,92,252,0.10); }
