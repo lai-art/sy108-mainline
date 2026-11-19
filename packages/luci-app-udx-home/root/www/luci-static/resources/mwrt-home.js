@@ -1866,36 +1866,32 @@ const mnc=mncE?(mncE.value||'').toString().trim().padStart(2,'0'):'';
 const imsi=imsiE?(imsiE.value||'').toString().replace(/\s/g,''):'';
 const imsiPlmn=imsi.length>=5?imsi.substring(0,5):'';
 let src='',nm='';
-const detect=(s)=>{if(/移动|CM|Mobile|46000|46002|46004|46007|46008/i.test(s))return['china_mobile','中国移动'];if(/联通|CU|United|46001|46006|46009/i.test(s))return['china_unicom','中国联通'];if(/电信|CHN-CT|Telecom|CT|46003|46005|46011/i.test(s))return['china_telecom','中国电信'];if(/广电|CBN|46015/i.test(s))return['cbn','中国广电'];return['',''];};
+const detect=(s)=>{if(/移动|CM|Mobile|46000|46002|46004|46007|46008/i.test(s))return['/logo/chinamobile.png','中国移动'];if(/联通|CU|United|46001|46006|46009/i.test(s))return['/logo/chinaunicom.png','中国联通'];if(/电信|CHN-CT|Telecom|CT|46003|46005|46011/i.test(s))return['/logo/ctc.png','中国电信'];if(/广电|CBN|46015/i.test(s))return['/logo/cbn.png','中国广电'];return['',''];};
 if(imsiPlmn){const r0=detect(imsiPlmn);if(r0[0]){src=r0[0];nm=r0[1];}}
 if(!nm){const r1=detect(opV);if(r1[0]){src=r1[0];nm=r1[1];}}
 if(!nm&&mcc&&mnc){const r2=detect(mcc+mnc);if(r2[0]){src=r2[0];nm=r2[1];}}
 // 必须显式清掉: 读不到 IMSI 时返回的 "+CME ERROR: 10" 会被压成 "+CMEE",
 // 而 detect() 的 /CM/i 正好命中它 —— 这就是没插卡也显示中国移动的原因。
 if(!online){src='';nm='';}
-/* s137 运营商徽标：mwrt 原版走 /logo/*.png（200x62 横版透明图 + 裁剪包围盒），
-   但**这几张 PNG 从没打进本固件**——设备上连 /logo 目录都不存在，<img> 必然 404。
-   heroUp 每 4 秒跑一次，每次都把 has-logo 加回来、把 .h-brand-ph 图标藏掉，
-   而 404 的 error 回调只在第一次触发 —— 结果就是品牌块变成一块空白
-   （用户 2026-11-19「首页运营商的图标不显示了」）。
-   改成自绘：品牌色圆角块 + 单字简称，零外部资源，离线也不会缺。 */
-const BRAND={
-china_mobile:{c:'#0086d1',t:'移'},   /* 中国移动 品牌蓝 */
-china_unicom:{c:'#e60012',t:'联'},   /* 中国联通 品牌红 */
-china_telecom:{c:'#0068b7',t:'电'},  /* 中国电信 品牌蓝 */
-cbn:{c:'#f26a1b',t:'广'}             /* 中国广电 品牌橙 */
-};
-const txEl=document.getElementById('h-brand-tx');
-const showLogo=s=>{if(!brand)return;
-const b=s?BRAND[s]:null;
-/* 拿不到运营商（未拨号/未注册）就退回中性色块 + 基站图标，不留白 */
-brand.classList.toggle('brand-tx',!!b);
-brand.classList.remove('has-logo');
-logo&&(logo.style.display='none');
-if(txEl)txEl.textContent=b?b.t:'';
-brand.style.background=b?b.c:'';
-brand.style.color=b?'#fff':'';};
-showLogo(src);
+/* s137 原版 logo 回来了：/logo/*.png 四张 200x62 横版透明图，从 MWRT 原包里取回，
+   随本包安装到 /www/logo/（原包放在 /usr/share/modem/logo/，web 不可见，所以复制一份到 web 根）。
+   之前设备上没有这四张图，<img> 404 而 heroUp 每 4 秒又把 has-logo 加回来 → 品牌块空白
+   （用户「运营商的图标不显示了」）。图补上即可。
+   下面这组包围盒是各家"图形"在原图里的位置 [x,y,w,h]，按 clip 边长等比放大后居中裁出来。
+   2026-11-19 用 alpha 通道重测过一遍（原来的值会切掉图形边缘，联通的还会带出下面的文字）：
+     移动 图形在左 x0..62；电信 图形在左 x0..57 / y5..59；广电 图形在左 x16..77；
+     联通版式相反 —— 图形在右上 x92..153 / y0..46，文字在下面 y50+，所以框高只取 36 把文字挡掉。 */
+const EMB={chinamobile:[0,0,63,62],ctc:[0,5,58,55],cbn:[16,0,62,61],chinaunicom:[92,0,62,36]};
+const showLogo=s=>{if(!logo||!brand)return;
+if(!s){brand.classList.remove('has-logo');delete logo.dataset.op;logo.removeAttribute('src');logo.style.display='none';return;}
+if(logo.dataset.op!==s){logo.dataset.op=s;delete logo.dataset.bad;logo.onerror=()=>{brand.classList.remove('has-logo');logo.style.display='none';logo.dataset.bad='1';};logo.src=s;}
+/* 图真的加载失败过就不要再挂 has-logo —— 否则兜底的基站图标被藏掉、品牌块变空白 */
+if(logo.dataset.bad==='1')return;
+logo.style.display='';brand.classList.add('has-logo');
+const b=EMB[(s.match(/([a-z]+)\.png$/i)||[])[1]],S=logo.parentNode.clientWidth||28;
+if(b){const k=S/Math.max(b[2],b[3]);logo.style.width=(200*k)+'px';logo.style.height=(62*k)+'px';logo.style.left=(-b[0]*k+(S-b[2]*k)/2)+'px';logo.style.top=(-b[1]*k+(S-b[3]*k)/2)+'px';}
+else{logo.style.width=logo.style.height='100%';logo.style.left=logo.style.top='0';logo.style.objectFit='contain';}};
+showLogo(src||(online&&logo&&logo.dataset.op)||'');
 if(opN){
   /* 运营商名也粘滞: 在线时一旦解析出名字(nm/opV/PLMN)就记进 lastOp;
      在线但这轮没读到名字(AT 空读)→ 沿用 lastOp, 不回退到"等待网络注册"。 */
@@ -1946,7 +1942,10 @@ if(bars){const k=L?Math.max(1,Math.ceil(p/20)):0,c=L?BC[L.cls]:'';bars.innerHTML
 /* 4G(LTE)下 MT5700 不吐 RSRP, 只给 RxLev(同样是参考信号接收功率/dBm, 量纲一致),
    所以 RSRP 读不到时兜底认 RxLev —— 否则 4G 下信号环一直空 `--`(用户反馈"蜂窝显示不全")。 */
 const rsrp=cellF(/RSRP|参考信号接收功率/i)||cellF(/^RxLev$|接收电平/i);
-if(rsrp){const n=num(rsrp.value);paint(n,n!==''?sigLvl('rsrp',n):null);
+/* s138: RSRP 显示取整。udx.cellular 给的是 -107.45 这种两位小数（AT 模组只给整数），
+   6 个字符塞进信号环圆心会溢出圆圈 —— 用户 2026-11-19 截图反馈。档位判定仍用原值。 */
+if(rsrp){const n0=num(rsrp.value),nf=parseFloat(n0);
+const n=(isFinite(nf)&&n0!=='')?String(Math.round(nf)):n0;paint(n,n!==''?sigLvl('rsrp',n0):null);
 /* 信号刷新落后了就轻提示一句,别让用户以为数字是死的 */
 if(slEl)slEl.textContent=(this.stale>30&&this.stale<=STICKY_MS/1000)?(this.stale+'s 前的读数'):'实时读数';}
 // 粘滞窗口都过完还是读不到: 别再端着一个冻住的 dBm 配"等待小区注册",一起归零
@@ -4529,8 +4528,154 @@ window.MRT_POP={upd:function(){if(cur)render();},open:open,close:close};
    s.onload=done;s.onerror=done;document.head.appendChild(s);
   });
  }
+ /* ---- s139: 锁频设置 / 短信管理 改成首页浮窗（用户要求"弹出一个界面，不跳转"） ----
+    外壳复用 #mxm（和蜂窝模组/SIM/基站磁贴同一个 .wfm 弹窗，含 × 与点遮罩关闭），
+    正文自己填；不克隆 #mrt-sec 的卡，所以 cur 置空、sync() 不会来覆盖。 */
+ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+ function mxfOpen(title,sub,icon){
+  var m=$('mxm');if(!m)return null;
+  cur='';
+  $('mxm-t').textContent=title;$('mxm-s').textContent=sub;$('mxm-i').className=icon;
+  var b=$('mxm-b');b._h='';b.innerHTML='<div class="mxf-ld"><i class="fas fa-circle-notch fa-spin"></i> 正在读取…</div>';
+  left(m);m.classList.add('open');m.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+  return b;
+ }
+ function mxfNote(b,t,cls){var n=b&&b.querySelector('.mxf-note');if(n){n.textContent=t;n.className='mxf-note '+(cls||'');}}
+ function mxfErr(b,t){if(b)b.innerHTML='<div class="mxf-ld bad"><i class="fas fa-triangle-exclamation"></i> '+esc(t)+'</div>';}
+
+ /* 锁频设置：勾选 = 只允许这些频段；都不勾 = 不限制。频段清单只列 supported_bands
+    （模组真支持的），避免勾到 n5/n8 这种锁了也没信号的频段。
+    应用按钮第一下变成「确认应用？」—— 锁错频段会掉网，必须二次确认。 */
+ function lockbandOpen(){
+  var b=mxfOpen('锁频设置','频段锁定 · 只允许勾选的频段接入','fas fa-lock');
+  if(!b)return;
+  function bandSec(t,rat,g){
+   var list=(g&&g.supported)||[],on=(g&&g.bands)||[],un=!!(g&&g.unrestricted);
+   if(!list.length)return '<div class="mxf-sec"><div class="mxf-h">'+t+'</div><div class="mxf-ld sm">本机不支持频段锁定</div></div>';
+   var chips=list.map(function(x){
+    var ck=(!un&&on.indexOf(x)>=0)?' checked':'';
+    return '<label class="mxf-c"><input type="checkbox" value="'+esc(x)+'"'+ck+'><span>'+esc(x)+'</span></label>';
+   }).join('');
+   return '<div class="mxf-sec" data-rat="'+rat+'"><div class="mxf-h">'+t+'<i>'+(un?'当前不限':'当前已锁')+'</i></div>'
+     + '<div class="mxf-chips">'+chips+'</div></div>';
+  }
+  function load(){
+   XHR.get('/cgi-bin/luci/admin/fancontrol/band_get',{},function(x,d){
+    if(!d||d.ok!==true){mxfErr(b,(d&&d.error)||'读取频段失败');return;}
+    b.innerHTML='<div class="mxf-top"><span>当前驻留</span><b>'
+      + esc(String(d.rat||'--').toUpperCase())+' '+esc(String(d.band||'--'))+'</b>'
+      + '<i>PCI '+esc(d.pci==null?'--':d.pci)+'</i></div>'
+      + bandSec('LTE 频段','lte',d.lte)+bandSec('5G NR 频段','nr',d.nr)
+      + '<div class="mxf-note"></div>'
+      + '<div class="mxf-foot"><button type="button" class="mxf-btn" data-act="apply">应用</button>'
+      + '<button type="button" class="mxf-btn ghost" data-act="clear">解除全部锁频</button>'
+      + '<span class="mxf-hint">都不勾 = 不限制频段</span></div>';
+   });
+  }
+  b.addEventListener('click',function(e){
+   var btn=e.target.closest?e.target.closest('[data-act]'):null;if(!btn||btn.disabled)return;
+   var act=btn.getAttribute('data-act');
+   if(act==='apply'&&!btn._ok){
+    btn._ok=1;btn.textContent='确认应用？再点一次';
+    setTimeout(function(){btn._ok=0;btn.textContent='应用';},4000);
+    return;
+   }
+   var lte=[],nr=[];
+   Array.prototype.forEach.call(b.querySelectorAll('.mxf-sec[data-rat]'),function(s){
+    var rat=s.getAttribute('data-rat'),arr=[];
+    Array.prototype.forEach.call(s.querySelectorAll('input:checked'),function(i){arr.push(i.value);});
+    if(rat==='lte')lte=arr;else nr=arr;
+   });
+   var txt=btn.textContent;btn.disabled=true;btn.textContent='提交中…';
+   mxfNote(b,'正在下发频段锁定，切换期间信号会短暂中断…');
+   var q=(act==='clear')?{clear:'1'}:{lte:lte.join(','),nr:nr.join(',')};
+   XHR.get('/cgi-bin/luci/admin/fancontrol/band_set',q,function(x,d){
+    btn.disabled=false;btn._ok=0;btn.textContent=txt;
+    if(d&&d.ok===true){mxfNote(b,'已生效，正在刷新…','ok');setTimeout(load,1200);return;}
+    if(d&&d.pending){mxfNote(b,'已下发，模组正在切换频段，稍后自动刷新…','warn');setTimeout(load,4000);return;}
+    mxfNote(b,(d&&d.error)||'提交失败','bad');
+   });
+  });
+  load();
+ }
+
+ /* 短信管理：最近 12 条，勾选后可批量删除（用户 2026-11-19 要求）。
+    删除要回传 index + pdu_sha256 两项 —— index 会随新短信挪位，只给 index 可能删错行，
+    服务端也会再校验一遍格式。正文必须 esc()：短信内容是不可信输入，直接拼 HTML 会被注入。 */
+ function smsOpen(){
+  var b=mxfOpen('短信管理','最近收到的短信 · 勾选可批量删除','fas fa-comment-dots');
+  if(!b)return;
+  function load(){
+   XHR.get('/cgi-bin/luci/admin/fancontrol/sms_list',{},function(x,d){
+    if(!d||d.ok!==true){mxfErr(b,(d&&d.error)||'读取短信失败');return;}
+    var ms=d.messages||[],h;
+    if(!ms.length){h='<div class="mxf-ld sm">没有短信</div>';}
+    else{
+     h='<div class="mxf-sms">'+ms.map(function(m){
+      var v=esc((m.index==null?'':m.index)+':'+(m.sha||''));
+      return '<label class="sms-r"><input type="checkbox" class="sms-ck" value="'+v+'">'
+        + '<div class="sms-main"><div class="sms-hd"><b>'+esc(m.peer||'未知号码')+'</b>'
+        + '<span>'+esc(m.time||'')+'</span></div>'
+        + '<div class="sms-tx">'+esc(m.text||'（无正文）')+'</div></div></label>';
+     }).join('')+'</div>';
+    }
+    h+='<div class="mxf-note"></div><div class="mxf-foot">';
+    if(ms.length){
+     h+='<label class="mxf-c sms-all"><input type="checkbox" data-act="all"><span>全选</span></label>'
+      + '<button type="button" class="mxf-btn danger" data-act="del">删除选中</button>';
+    }
+    h+='<button type="button" class="mxf-btn ghost" data-act="refresh">刷新</button>'
+      + '<a class="mxf-btn ghost" href="/cgi-bin/luci/admin/udx/sms">打开短信页</a>'
+      + '<span class="mxf-hint">共 '+esc(d.total||0)+' 条</span></div>';
+    b.innerHTML=h;
+   });
+  }
+  b.addEventListener('change',function(e){
+   var t=e.target;
+   if(t&&t.getAttribute&&t.getAttribute('data-act')==='all'){
+    Array.prototype.forEach.call(b.querySelectorAll('.sms-ck'),function(i){i.checked=t.checked;});
+   }
+  });
+  b.addEventListener('click',function(e){
+   var btn=e.target.closest?e.target.closest('[data-act]'):null;if(!btn||btn.disabled)return;
+   var act=btn.getAttribute('data-act');
+   if(act==='all')return;
+   if(act==='refresh'){
+    b.innerHTML='<div class="mxf-ld"><i class="fas fa-circle-notch fa-spin"></i> 正在刷新…</div>';
+    load();return;
+   }
+   if(act==='del'){
+    var sel=[];
+    Array.prototype.forEach.call(b.querySelectorAll('.sms-ck:checked'),function(i){sel.push(i.value);});
+    if(!sel.length){mxfNote(b,'先勾选要删除的短信','warn');return;}
+    if(!btn._ok){
+     btn._ok=1;btn.textContent='确认删除 '+sel.length+' 条？';
+     setTimeout(function(){btn._ok=0;btn.textContent='删除选中';},4000);
+     return;
+    }
+    btn.disabled=true;btn.textContent='删除中…';
+    mxfNote(b,'正在删除 '+sel.length+' 条…');
+    XHR.get('/cgi-bin/luci/admin/fancontrol/sms_del',{items:sel.join(',')},function(x,r){
+     btn.disabled=false;btn._ok=0;btn.textContent='删除选中';
+     if(r&&r.ok===true){
+      var msg='已删除 '+((r.deleted==null)?sel.length:r.deleted)+' 条';
+      mxfNote(b,r.failed?(msg+'，'+r.failed+' 条未删'):msg,r.failed?'warn':'ok');
+      setTimeout(load,900);return;
+     }
+     if(r&&r.pending){mxfNote(b,'删除已下发，正在执行…','warn');setTimeout(load,2500);return;}
+     mxfNote(b,(r&&r.error)||'删除失败','bad');
+    });
+   }
+  });
+  load();
+ }
+
  function open(k){
   if(k==='wifi'){if(typeof wfmOpen==='function')wfmOpen('2g');return;}   /* s130 无线设置: 复用首页 WiFi 设置浮窗 */
+  if(k==='lockband'){lockbandOpen();return;}   /* s139 锁频设置: 首页浮窗, 不再跳 admin/udx/network */
+  if(k==='sms'){smsOpen();return;}             /* s139 短信管理: 首页浮窗, 不再跳 admin/udx/sms */
   if(k==='topo'){if(window.MRT_OVBOX)window.MRT_OVBOX();topo();return;}   /* 网络拓扑: 全屏覆盖层, 脚本点击时才加载 */
   var m=$('mxm');if(!m||!DEF[k])return;
   cur=k;

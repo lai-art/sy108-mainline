@@ -35,6 +35,34 @@
    "function": "fancontrol_modem_ctrl"
   }
  },
+ "admin/fancontrol/band_get": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_band_get"
+  }
+ },
+ "admin/fancontrol/band_set": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_band_set"
+  }
+ },
+ "admin/fancontrol/sms_list": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_sms_list"
+  }
+ },
+ "admin/fancontrol/sms_del": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_sms_del"
+  }
+ },
  "admin/modem/audio_state": {
   "action": {
    "type": "function",

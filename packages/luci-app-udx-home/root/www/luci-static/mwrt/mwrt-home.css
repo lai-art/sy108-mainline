@@ -716,13 +716,6 @@ html,body{background:#0b0d14 !important}
 .P .h-brand.has-logo .h-brand-clip{display:block}
 .P .h-brand.has-logo .h-brand-ph{display:none}
 .P .h-brand-clip img{position:absolute;max-width:none;display:block}
-/* s137 运营商徽标（替代 /logo/*.png）：那几张 PNG 没打进本固件，/logo 目录根本不存在，
-   <img> 一 404 品牌块就变成一块空白（用户「运营商的图标不显示了」）。改成品牌色块 + 单字简称，
-   不依赖任何图片资源，离线也不会缺。颜色由 showLogo() 内联写入，字号继承 .h-brand 的 font-size，
-   所以 .hc-lite / 窄屏那几处尺寸覆盖都不用另写。 */
-.P .h-brand-tx{display:none;font-size:inherit;font-weight:800;line-height:1;letter-spacing:0}
-.P .h-brand.brand-tx .h-brand-ph{display:none}
-.P .h-brand.brand-tx .h-brand-tx{display:block}
 .P .h-id-t{min-width:0;flex:1}
 .P .h-op-row{display:flex;align-items:center;gap:10px;min-width:0}
 .P .h-op-name{font-size:19px;font-weight:800;color:var(--t1);letter-spacing:0.3px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
@@ -1102,6 +1095,45 @@ html.mrt-nomod #mrt-sec{display:none!important}
 .P .mxm-win{max-width:760px}
 .P .mxm-b>.cd{background:none;border:0;box-shadow:none;padding:0;margin:0}
 .P .mxm-b .clb,.P .mxm-b .clb.shut{max-height:none;overflow:visible;opacity:1;margin-top:0}
+/* s139 首页浮窗正文（锁频设置 / 短信管理）：外壳沿用上面的 #mxm，这里只排内容 */
+.P .mxf-ld{padding:26px 4px;text-align:center;color:var(--t2);font-size:12.5px}
+.P .mxf-ld.sm{padding:14px 4px}
+.P .mxf-ld.bad{color:#f87171}
+.P .mxf-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;border-radius:10px;background:var(--c2);font-size:12px;color:var(--t2)}
+.P .mxf-top b{color:var(--t1);font-size:13px}
+.P .mxf-top i{font-style:normal;font-size:11px;color:var(--t2);opacity:.85}
+.P .mxf-sec{margin-bottom:14px}
+.P .mxf-h{display:flex;align-items:baseline;gap:8px;margin-bottom:8px;font-size:12px;font-weight:700;color:var(--t1)}
+.P .mxf-h i{font-style:normal;font-weight:400;font-size:11px;color:var(--t2)}
+.P .mxf-chips{display:flex;flex-wrap:wrap;gap:6px}
+.P .mxf-c{position:relative;display:inline-flex;align-items:center;justify-content:center;min-width:52px;height:30px;padding:0 10px;border:1px solid var(--bd);border-radius:8px;background:rgba(255,255,255,0.03);color:var(--t2);font-size:12px;cursor:pointer;user-select:none;transition:background .15s,border-color .15s,color .15s}
+.P .mxf-c input{position:absolute;opacity:0;pointer-events:none}
+.P .mxf-c span{pointer-events:none}
+.P .mxf-c:hover{border-color:rgba(124,92,252,0.5)}
+.P .mxf-c:has(input:checked){background:rgba(124,92,252,0.18);border-color:#7c5cfc;color:#c4b5fd;font-weight:700}
+.P .mxf-note{min-height:16px;margin:2px 0 8px;font-size:11.5px;color:var(--t2)}
+.P .mxf-note.ok{color:#34d399}
+.P .mxf-note.warn{color:#fbbf24}
+.P .mxf-note.bad{color:#f87171}
+.P .mxf-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--bd)}
+.P .mxf-btn{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 16px;border:1px solid transparent;border-radius:9px;background:#7c5cfc;color:#fff;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none}
+.P .mxf-btn:hover{background:#6d4ff0;color:#fff;text-decoration:none}
+.P .mxf-btn.ghost{background:transparent;border-color:var(--bd);color:var(--t1)}
+.P .mxf-btn.ghost:hover{background:rgba(124,92,252,0.12)}
+.P .mxf-btn:disabled{opacity:.55;cursor:default}
+.P .mxf-hint{margin-left:auto;font-size:11px;color:var(--t2)}
+.P .mxf-sms{max-height:46vh;overflow-y:auto;margin-bottom:4px}
+.P .sms-r{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;margin-bottom:6px;border-radius:10px;background:var(--c2);cursor:pointer}
+.P .sms-r:hover{background:rgba(124,92,252,0.10)}
+.P .sms-ck{flex:0 0 auto;width:15px;height:15px;margin:3px 0 0;accent-color:#7c5cfc;cursor:pointer}
+.P .sms-main{flex:1 1 auto;min-width:0}
+.P .sms-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:4px}
+.P .sms-hd b{font-size:12.5px;color:var(--t1)}
+.P .sms-hd span{margin-left:auto;font-size:11px;color:var(--t2)}
+.P .sms-tx{font-size:12px;line-height:1.55;color:var(--t2);white-space:pre-wrap;word-break:break-word}
+.P .sms-all{height:28px;min-width:auto;padding:0 10px;gap:5px}
+.P .mxf-btn.danger{background:rgba(248,113,113,0.16);border-color:rgba(248,113,113,0.45);color:#f87171}
+.P .mxf-btn.danger:hover{background:rgba(248,113,113,0.28);color:#fca5a5}
 /* 手机(≤768px): 蜂窝卡片同样收起, 六个入口放在三个圆环下面占整行(3×2 的小按钮), 点开走同一个弹窗 */
 @media(max-width:768px){
  .P .gx-mod:not([hidden]){display:block;grid-column:1/-1;padding:8px;background:var(--c2);border-radius:var(--r)}
