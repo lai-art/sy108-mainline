@@ -64,7 +64,7 @@
       <div class="al-head">
         <div class="al-brand">
           <span class="al-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
-          <span class="al-bn">Mwrt</span>
+          <span class="al-bn">Mr_ ⒈个人╜り</span>
         </div>
         <h1 class="al-title">{{ _('登录到管理后台') }}</h1>
         <p class="al-sub">{{ _('路由器管理系统') }}</p>
@@ -99,9 +99,9 @@
       <div class="al-foot">
         <div class="al-fw-m">{{ _('固件版本') }} {{ entityencode(version?.distname ?? '', true) }}</div>
         <button class="al-about" type="button" onclick="abOpen()" aria-haspopup="dialog">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>{{ _('关于 Mwrt 与免责声明') }}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>{{ _('关于免责声明') }}
         </button>
-        <div class="al-ft-line"><span class="al-ft-b">{{ _('欢迎使用Mwrt') }}</span></div>
+        <div class="al-ft-line"><span class="al-ft-b">{{ _('欢迎使用') }}</span></div>
       </div>
     </div>
   </div>
@@ -163,7 +163,7 @@
         <p>继续使用即表示您已阅读、理解并接受以上全部条款。若不同意,请立即停止使用并刷回官方固件。</p>
       </div>
     </div>
-    <div class="ab-ft">{{ _('欢迎使用Mwrt') }}</div>
+    <div class="ab-ft">{{ _('欢迎使用') }}</div>
   </div>
 </div>
 

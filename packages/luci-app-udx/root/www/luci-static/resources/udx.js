@@ -356,7 +356,22 @@ var CSS = [
     '.udx-card,.udx-panel{transition:border-color .2s ease,box-shadow .2s ease}',
     '.udx-card:hover{border-color:var(--success-color-low,#9fd4c4);',
     'box-shadow:0 0 0 1px rgba(22,163,74,.08) inset,0 0 18px rgba(22,163,74,.14)}',
-    '.udx-pill[data-tone="teal"],.udx-pill[data-tone="ok"]{box-shadow:0 0 10px rgba(22,163,74,.28)}'
+    '.udx-pill[data-tone="teal"],.udx-pill[data-tone="ok"]{box-shadow:0 0 10px rgba(22,163,74,.28)}',
+    /* s136: SY108 六个子页的卡片(.udx-card)统一成首页卡片风格。
+       与 mwrt-home.css 的 `.P .cd:not(.dv-card)` 同源: 紫色radial渐变 + 14px 圆角 +
+       inset 高光(暗)/轻投影(亮)。用 .P 前缀抬特异度压过上面的 .udx-card 基础规则;
+       六个 view(overview/network/sim/sms/hardware/advanced)共用这个组件, 一处生效。 */
+    '.P .udx-card{border:1px solid rgba(255,255,255,0.07);border-radius:14px;',
+    'padding:16px 18px 14px;background:radial-gradient(120% 160% at 0% 0%,',
+    'rgba(124,92,252,0.10),rgba(124,92,252,0) 55%),#2a3350;',
+    'box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}',
+    '.P.L .udx-card{border-color:rgba(20,28,60,0.07);',
+    'background:radial-gradient(120% 160% at 0% 0%,rgba(124,92,252,0.06),',
+    'rgba(124,92,252,0) 55%),#fff;box-shadow:0 1px 2px rgba(20,28,60,0.04)}',
+    '.P .udx-card:hover{border-color:rgba(255,255,255,0.07);',
+    'box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}',
+    '.P.L .udx-card:hover{border-color:rgba(20,28,60,0.07);',
+    'box-shadow:0 1px 2px rgba(20,28,60,0.04)}'
 ].join('');
 function injectStyles() {
     if (STYLE_NODE || typeof document === 'undefined')
