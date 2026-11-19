@@ -2299,7 +2299,10 @@ html.mrt-nomod #mrt-sec{display:none!important}
 .P .clh{display:flex;justify-content:space-between;align-items:center;cursor:pointer}.P .clh .cd-t{margin-bottom:0}
 .P .cla{font-size:9px;color:var(--t3);transition:transform 0.3s}.P .cla.shut{transform:rotate(-90deg)}
 .P .clb{max-height:600px;overflow:hidden;transition:max-height 0.3s,opacity 0.2s;opacity:1;margin-top:12px}.P .clb.shut{max-height:0;opacity:0;margin-top:0}
-.P .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--c1);border:1px solid var(--bd);color:var(--t1);padding:10px 18px;border-radius:8px;font-size:12px;z-index:10000;opacity:0;transition:all 0.3s}.P .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+/* z-index 10060：要压过 .wfm 浮窗的 10050。原先 10000 在浮窗下面，「关于本机」里点
+   「检查更新」时那句「当前已是最新固件」直接被浮窗盖住（用户 2026-11-19 反馈）。
+   浮窗那段注释里的本意就是"提示得在窗口上面"，这里把数字调正。 */
+.P .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--c1);border:1px solid var(--bd);color:var(--t1);padding:10px 18px;border-radius:8px;font-size:12px;z-index:10060;opacity:0;transition:all 0.3s}.P .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 /* s64: 移动端屏幕底部有固定导航栏(约 51px), toast 的 bottom:16px 会被它挡住。
    窄屏下把 toast 抬到导航栏之上(叠加安全区)。桌面端无底栏, 不受影响。 */
 @media (max-width:768px){.P .toast{bottom:calc(64px + env(safe-area-inset-bottom,0px))}}
