@@ -189,8 +189,11 @@ function _cell() {
 /* 归一化的蜂窝信号视图：给 devinfo / devpop(信号卡) / topo_data / wan_get 共用。
  * 全部字段做了缺省兜底：模组没起来 / 没 SIM / 没小区数据时返回 null 字段，
  * 前端按 null 渲染「--」，绝不能让字符串键缺失。 */
-function _cell_signal() {
-	let c = _cell();
+function _cell_signal(c) {
+	/* c 可选：调用方已经 _cell() 过一次就传进来，省一次 ubus 往返。
+	   不传（老调用点）就是 null，自己取。注意 ucode 没有 undefined 这个字面量，
+	   写 c === undefined 会直接炸 "access to undeclared variable"。 */
+	if (c == null) c = _cell();
 	if (c == null) return null;
 	let st = c.raw;
 	let s = c.serving ?? null;
@@ -654,6 +657,75 @@ function fancontrol_devpop() {
 	}
 }
 
+/* ---------- modem_ctrl：首页底部「蜂窝模组 / SIM卡信息 / 基站信息」三张卡 ----------
+ * mwrt 原版这三块吃的是 AT 口模组：/usr/bin/mwrt-cellinfo 写盘 + generic.sh 吐的 key/value 表。
+ * SY108 的模组是 UDX710 —— 模组自己就是主控，这台机器上没有 AT 口（也没有 mwrt-cellinfo），
+ * 老链路永远是空表，前端 mwrt-home.js:1804 的空态分支于是误报「此设备未安装蜂窝模组」，
+ * 而模组其实一直在网（2026-11-19 用户截图反馈）。
+ *
+ * 修法：直接读 ubus udx.cellular status，翻译成 mwrt 那份 {key, full_name, value, class} 表。
+ * 前端渲染逻辑一行不改 —— 它本来就是按 class 把条目归进三张卡、按 key 找具体字段。
+ * 字段名不能随意改，对应关系：
+ *   基本信息  : name/manufacturer/revision/mode/connect_status/operator → 卡片抬头与 tags
+ *   SIM卡信息 : status/卡槽/ICCID/IMSI/IMEI
+ *   基站信息 : Band/ARFCN/PCI/Cell ID/TAC 走上排格子，RSRP/RSRQ/SINR 走下面信号条
+ */
+function fancontrol_modem_ctrl() {
+	http.prepare_content('application/json; charset=UTF-8');
+
+	let c = _cell();
+	let sig = _cell_signal(c);
+	let raw = (c != null) ? c.raw : null;
+
+	let out = [];
+	let add = function(k, n, v, cls) {
+		if (v == null) return;
+		let t = '' + v;
+		/* 前端 okVal() 同样把空串/'--' 当无效；这里先挡掉，卡片上就不会出现一行横杠 */
+		if (t == '' || t == '--' || t == 'null') return;
+		push(out, { key: k, full_name: n, value: t, class: cls, class_origin: cls, type: 'text' });
+	};
+
+	let B = '基本信息', S = 'SIM卡信息', C = '基站信息';
+
+	/* 模组身份三件套照写不误：哪怕蜂窝服务没起来，卡片也只会显示「链路断开 / 无 SIM」，
+	   而不是「未安装蜂窝模组」—— 那才是 2026-11-19 用户指的那个错。 */
+	add('name', '模组型号', 'UDX710', B);
+	add('manufacturer', '制造商', 'UNISOC 紫光展锐', B);
+	add('connect_status', '连接状态', (sig != null && sig.active === true) ? 'Yes' : 'No', B);
+
+	if (sig == null) { http.write_json(out); return; }
+
+	/* mode 必须是 "5G SA"/"5G NSA"/"4G LTE" 这种前端认得的写法，
+	   heroUp() 的制式徽章和 isNR(频段加 n 前缀) 都按它判断 */
+	add('mode', '网络模式', sig.rat_txt, B);
+	/* operator 会被 heroUp 拿去匹配运营商名和 logo（/移动|联通|电信|广电/），
+	   写 '中国移动' 这种中文名最稳，别写成 PLMN */
+	add('operator', '互联网服务提供商', sig.operator, B);
+	add('apn', 'APN', sig.apn, B);
+	add('ip', '蜂窝 IP', sig.ip, B);
+
+	/* SIM：iccid/imsi/imei 在 status 顶层，卡状态在 sim.state。
+	   前端 /status|状态/ 命中后按 /ready/ 点亮绿点，所以这里原样透出 READY */
+	add('status', '状态', raw?.sim?.state, S);
+	add('iccid', 'ICCID', raw?.iccid, S);
+	add('imsi', 'IMSI', raw?.imsi, S);
+	add('imei', 'IMEI', raw?.imei, S);
+
+	/* 驻留小区。key 用 'NR-ARFCN' 而不是 'ARFCN' —— 前端正则 ^NR.?ARFCN$ 能直接对上，
+	   频段值已是 'n41' 这种带制式前缀的写法，不会再被加一次前缀 */
+	add('Band', '频段', sig.band, C);
+	add('NR-ARFCN', '频点', sig.arfcn, C);
+	add('PCI', '物理小区', sig.pci, C);
+	add('Cell ID', '小区ID', sig.cell_id, C);
+	add('TAC', '区位码', sig.tac, C);
+	add('RSRP', 'RSRP', sig.rsrp, C);
+	add('RSRQ', 'RSRQ', sig.rsrq, C);
+	add('SINR', 'SINR', sig.sinr, C);
+
+	http.write_json(out);
+}
+
 /* ---------- mwrt_assurance_status：首页连接状态区（gw()） ----------
  * 前端只取四个中文键，值含「在线/Online」时点亮状态点。 */
 
@@ -908,6 +980,8 @@ return {
 	/* 已实现 */
 	fancontrol_devinfo: devinfo,
 	fancontrol_devpop: fancontrol_devpop,
+	/* 2026-11-19: 原来是 _empty，首页「蜂窝模组/SIM/基站」三张卡因此误报未插模组 */
+	fancontrol_modem_ctrl: fancontrol_modem_ctrl,
 	redirect_wizard: redirect_wizard,
 	redirect_ota: redirect_ota,
 	network_mwrt_assurance_status: network_mwrt_assurance_status,
@@ -918,7 +992,6 @@ return {
 
 	/* 只读，暂返回空对象 */
 	fancontrol_memfree: _empty,
-	fancontrol_modem_ctrl: _empty,
 	modem_audio_state: _empty,
 	modem_audio_wave: _empty,
 	modem_camframe: _empty,
