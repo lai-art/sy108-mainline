@@ -1067,9 +1067,10 @@ function ota_check() {
 	let local = _ota_local(), ltag = _ota_tag(local), rtag = rel.tag_name;
 	let ld = _ota_date(ltag), rd = _ota_date(rtag);
 
-	/* 先按 commit 判：CI 是浅克隆，`git describe` 常常看不到新打的 tag，
-	   镜像里的版本戳会是 "sy108-v2026.11.10-usb3-lpm-58-gbd174b7" 这种
-	   「旧 tag + 提交数 + g<sha>」。只看日期就会把「已经是最新的这一版」判成有新版本
+	/* 先按 commit 判：CI 构建时本地没有 refs/tags/<新 tag>（见 .github/workflows 里
+	   fetch-tags 那段），`git describe` 于是退回「旧 tag + 提交数 + g<sha>」，
+	   版本戳会是 "sy108-v2026.11.10-usb3-lpm-58-gbd174b7" 这种。
+	   只看日期就会把「已经是最新的这一版」判成有新版本
 	   （2026-11-19 刷完 v2026.11.19 后实测 update:true，就是这个假阳性）。
 	   所以：本地戳里能抠出 -g<sha> 就查一次该 tag 指向的 commit，前缀对得上 = 已是最新。
 	   抠不出来（手工热修戳）再退回日期比较。 */
