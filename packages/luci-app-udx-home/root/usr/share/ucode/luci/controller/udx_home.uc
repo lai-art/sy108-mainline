@@ -1067,11 +1067,33 @@ function ota_check() {
 	let local = _ota_local(), ltag = _ota_tag(local), rtag = rel.tag_name;
 	let ld = _ota_date(ltag), rd = _ota_date(rtag);
 
-	/* 两边都带日期就按日期判新旧；判不出来时给 null —— 前端只报「已查询 + 两个版本号」，
-	   不硬说有没有新版（本地是手工热修戳时会走到这条） */
+	/* 先按 commit 判：CI 是浅克隆，`git describe` 常常看不到新打的 tag，
+	   镜像里的版本戳会是 "sy108-v2026.11.10-usb3-lpm-58-gbd174b7" 这种
+	   「旧 tag + 提交数 + g<sha>」。只看日期就会把「已经是最新的这一版」判成有新版本
+	   （2026-11-19 刷完 v2026.11.19 后实测 update:true，就是这个假阳性）。
+	   所以：本地戳里能抠出 -g<sha> 就查一次该 tag 指向的 commit，前缀对得上 = 已是最新。
+	   抠不出来（手工热修戳）再退回日期比较。 */
+	let lsha = null;
+	let sm = match(local, /-g([0-9a-f]{7,40})/);
+	if (sm) lsha = sm[1];
+
 	let update = null;
-	if (ld != null && rd != null) update = (rd > ld);
-	else if (rtag == ltag) update = false;
+	let rsha = null;
+	if (lsha != null) {
+		let cf = '/tmp/.udx-ota-commit.json';
+		system(sprintf("curl -sS -m 8 -H 'Accept: application/vnd.github+json' "
+		             + "-H 'User-Agent: sy108-ota' -o %s "
+		             + "https://api.github.com/repos/lai-art/sy108-mainline/commits/%s 2>/dev/null",
+		               cf, rtag));
+		let cm = null;
+		try { cm = json(_rd(cf)); } catch (e) { cm = null; }
+		if (type(cm) == 'object' && cm?.sha != null) {
+			rsha = cm.sha;
+			update = (index(rsha, lsha) != 0);   /* 本地 sha 是线上 sha 的前缀 → 同一版 */
+		}
+	}
+	if (update == null && ld != null && rd != null) update = (rd > ld);
+	else if (update == null && rtag == ltag) update = false;
 
 	let out = {
 		ok: true,
@@ -1081,6 +1103,8 @@ function ota_check() {
 		local_tag: ltag,
 		url: rel.html_url ?? null,
 		published: rel.published_at ?? null,
+		local_sha: lsha,
+		remote_sha: rsha,
 		asset: null,
 		size: null
 	};
