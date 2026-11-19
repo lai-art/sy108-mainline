@@ -3451,3 +3451,11 @@ html[data-darkmode="true"] .udx-page .udx-card,
 html[data-darkmode="true"] .udx-page .udx-panel { box-shadow:inset 0 1px 0 rgba(255,255,255,0.05); }
 .udx-page .udx-card { padding:16px 18px 14px; }
 .udx-page .udx-card:hover, .udx-page .udx-panel:hover { box-shadow:0 3px 12px rgba(124,92,252,0.12); }
+
+/* s137: 状态-概况页「端口状态」的两个端口卡(.ifacebox)放宽。
+   ⚠️ 不能全局改 .ifacebox——「网络」卡片(30_network.js)也用同名 class, 全局改会让它变形。
+   只作用于 29_ports.js 那段: 它的父级 div 内联 grid-template-columns:repeat(auto-fit,...),
+   网络卡片的 ifacebox 父级没有这个内联 grid, 借此区分。
+   29_ports.js 内联写死 min-width:70px;max-width:100px 导致又窄又挤, 用 !important 覆盖。 */
+div[style*="grid-template-columns:repeat(auto-fit"] > .ifacebox {
+  min-width:150px !important; max-width:190px !important; }
