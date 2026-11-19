@@ -357,21 +357,24 @@ var CSS = [
     '.udx-card:hover{border-color:var(--success-color-low,#9fd4c4);',
     'box-shadow:0 0 0 1px rgba(22,163,74,.08) inset,0 0 18px rgba(22,163,74,.14)}',
     '.udx-pill[data-tone="teal"],.udx-pill[data-tone="ok"]{box-shadow:0 0 10px rgba(22,163,74,.28)}',
-    /* s136: SY108 六个子页的卡片(.udx-card)统一成首页卡片风格。
-       与 mwrt-home.css 的 `.P .cd:not(.dv-card)` 同源: 紫色radial渐变 + 14px 圆角 +
-       inset 高光(暗)/轻投影(亮)。用 .P 前缀抬特异度压过上面的 .udx-card 基础规则;
-       六个 view(overview/network/sim/sms/hardware/advanced)共用这个组件, 一处生效。 */
-    '.P .udx-card{border:1px solid rgba(255,255,255,0.07);border-radius:14px;',
-    'padding:16px 18px 14px;background:radial-gradient(120% 160% at 0% 0%,',
-    'rgba(124,92,252,0.10),rgba(124,92,252,0) 55%),#2a3350;',
+    /* s136 修正: SY108 六个子页卡片(.udx-card)统一首页卡片风格。
+       ⚠️ 上一版用 .P 前缀完全没生效——子页 DOM 里没有 .P 容器(那是首页模板私有 class),
+       六个 view 的真实锚点是 `.udx-page`(每个 render 都 E('div',{class:'udx-page'}))。
+       改用 `.udx-page .udx-card` + 主题明暗用 html[data-darkmode] 判断(与
+       mwrt-home.css 的 `.P .cd:not(.dv-card)` 同一套色值): 暗=紫渐变叠 #2a3350 + inset 高光,
+       亮=紫渐变叠 #fff + 轻投影, 圆角 14px。特异度 (0,2,0)+html 前缀压过基础 .udx-card。 */
+    '.udx-page .udx-card{border-radius:14px;padding:16px 18px 14px;',
+    'background:radial-gradient(120% 160% at 0% 0%,rgba(124,92,252,0.10),',
+    'rgba(124,92,252,0) 55%),#2a3350;border:1px solid rgba(255,255,255,0.07);',
     'box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}',
-    '.P.L .udx-card{border-color:rgba(20,28,60,0.07);',
+    'html[data-darkmode="false"] .udx-page .udx-card{',
+    'border-color:rgba(20,28,60,0.07);',
     'background:radial-gradient(120% 160% at 0% 0%,rgba(124,92,252,0.06),',
     'rgba(124,92,252,0) 55%),#fff;box-shadow:0 1px 2px rgba(20,28,60,0.04)}',
-    '.P .udx-card:hover{border-color:rgba(255,255,255,0.07);',
+    '.udx-page .udx-card:hover{border-color:rgba(255,255,255,0.07);',
     'box-shadow:inset 0 1px 0 rgba(255,255,255,0.04)}',
-    '.P.L .udx-card:hover{border-color:rgba(20,28,60,0.07);',
-    'box-shadow:0 1px 2px rgba(20,28,60,0.04)}'
+    'html[data-darkmode="false"] .udx-page .udx-card:hover{',
+    'border-color:rgba(20,28,60,0.07);box-shadow:0 1px 2px rgba(20,28,60,0.04)}'
 ].join('');
 function injectStyles() {
     if (STYLE_NODE || typeof document === 'undefined')
