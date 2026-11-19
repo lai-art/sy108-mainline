@@ -70,6 +70,34 @@
    "function": "ota_check"
   }
  },
+ "admin/fancontrol/ota_download": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "ota_download"
+  }
+ },
+ "admin/fancontrol/ota_progress": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "ota_progress"
+  }
+ },
+ "admin/fancontrol/ota_verify": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "ota_verify"
+  }
+ },
+ "admin/fancontrol/ota_install": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "ota_install"
+  }
+ },
  "admin/modem/audio_state": {
   "action": {
    "type": "function",

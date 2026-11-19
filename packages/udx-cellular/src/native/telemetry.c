@@ -8,7 +8,12 @@
 static const char *operations[] = {"modem_info",	"signal_refresh",   "serving_refresh",
 				   "neighbors_refresh", "advanced_refresh", "radio_options",
 				   "qos_refresh",	"apn_templates"};
-static const unsigned intervals[] = {3600, 10, 15, 60, 120, 300, 300, 120};
+/* 顺序对应上面的 operations[]：modem_info / signal / serving / neighbors / advanced /
+   radio_options / qos / apn_templates。
+   2026-11-19：neighbors_refresh 60s → 10s（用户要求首页「附近小区」10 秒一档）。
+   代价是邻区 AT 查询从 1 次/分变成 6 次/分，都排在 signal(10s)/serving(15s) 之后，
+   transport 是单 AT 通道，忙时会被跳过，不会互相打架。 */
+static const unsigned intervals[] = {3600, 10, 15, 10, 120, 300, 300, 120};
 _Static_assert(sizeof(operations) / sizeof(*operations) == CELL_TELEMETRY_TASKS,
 	       "telemetry task count");
 _Static_assert(sizeof(intervals) / sizeof(*intervals) == CELL_TELEMETRY_TASKS,

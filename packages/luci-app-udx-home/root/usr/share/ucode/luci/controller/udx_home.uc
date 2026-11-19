@@ -22,7 +22,7 @@
  *   ubus network.interface dump                     WAN/LAN 地址、DNS、在线时长
  */
 
-import { readfile, writefile, lsdir, popen } from 'fs';
+import { readfile, writefile, lsdir, popen, stat } from 'fs';
 import { cursor } from 'uci';
 
 /* ---------- 小工具 ---------- */
@@ -81,6 +81,19 @@ const THERMAL_NAMES = {
 	'ank0-thermal':     'ANK0',
 	'ank1-thermal':     'ANK1'
 };
+
+/* 「这条固件有没有无线能力」——注意不是「现在有没有无线网卡」：
+   HOST 线（wifi-host 分支）编了 kmod-mt7921u，用户明确要求温度浮层里的 WiFi 行
+   在 HOST 上必须一直在，即使没插网卡 / 驱动没加载。
+   所以先看 /lib/modules 下有没有 mt7921 的 ko（编译期就决定了），
+   再退一步看运行时有没有 phy（主线插 USB 网卡也能识别）。 */
+function _wifi_line() {
+	for (let kd in (lsdir('/lib/modules') ?? [])) {
+		for (let f in (lsdir('/lib/modules/' + kd) ?? []))
+			if (match(f, /^mt7921.*\.ko/)) return true;
+	}
+	return (length(lsdir('/sys/class/ieee80211') ?? []) > 0);
+}
 
 function _temp_max() {
 	/* 不用固定编号 0..15 遍历：真机 thermal_zone 编号不保证连续，
@@ -671,9 +684,10 @@ function fancontrol_devpop() {
 		http.write_json({ clients: _leases() });
 	} else if (k == 'tmp') {
 		let t = _temp_max();
-		/* wifi_hw：本机有没有无线硬件。没有的话前端不该显示「WiFi / 无线驱动未提供温度」那行
-		   —— SY108 主线没有无线网卡，那行是纯噪音（2026-11-19 用户截图里就在最上面）。 */
-		http.write_json({ zones: t.zones, wifi_hw: (length(lsdir('/sys/class/ieee80211') ?? []) > 0) });
+		/* wifi_hw：「这条固件有没有无线能力」，不是「现在插没插网卡」。
+		   主线没编无线驱动 → false，前端不渲染 WiFi 那行；
+		   HOST 线编了 kmod-mt7921u → 恒 true，即使没插网卡那行也在（用户明确要求）。 */
+		http.write_json({ zones: t.zones, wifi_hw: _wifi_line() });
 	} else if (k == 'storage') {
 		http.write_json({ parts: _parts() });
 	} else if (k == 'conns') {
@@ -1074,13 +1088,162 @@ function ota_check() {
 			if (a?.name == 'sysupgrade.bin') {
 				out.asset = a.browser_download_url ?? null;
 				out.size = a.size ?? null;
-				break;
+			} else if (a?.name == 'SHA256SUMS') {
+				out.sums = a.browser_download_url ?? null;
 			}
 		}
 	}
 
 	writefile(cachef, sprintf('%J', { t: now, d: out }));
 	http.write_json(out);
+}
+
+/* ---------- 在线更新：下载 / 进度 / 校验 / 刷机 ----------
+ * 用户 2026-11-19 定的流程：有更新 → 首页「检查更新」旁边冒出下载按钮 →
+ * 下载（自动）→ sha256 自动校验 → **用户手动确认**才 sysupgrade。
+ *
+ * 四个接口分工：
+ *   ota_download  起一个后台 curl 拉 sysupgrade.bin + SHA256SUMS，立刻返回
+ *   ota_progress  读 /tmp 里那份文件的大小算进度（总大小来自 release 的 asset.size）
+ *   ota_verify    大小 + sha256 双重校验，不通过不给升级
+ *   ota_install   再校验一遍（防御性），然后后台 sysupgrade
+ *
+ * 下载地址只认服务端缓存里的那份 asset —— 前端传 URL 一概不接受，避免被当成
+ * "拿任意地址往设备里写文件"的口子。
+ * 镜像放 /tmp（tmpfs，实测 99M 可用，sysupgrade.bin 约 21M），重启即清。
+ */
+const OTA_BIN = '/tmp/.udx-ota.bin';
+const OTA_RC  = '/tmp/.udx-ota.rc';
+const OTA_SUM = '/tmp/.udx-ota.sums';
+const OTA_SHA = '/tmp/.udx-ota.sha';
+const OTA_START = '/tmp/.udx-ota.start';
+
+function _ota_cached() {
+	let d = null;
+	try { d = json(_rd('/tmp/.udx-ota.json')); } catch (e) { d = null; }
+	return (type(d) == 'object' && type(d.d) == 'object') ? d.d : null;
+}
+
+/* GitHub 下载加速节点。国内很多网络访问不了 github.com（本机这张卡就是），
+ * 但 api.github.com 通，所以「检查更新」能查到、「下载」却拉不动。
+ * 做法同 SimAdmin 的 OTA 页：把 github 地址拼在加速节点后面。
+ *   白名单三个内置节点；自定义只收 http(s) URL 且字符集受限 —— 这个值会被拼进
+ *   shell 命令，必须挡住引号/分号/空格，否则等于开一个命令注入口子。
+ * 返回 '' 表示直连（也用于"用户填了非法地址就退回直连"）。 */
+function _ota_accel() {
+	let a = trim(http.formvalue('accel') ?? '');
+	if (a == '') return '';
+	if (a == 'https://gh-proxy.com/' || a == 'https://ghproxy.net/' || a == 'https://githubproxy.cc/')
+		return a;
+	if (length(a) > 200) return '';
+	if (!match(a, /^https?:\/\/[A-Za-z0-9._~:\/\[\]-]+$/)) return '';
+	return match(a, /\/$/) ? a : (a + '/');
+}
+
+function ota_download() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let d = _ota_cached();
+	if (d == null || d?.asset == null) {
+		http.write_json({ ok: false, error: 'noasset' });
+		return;
+	}
+	/* 加速只影响下载地址，不改变"拿哪一份"的判断 */
+	let acc = _ota_accel();
+	system(sprintf('rm -f %s %s %s %s', OTA_BIN, OTA_RC, OTA_SUM, OTA_SHA));
+	writefile(OTA_START, '' + time());
+	/* 两件事都丢后台，请求立刻返回：
+	     ① 拉 SHA256SUMS（很小，但要跟镜像一起在后台做 —— 同步拉过一次，GitHub 慢的时候
+	        整个请求会被拖到超时）
+	     ② 拉 sysupgrade.bin
+	   -L 不能省：release 的下载地址是 302 到 objects.githubusercontent.com，
+	   不带 -L 存下来的是那个跳转页，不是固件。 */
+	let sums = (d?.sums != null) ? sprintf('curl -sSL -m 60 -o %s "%s%s"; ', OTA_SUM, acc, d.sums) : '';
+	/* -m 600：真连不上时别让 curl 挂半小时，10 分钟够慢速下完 21MB */
+	system(sprintf("sh -c '%scurl -sSL -m 600 -o %s \"%s%s\"; echo $? > %s' >/dev/null 2>&1 &",
+	               sums, OTA_BIN, acc, d.asset, OTA_RC));
+	http.write_json({ ok: true, total: d.size ?? 0 });
+}
+
+function ota_progress() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let d = _ota_cached();
+	let total = _int(d?.size, 0);
+	let st = stat(OTA_BIN);
+	let got = (st != null) ? _int(st.size, 0) : 0;
+	let rc = trim(_rd(OTA_RC));
+	let state = 'idle';
+	if (got > 0) state = 'running';
+	if (rc != '') {
+		state = (rc == '0') ? 'done' : 'error';
+		/* curl 退出码 0 但字节数不够 = 被截断，按失败算 */
+		if (state == 'done' && total > 0 && got < total) state = 'error';
+	}
+	/* 40 秒一个字节都没下来 = 这条路走不通（实测本机 github.com 被网络屏蔽，
+	   curl 会一直挂在 -m 600 上）。别让前端对着 0% 干等，直接当超时报错。 */
+	let t0 = _int(_rd(OTA_START), 0);
+	if (state == 'running' && got == 0 && t0 > 0 && (time() - t0) > 40) {
+		state = 'error';
+		rc = '28';
+	}
+	http.write_json({ ok: true, state: state, got: got, total: total, rc: rc });
+}
+
+/* 从 SHA256SUMS 里取 sysupgrade.bin 那一行的期望哈希 */
+function _ota_want() {
+	let sums = _rd(OTA_SUM);
+	for (let line in split(sums, '\n')) {
+		if (index(line, 'sysupgrade.bin') < 0) continue;
+		let m = match(line, /^([0-9a-f]{64})/);
+		if (m) return m[1];
+	}
+	return null;
+}
+
+function _ota_have() {
+	system(sprintf('sha256sum %s > %s 2>/dev/null', OTA_BIN, OTA_SHA));
+	let m = match(trim(_rd(OTA_SHA)), /^([0-9a-f]{64})/);
+	return m ? m[1] : null;
+}
+
+function ota_verify() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let d = _ota_cached();
+	let total = _int(d?.size, 0), st = stat(OTA_BIN);
+	let got = (st != null) ? _int(st.size, 0) : 0;
+	if (got == 0) { http.write_json({ ok: false, error: 'nobin' }); return; }
+	if (total > 0 && got != total) {
+		http.write_json({ ok: false, error: 'size', got: got, total: total });
+		return;
+	}
+	let want = _ota_want();
+	if (want == null) { http.write_json({ ok: false, error: 'nosums' }); return; }
+	let have = _ota_have();
+	if (have == null || have != want) {
+		http.write_json({ ok: false, error: 'sha', want: want, have: have });
+		return;
+	}
+	http.write_json({ ok: true, sha: have, size: got });
+}
+
+function ota_install() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let d = _ota_cached();
+	if (d == null) { http.write_json({ ok: false, error: 'nocache' }); return; }
+
+	/* 刷机前再校验一遍：下载完到用户点确认之间，文件仍可能被写坏 */
+	let total = _int(d?.size, 0), st = stat(OTA_BIN);
+	let got = (st != null) ? _int(st.size, 0) : 0;
+	if (got == 0) { http.write_json({ ok: false, error: 'nobin' }); return; }
+	if (total > 0 && got != total) { http.write_json({ ok: false, error: 'size', got: got, total: total }); return; }
+	let want = _ota_want(), have = _ota_have();
+	if (want == null) { http.write_json({ ok: false, error: 'nosums' }); return; }
+	if (have == null || have != want) { http.write_json({ ok: false, error: 'sha', want: want, have: have }); return; }
+
+	/* 先让响应带回去，2 秒后再动 sysupgrade —— 否则浏览器拿不到 "已开始升级"。
+	   不带 -n：保留 /etc/config（网络/APN 都在这），和 LuCI 里点升级的行为一致。
+	   刷完由 boot_accept 兜底：起不来会自动回滚到 recovery。 */
+	system(sprintf("sh -c 'sleep 2; sysupgrade %s' >/dev/null 2>&1 &", OTA_BIN));
+	http.write_json({ ok: true, installing: true, sha: have });
 }
 
 /* ---------- mwrt_assurance_status：首页连接状态区（gw()） ----------
@@ -1346,6 +1509,11 @@ return {
 	modem_sms_del: modem_sms_del,
 	/* 首页「检查更新」：查 GitHub Releases（原来是 rpcd luci.mwrt-ota，SY108 没有） */
 	ota_check: ota_check,
+	/* 在线更新：下载 → 进度 → 校验 → 手动确认刷机 */
+	ota_download: ota_download,
+	ota_progress: ota_progress,
+	ota_verify: ota_verify,
+	ota_install: ota_install,
 	redirect_wizard: redirect_wizard,
 	redirect_ota: redirect_ota,
 	network_mwrt_assurance_status: network_mwrt_assurance_status,
