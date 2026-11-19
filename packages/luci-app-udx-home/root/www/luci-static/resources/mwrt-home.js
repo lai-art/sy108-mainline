@@ -3614,8 +3614,14 @@ var ERR={nonet:'无法连接更新服务器，请检查网络后重试。',unkno
 var busy=false;
 function say(m){var t=document.getElementById('mrt-toast');if(!t)return;t.textContent=m;t.classList.add('show');clearTimeout(say.t);say.t=setTimeout(function(){t.classList.remove('show');},4000);}
 function rpc(method){
-	if(!window.L||!L.require)return Promise.reject(new Error('nol'));
-	return L.require('rpc').then(function(r){return r.declare({object:'luci.mwrt-ota',method:method})();});
+	/* s140: 原来 declare 的是 rpcd 的 luci.mwrt-ota —— SY108 上根本没有这个对象，
+	   点「检查更新」必然 reject。改成打本包的 /fancontrol/ota_check，服务端去查
+	   GitHub Releases（公开仓库，免 token），latest 那个调用带 6 小时缓存。 */
+	return new Promise(function(res,rej){
+		XHR.get('/cgi-bin/luci/admin/fancontrol/ota_check',{what:method},function(x,d){
+			if(d&&d.ok===true)res(d);else rej(new Error((d&&d.error)||'fail'));
+		});
+	});
 }
 function mark(r){
 	var a=document.getElementById('fw-new'),v=document.getElementById('fw-new-v');
@@ -3633,7 +3639,11 @@ window.fwCheck=function(){
 	rpc('check').then(function(r){
 		if(!r||!r.ok){var e=r&&r.error;say(ERR[e]||(/^http_/.test(e||'')?'更新服务器返回错误（'+e.replace('http_','')+'）。':'检查失败，请稍后重试。'));return;}
 		mark(r);
-		say(r.update?'发现新固件 v'+r.version+'，点击 NEW 前往更新':'当前已是最新固件');
+		/* update 可能是 null（两边版本号不是一个体系，比如本地是手工热修戳）——
+		   这种情况据实把两个版本号都报出来，不要硬说"已是最新" */
+		if(r.update===true)say('发现新固件 '+r.version+'，点击 NEW 前往更新');
+		else if(r.update===false)say('当前已是最新固件（'+r.version+'）');
+		else say('线上最新 '+r.version+'，本地 '+((r.local_tag)||'未知')+' —— 版本号不可直接比较');
 	}).catch(function(){say('检查失败，请稍后重试。');}).then(function(){busy=false;setBusy(false);});
 };
 function init(){rpc('latest').then(mark).catch(function(){});}
@@ -3694,17 +3704,23 @@ function rTmp(d){
  var t=parseInt(d["设备温度"]),wt=parseInt(d["WiFi温度"]),c=cache.tmp||{},p=c.d,rows=[],zr=[],g='';
  /* s54: 圆环默认显示 WiFi 温度, 浮层也把 WiFi 放第一行; 头部右侧和圆环是同一个数(WiFi 读不到才是 CPU) */
  var gv=!isNaN(wt)?wt:t;
+ /* s140: 本机没有无线硬件时(wifi_hw===false)整条 WiFi 行连「未提供温度」的提示一起不出 ——
+    主线 SY108 根本没网卡, 那行纯噪音(用户截图里它占着温度浮层第一行)。 */
+ var hasWifi=!(p&&p.wifi_hw===false);
+ if(hasWifi){
  if(p&&Array.isArray(p.wifi)&&p.wifi.length){
   /* 一颗芯片出几个频段, 读数相同就并成一行, 换成 devinfo 同一轮的数, 和圆环对得上 */
   var w=p.wifi,one=w.every(function(x){return x.temp===w[0].temp;});
   if(one)rows.push({k:'WiFi<small>'+w.map(function(x){return h(x.band);}).join(' · ')+'</small>',t:!isNaN(wt)?wt:+w[0].temp});
   else w.forEach(function(x){rows.push({k:'WiFi<small>'+h(x.band)+'</small>',t:+x.temp});});
  }else if(!isNaN(wt))rows.push({k:'WiFi',t:wt});
+ }
  rows.forEach(function(r){g+='<span class="gp-k">'+r.k+'</span>'+bar(r.t,tcls(r.t))+'<span class="gp-v">'+r.t+'℃</span>';});
- if(!rows.length)g+=note('WiFi',!p?(c.err?'读取失败':'读取中…'):'无线驱动未提供温度');
- /* 温区优先用 devpop 给的全部 thermal_zone; 第一个就是 devinfo 读的 zone0, 换成同一轮的数 */
- if(p&&Array.isArray(p.zones)&&p.zones.length)zr=p.zones.map(function(z){return {k:h(z.name),t:+z.temp};});
- if(!isNaN(t)){if(zr.length)zr[0].t=t;else zr.push({k:'CPU',t:t});}
+ if(!rows.length&&hasWifi)g+=note('WiFi',!p?(c.err?'读取失败':'读取中…'):'无线驱动未提供温度');
+ /* 温区优先用 devpop 给的全部 thermal_zone; 名字用服务端翻好的 label(CPU0/5G 基带/主板…),
+   没有 label 才退回 thermal_zoneN */
+ if(p&&Array.isArray(p.zones)&&p.zones.length)zr=p.zones.map(function(z){return {k:h(z.label||z.name),t:+z.temp};});
+ if(!zr.length&&!isNaN(t))zr.push({k:'CPU',t:t});
  zr.forEach(function(r){g+='<span class="gp-k">'+r.k+'</span>'+bar(r.t,tcls(r.t))+'<span class="gp-v">'+r.t+'℃</span>';});
  var fm=d["风扇模式"],fp=d["风扇转速百分比"];
  var f=fm&&fm!=='未知'?'<div class="gp-f">风扇 '+h(fm)+(fp!=null&&fp!==''?' · '+h(fp)+'%':'')+'</div>':'';
