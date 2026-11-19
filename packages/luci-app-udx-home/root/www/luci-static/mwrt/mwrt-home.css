@@ -1115,6 +1115,16 @@ html.mrt-nomod #mrt-sec{display:none!important}
 .P .mxf-note.ok{color:#34d399}
 .P .mxf-note.warn{color:#fbbf24}
 .P .mxf-note.bad{color:#f87171}
+/* s141 在线更新进度条：宽度由 JS 按已下载字节数写 style.width */
+.P .mxf-bar{height:6px;margin:2px 0 8px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden}
+.P .mxf-bar>i{display:block;height:100%;width:0;border-radius:3px;background:linear-gradient(90deg,#7c5cfc,#a78bfa);transition:width .3s ease}
+/* s142 OTA 下载加速：开关 + 节点下拉 + 自定义地址（同 SimAdmin 的 OTA 页布局） */
+.P .mxf-acc{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.P .ota-sw{height:28px;min-width:auto;padding:0 10px;gap:6px}
+.P .mxf-sel,.P .mxf-inp{height:30px;padding:0 8px;border:1px solid var(--bd);border-radius:8px;background:var(--c1);color:var(--t1);font:inherit;font-size:12px;outline:none}
+.P .mxf-sel{min-width:186px}
+.P .mxf-inp{flex:1 1 220px;min-width:180px}
+.P .mxf-sel:focus,.P .mxf-inp:focus{border-color:#7c5cfc;box-shadow:0 0 0 2px rgba(124,92,252,0.18)}
 .P .mxf-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--bd)}
 .P .mxf-btn{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 16px;border:1px solid transparent;border-radius:9px;background:#7c5cfc;color:#fff;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;text-decoration:none}
 .P .mxf-btn:hover{background:#6d4ff0;color:#fff;text-decoration:none}

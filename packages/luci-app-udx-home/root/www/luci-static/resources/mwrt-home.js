@@ -1996,7 +1996,9 @@ setInterval(()=>{if(!document.hidden)ui.modem();},4000);
 /* 载波聚合/邻区 30 秒一刷就够:采集器本身是 cron 一分钟一拍,刷得再勤也拿不到
    更新的数,而且这些量(频段、聚合结构、邻区列表)本来就变得慢。
    这个请求只读 /tmp 的 JSON,不占串口,所以不用跟着 4 秒那轮走。 */
-setInterval(()=>{if(!document.hidden){cxLoad(heroExtra);slotLoad(heroExtra);}},30000);
+/* s140: 邻区/卡槽 30 秒 → 10 秒（用户要求，配合 cellulard 的 neighbors_refresh 60→10）。
+   卡片本身还是跟着 ui.modem() 每 4 秒重绘，但只有这里拉到新数据才会真的变。 */
+setInterval(()=>{if(!document.hidden){cxLoad(heroExtra);slotLoad(heroExtra);}},10000);
 /* 无线网桥状态 30 秒刷一次(和卡槽同频), 但浮窗正开着/加入中时不插手, 免得和它自己的轮询打架 */
 setInterval(()=>{if(!document.hidden&&!wlbBusy){var m=wfmEl('wlb');if(!m||!m.classList.contains('open'))wlbRefreshBadge();}},30000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)ui.modem();});
@@ -3611,8 +3613,125 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
    页面上别的 toast() 在另一个闭包里拿不到, 这里直接操作同一个 #mrt-toast。 */
 (function(){
 var ERR={nonet:'无法连接更新服务器，请检查网络后重试。',unknown_board:'无法识别本机机型，暂不支持在线更新。',no_ca:'缺少更新服务器证书。'};
-var busy=false;
+var busy=false,LAST=null;
 function say(m){var t=document.getElementById('mrt-toast');if(!t)return;t.textContent=m;t.classList.add('show');clearTimeout(say.t);say.t=setTimeout(function(){t.classList.remove('show');},4000);}
+function sizeTxt(n){return n?(Math.round(n/1048576*10)/10+' MB'):'未知大小';}
+
+/* s141 在线更新浮窗：下载 → 自动 sha256 校验 → 手动确认刷机。
+   服务端四个接口分工见 controller 里 ota_* 的注释；这里只负责把状态画出来。
+   拒绝升级的三种情况都会明说原因（没清单 / 大小不符 / sha 不符），不静默。 */
+function otaOpen(){
+	var MXF=window.MXF;if(!MXF)return;
+	var r=LAST||{};
+	var b=MXF.open('固件更新','下载后自动校验 sha256 · 刷机需手动确认','fas fa-cloud-arrow-down');
+	if(!b)return;
+	b.innerHTML=
+		'<div class="mxf-top"><span>本地</span><b>'+MXF.esc(r.local||'--')+'</b><i>线上 '+MXF.esc(r.version||'--')+'</i></div>'
+		+'<div class="mxf-sec"><div class="mxf-h">下载加速<i>访问不了 github.com 时打开</i></div>'
+		+'<div class="mxf-acc">'
+		+'<label class="mxf-c ota-sw"><input type="checkbox" id="ota-acc-on"><span>启用 GitHub 下载加速</span></label>'
+		+'<select id="ota-acc-sel" class="mxf-sel">'
+		+'<option value="gh-proxy.com">gh-proxy.com（默认）</option>'
+		+'<option value="ghproxy.net">ghproxy.net</option>'
+		+'<option value="githubproxy.cc">githubproxy.cc</option>'
+		+'<option value="__custom">自定义</option>'
+		+'</select>'
+		+'<input id="ota-acc-url" class="mxf-inp" placeholder="https://你的加速节点/" hidden>'
+		+'</div></div>'
+		+'<div class="mxf-sec"><div class="mxf-h">升级包<i>'+sizeTxt(r.size)+'</i></div>'
+		+'<div class="mxf-bar"><i id="ota-bar"></i></div>'
+		+'<div class="mxf-note" id="ota-note">点「下载升级包」开始</div></div>'
+		+'<div class="mxf-foot">'
+		+'<button type="button" class="mxf-btn" data-act="dl">下载升级包</button>'
+		+'<button type="button" class="mxf-btn ghost" data-act="flash" disabled>立即升级（重启）</button>'
+		+(r.url?'<a class="mxf-btn ghost" href="'+MXF.esc(r.url)+'" target="_blank" rel="noopener">发布页</a>':'')
+		+'</div>';
+
+	var bar=b.querySelector('#ota-bar'),note=b.querySelector('#ota-note');
+	var flashBtn=b.querySelector('[data-act="flash"]'),dlBtn=b.querySelector('[data-act="dl"]');
+	var accOn=b.querySelector('#ota-acc-on'),accSel=b.querySelector('#ota-acc-sel'),accUrl=b.querySelector('#ota-acc-url');
+
+	/* 加速设置记住上次的选择（和 SimAdmin 的 OTA 页同一套三个节点 + 自定义） */
+	var ACC_KEY='mwrt-ota-accel';
+	function accLoad(){
+		var s=null;try{s=JSON.parse(localStorage.getItem(ACC_KEY)||'null');}catch(e){}
+		if(s&&typeof s==='object'){
+			accOn.checked=!!s.on;
+			if(s.node)accSel.value=s.node;
+			if(s.url)accUrl.value=s.url;
+		}
+		accSync();
+	}
+	function accSave(){
+		try{localStorage.setItem(ACC_KEY,JSON.stringify({on:accOn.checked,node:accSel.value,url:accUrl.value}));}catch(e){}
+	}
+	function accSync(){accUrl.hidden=(accSel.value!=='__custom');}
+	function accPrefix(){
+		if(!accOn.checked)return '';
+		if(accSel.value==='__custom'){
+			var u=(accUrl.value||'').trim();
+			if(!/^https?:\/\/[A-Za-z0-9._~:\/\[\]-]+$/.test(u))return '';
+			return u.replace(/\/$/,'')+'/';
+		}
+		return 'https://'+accSel.value+'/';
+	}
+	accSel.addEventListener('change',function(){accSync();accSave();});
+	accOn.addEventListener('change',accSave);
+	accUrl.addEventListener('change',accSave);
+	accLoad();
+
+	function setNote(t,c){note.textContent=t;note.className='mxf-note '+(c||'');}
+	function setPct(p){bar.style.width=Math.max(0,Math.min(100,p))+'%';}
+	function get(u,p,cb){XHR.get('/cgi-bin/luci/admin/fancontrol/'+u,p||{},function(x,d){cb(d||{});});}
+	function verify(){
+		setNote('正在校验 sha256…','warn');
+		get('ota_verify',{},function(d){
+			if(d.ok){setNote('校验通过（'+String(d.sha||'').slice(0,12)+'…），可以升级','ok');flashBtn.disabled=false;}
+			else if(d.error==='nosums')setNote('发布页没有 SHA256SUMS，拒绝升级','bad');
+			else if(d.error==='size')setNote('大小不符（'+d.got+' / '+d.total+'），请重新下载','bad');
+			else setNote('sha256 不匹配，升级包已损坏，请重新下载','bad');
+		});
+	}
+	function poll(){
+		get('ota_progress',{},function(d){
+			if(d.state==='error'){
+				/* curl 6/7/28 = 域名解析不了 / 连不上 / 超时。本机这张卡的移动网络
+				   直连 github.com 是不通的（api.github.com 却通），所以要明说。 */
+				var rc=String(d.rc||'');
+				var why=(rc==='6'||rc==='7'||rc==='28')
+					? '连不上下载服务器（直连 github.com 被网络阻断）'
+					: ('下载失败（curl '+rc+'）');
+				setNote(why+'。打开上面的「下载加速」再试，或改用电脑下载后手动上传','bad');
+				dlBtn.disabled=false;dlBtn.textContent='重新下载';
+				return;
+			}
+			if(d.state==='done'){setPct(100);verify();return;}
+			setPct(d.total>0?(d.got/d.total*100):0);
+			setNote('已下载 '+sizeTxt(d.got)+' / '+sizeTxt(d.total));
+			setTimeout(poll,800);
+		});
+	}
+	b.addEventListener('click',function(e){
+		var btn=e.target.closest?e.target.closest('[data-act]'):null;if(!btn||btn.disabled)return;
+		var act=btn.getAttribute('data-act');
+		if(act==='dl'){
+			dlBtn.disabled=true;dlBtn.textContent='下载中…';setPct(0);
+			var acc=accPrefix();
+			setNote(acc?('正在通过 '+acc+' 下载…'):'正在直连 GitHub…');
+			get('ota_download',{accel:acc},function(d){
+				if(!d.ok){setNote('下载启动失败：'+((d&&d.error)||'未知'),'bad');dlBtn.disabled=false;dlBtn.textContent='重新下载';return;}
+				poll();
+			});
+		}else if(act==='flash'){
+			if(!btn._ok){btn._ok=1;btn.textContent='确认升级？再点一次';setTimeout(function(){btn._ok=0;btn.textContent='立即升级（重启）';},4000);return;}
+			btn.disabled=true;btn.textContent='正在升级…';
+			get('ota_install',{},function(d){
+				if(d.ok)setNote('已开始升级，设备即将重启，约 60 秒后自动回到本页','ok');
+				else{btn.disabled=false;btn._ok=0;btn.textContent='立即升级（重启）';setNote('升级未执行：'+((d&&d.error)||'未知'),'bad');}
+			});
+		}
+	});
+}
 function rpc(method){
 	/* s140: 原来 declare 的是 rpcd 的 luci.mwrt-ota —— SY108 上根本没有这个对象，
 	   点「检查更新」必然 reject。改成打本包的 /fancontrol/ota_check，服务端去查
@@ -3624,9 +3743,11 @@ function rpc(method){
 	});
 }
 function mark(r){
+	LAST=r||null;
 	var a=document.getElementById('fw-new'),v=document.getElementById('fw-new-v');
 	if(!a)return;
-	if(r&&r.update&&r.version){v.textContent='v'+r.version;a.hidden=false;}
+	/* 服务端给的 version 已经是 GitHub 的 tag_name（自带 v），别再补一个 v */
+	if(r&&r.update&&r.version){v.textContent=r.version;a.hidden=false;}
 	else a.hidden=true;
 }
 function setBusy(on){
@@ -3647,6 +3768,9 @@ window.fwCheck=function(){
 	}).catch(function(){say('检查失败，请稍后重试。');}).then(function(){busy=false;setBusy(false);});
 };
 function init(){rpc('latest').then(mark).catch(function(){});}
+/* s141: NEW 徽标改成开「固件更新」浮窗（原来跳 admin/system/ota）；没有浮窗外壳时保持原链接 */
+var na=document.getElementById('fw-new');
+if(na)na.addEventListener('click',function(e){if(window.MXF){e.preventDefault();otaOpen();}});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 
@@ -4719,6 +4843,8 @@ window.MRT_POP={upd:function(){if(cur)render();},open:open,close:close};
  var hs0=$('hero-sig');
  if(hs0)new MutationObserver(sched).observe(hs0,{attributes:true,attributeFilter:['class']});
  window.MX={open:open,close:close,sync:sync};
+ /* s141: 浮窗外壳给同文件里后面那些 IIFE 复用（在线更新的弹窗要用） */
+ window.MXF={open:mxfOpen,note:mxfNote,err:mxfErr,esc:esc};
  sync();
 })();
 
