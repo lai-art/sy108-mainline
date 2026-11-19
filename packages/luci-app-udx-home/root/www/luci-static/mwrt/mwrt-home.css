@@ -716,6 +716,13 @@ html,body{background:#0b0d14 !important}
 .P .h-brand.has-logo .h-brand-clip{display:block}
 .P .h-brand.has-logo .h-brand-ph{display:none}
 .P .h-brand-clip img{position:absolute;max-width:none;display:block}
+/* s137 运营商徽标（替代 /logo/*.png）：那几张 PNG 没打进本固件，/logo 目录根本不存在，
+   <img> 一 404 品牌块就变成一块空白（用户「运营商的图标不显示了」）。改成品牌色块 + 单字简称，
+   不依赖任何图片资源，离线也不会缺。颜色由 showLogo() 内联写入，字号继承 .h-brand 的 font-size，
+   所以 .hc-lite / 窄屏那几处尺寸覆盖都不用另写。 */
+.P .h-brand-tx{display:none;font-size:inherit;font-weight:800;line-height:1;letter-spacing:0}
+.P .h-brand.brand-tx .h-brand-ph{display:none}
+.P .h-brand.brand-tx .h-brand-tx{display:block}
 .P .h-id-t{min-width:0;flex:1}
 .P .h-op-row{display:flex;align-items:center;gap:10px;min-width:0}
 .P .h-op-name{font-size:19px;font-weight:800;color:var(--t1);letter-spacing:0.3px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}

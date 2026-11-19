@@ -726,6 +726,53 @@ function fancontrol_modem_ctrl() {
 	http.write_json(out);
 }
 
+/* ---------- cellx：首页「附近小区」卡 ----------
+ * mwrt 原版这里给的是 MT5700 的富信息快照（签约速率 AMBR / 载波聚合 CA / 邻区表），
+ * 由 /usr/bin/mwrt-cellinfo 生成，SY108 没有这个工具。
+ * 之前整块返回 { supported:false }，前端 cxNbHtml() 一进门就 return ''，
+ * 「附近小区」磁贴于是永远灰着不能点（2026-11-19 用户反馈）。
+ *
+ * 现在：supported 仍为 false —— 签约速率 / 载波聚合这两块 SY108 确实没有数据，
+ * 让前端按原样隐藏；但 neighbours 用 udx.cellular status 的 cells[] 真填上，
+ * 前端那边已经把「有没有邻区」和「supported」解耦（cxNbHtml 只看 neighbours）。
+ * 字段名按 cxNbHtml 的读法：rat 要大写 'NR'/'LTE'，频点字段叫 earfcn（不是 arfcn）。
+ */
+function modeminfo_cellx() {
+	http.prepare_content('application/json; charset=UTF-8');
+
+	let c = _cell();
+	let nb = [];
+	let serv = null;
+
+	if (c != null) {
+		let cells = c.raw?.cells;
+		if (type(cells) == 'array') {
+			for (let x in cells) {
+				/* serving 那个小区是「基站信息 · 主服务小区」卡的主角，不重复列进邻区表 */
+				if (x?.serving === true) continue;
+				if (x?.pci == null && x?.rsrp == null) continue;
+				push(nb, {
+					rat: (x?.rat == 'nr') ? 'NR' : (x?.rat == 'lte') ? 'LTE' : (x?.rat ?? '--'),
+					earfcn: x?.arfcn ?? null,
+					pci: x?.pci ?? null,
+					rsrp: x?.rsrp ?? null,
+					rsrq: x?.rsrq ?? null,
+					sinr: x?.sinr ?? null
+				});
+			}
+		}
+		/* 前端用 serving.arfcn 标「同频邻区」 */
+		if (c.serving?.arfcn != null) serv = { arfcn: c.serving.arfcn };
+	}
+
+	http.write_json({
+		supported: false,
+		serving: serv,
+		neighbours: nb,
+		age: (c != null && c.raw?.snapshot_age_seconds != null) ? int(c.raw.snapshot_age_seconds) : null
+	});
+}
+
 /* ---------- mwrt_assurance_status：首页连接状态区（gw()） ----------
  * 前端只取四个中文键，值含「在线/Online」时点亮状态点。 */
 
@@ -1012,12 +1059,7 @@ return {
 		http.prepare_content('application/json; charset=UTF-8');
 		http.write_json({ cfgs: [] });
 	},
-	modeminfo_cellx: function() {
-		/* supported:false 会让「签约速率/载波聚合/附近小区」三块整段不渲染，
-		   这是 mwrt 前端自带的降级路径，比硬凑数据安全 */
-		http.prepare_content('application/json; charset=UTF-8');
-		http.write_json({ supported: false });
-	},
+	modeminfo_cellx: modeminfo_cellx,
 
 	/* 写入/控制，一律不可用 */
 	fancontrol_fanswj: _unsupported,
