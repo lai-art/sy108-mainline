@@ -1,4 +1,7 @@
 {
+  "admin/udx/overview": {
+    "title": "数据看板"
+  },
   "admin/system/maintenance": {
     "title": "System maintenance",
     "order": 70,
