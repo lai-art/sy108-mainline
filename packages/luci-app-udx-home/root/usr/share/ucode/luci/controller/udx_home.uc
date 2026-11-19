@@ -773,6 +773,195 @@ function modeminfo_cellx() {
 	});
 }
 
+/* ---------- simstat：首页 hero「卡槽 SIM」那一格 ----------
+ * 原来这里是 _empty，前端 simIsGood() 永远不成立 → 这一格常显「未读到卡槽」
+ * （用户 2026-11-19 截图）。SY108 的卡槽权威源是 udx.cellular status 的 physical_sim：
+ *   {physical_slot_count:3, slots:[{slot:0,name:"SIM 1"},…], slot:0, ...}
+ * 注意 slot 是 0 基，而前端 simIsGood() 用 `d.slot` 做真值判断（0 会被当没读到），
+ * 所以这里 +1 转成 1 基再给。code 只有 AT 模组才有（决定要不要显示「SIM卡号码」那行），
+ * SY108 拿不到号码 → 给 0，前端就不渲染那一行，不编造。
+ */
+function modem_simstat() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let c = _cell();
+	if (c == null) {
+		http.write_json({ busy: false, slot: 0, text: '蜂窝服务不可用', code: 0 });
+		return;
+	}
+	let ps = c.raw?.physical_sim ?? null;
+	let slot = (ps?.slot != null) ? (ps.slot + 1) : null;
+	let name = null;
+	if (ps?.slots != null && slot != null) {
+		for (let s in ps.slots) {
+			if (s?.slot != null && (s.slot + 1) == slot) { name = s.name ?? null; break; }
+		}
+	}
+	let sim = c.raw?.sim?.state ?? null;
+	let text = (sim == 'READY') ? 'SIM卡正常工作'
+	         : (sim != null) ? ('SIM卡' + sim)
+	         : 'SIM卡状态未知';
+	http.write_json({
+		busy: false,
+		slot: slot,
+		name: name,
+		text: text,
+		code: 0,
+		slot_count: ps?.physical_slot_count ?? null,
+		iccid: c.raw?.iccid ?? null,
+		errors: c.raw?.info_errors ?? null
+	});
+}
+
+/* ---------- 首页快捷磁贴「锁频设置 / 短信管理」浮窗的数据面 ----------
+ * 用户要求这两个磁贴别再整页跳转到 admin/udx/network、admin/udx/sms，改成和
+ * 无线设置/附近小区一样弹浮窗。浮窗是首页自己的 DOM，拿不到 LuCI 视图里的
+ * rpc（那些是 require('rpc') 的模块作用域），所以在这里做一层薄的 ubus 转发。
+ */
+function modem_band_get() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let c = _cell();
+	if (c == null) { http.write_json({ ok: false, error: '蜂窝服务不可用' }); return; }
+	let st = c.raw, lim = st.band_limits ?? {}, bc = st.band_choices ?? {};
+	let pick = function(rat) {
+		let r = lim[rat] ?? {};
+		/* supported_bands 是模组真实支持的（band_choices 是理论全集，含本机不支持的 n5/n8 等），
+		   优先用它，免得用户勾一个根本锁不上的频段 */
+		let sup = (type(r.supported_bands) == 'array' && length(r.supported_bands) > 0)
+		        ? r.supported_bands
+		        : ((type(bc[rat]) == 'array') ? bc[rat] : []);
+		return {
+			unrestricted: (r.unrestricted != false),
+			bands: (type(r.bands) == 'array') ? r.bands : [],
+			supported: sup
+		};
+	};
+	http.write_json({
+		ok: true,
+		mode: st.mode ?? null,
+		rat: c.serving?.rat ?? null,
+		band: c.serving?.band ?? null,
+		pci: c.serving?.pci ?? null,
+		lte: pick('lte'),
+		nr: pick('nr')
+	});
+}
+
+/* 频段列表只收 n41 / B3 这种写法，别的一律丢掉 —— 这几个值最终会进 ubus 参数 */
+function _band_list(name) {
+	let raw = http.formvalue(name) ?? '';
+	let out = [];
+	for (let b in split(raw, ',')) {
+		let t = trim(b);
+		if (match(t, /^[Bn][0-9]{1,3}$/)) push(out, t);
+	}
+	return out;
+}
+
+/* band_lock / unlock 都是异步 operation（band_lock 的官方超时给到 8 分钟，
+   切频段时链路会断一下）。这里最多阻塞 4 秒看结果：complete 就报成功，
+   还在跑就回 pending，前端提示「已下发，正在切换」并稍后自己再读一次状态。 */
+function _op_wait(reply, tries) {
+	if (type(reply) != 'object') return { ok: false, error: '模组无响应' };
+	if (reply.accepted != true) return { ok: false, error: reply.error ?? '指令被拒绝' };
+	let ref = { id: reply.operation_id, boot_id: reply.boot_id, broker_id: reply.broker_id };
+	let res = { ok: false, state: reply.state ?? 'queued' };
+	for (let i = 0; i < tries; i++) {
+		sleep(400);
+		let row = ubus.call('udx.cellular', 'operation_status', ref);
+		if (type(row) != 'object') break;
+		if (row.state != null) res.state = row.state;
+		if (row.state != 'queued' && row.state != 'running') {
+			res.ok = (row.state == 'complete');
+			if (row.error != null) res.error = row.error;
+			/* sms_delete_batch 的逐条结果在 items 里（{deleted, error}），原样带出去 */
+			if (row.items != null) res.items = row.items;
+			break;
+		}
+	}
+	if (res.state == 'queued' || res.state == 'running') res.pending = true;
+	return res;
+}
+
+function modem_band_set() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let clear = ((http.formvalue('clear') ?? '') == '1');
+	let reply = clear
+		? ubus.call('udx.cellular', 'unlock', { scope: 'bands' })
+		: ubus.call('udx.cellular', 'band_lock', { lte: _band_list('lte'), nr: _band_list('nr') });
+	http.write_json(_op_wait(reply, 10));
+}
+
+function modem_sms_list() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let st = ubus.call('udx.cellular', 'sms_status');
+	/* 冷启动第一次读经常是 "Not sampled yet"（模组还没被采样过）：
+	   触发一次 sms_refresh 再读，最多等 3 秒 */
+	if (type(st) != 'object' || st.available == false) {
+		ubus.call('udx.cellular', 'sms_refresh');
+		for (let i = 0; i < 6; i++) {
+			sleep(500);
+			st = ubus.call('udx.cellular', 'sms_status');
+			if (type(st) == 'object' && st.available != false && type(st.messages) == 'array') break;
+		}
+	}
+	let msgs = (type(st) == 'object' && type(st.messages) == 'array') ? st.messages : [];
+	let out = [], n = 0;
+	for (let m in msgs) {
+		if (n >= 12) break;              /* 首页浮窗只放最近 12 条，全量在短信页 */
+		/* index + pdu_sha256 是删除时要回传的两项（见 sms_delete_batch）。
+		   index 会因为新短信进来而挪位，所以删的时候必须连 sha 一起校验，不能只给 index。 */
+		push(out, {
+			peer: m?.peer ?? m?.number ?? '',
+			time: m?.timestamp ?? '',
+			text: m?.text ?? '',
+			kind: m?.kind ?? '',
+			index: m?.index ?? null,
+			sha: m?.pdu_sha256 ?? null
+		});
+		n++;
+	}
+	http.write_json({
+		ok: true,
+		total: length(msgs),
+		messages: out,
+		error: (type(st) == 'object') ? (st.error ?? null) : '模组无响应'
+	});
+}
+
+/* 删除首页浮窗里勾中的短信。前端把每行拼成 "index:sha256" 用逗号传来，
+ * 这里做一次白名单式校验（数字 + 64 位十六进制）才交给 ubus —— 这几个值最终
+ * 会变成删除参数，不能让任意字符串过去。
+ * 一次最多 12 条（浮窗上限），sms_delete_batch 本身支持 50 条一批。 */
+function modem_sms_del() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let raw = http.formvalue('items') ?? '';
+	let items = [];
+	for (let it in split(raw, ',')) {
+		let t = split(trim(it), ':');
+		if (length(t) == 2 && match(t[0], /^[0-9]{1,6}$/) && match(t[1], /^[0-9a-f]{64}$/))
+			push(items, { index: int(t[0]), pdu_sha256: t[1] });
+	}
+	if (length(items) == 0) {
+		http.write_json({ ok: false, error: '没有选中短信' });
+		return;
+	}
+	let res = _op_wait(ubus.call('udx.cellular', 'sms_delete_batch', { items: items }), 10);
+	/* operation 完成 ≠ 每条都删掉了：模组可能因为 index/sha 对不上而拒掉个别条目。
+	   逐条统计，别让前端把「一条没删」也报成成功。 */
+	if (type(res.items) == 'array') {
+		let okn = 0, why = null;
+		for (let it in res.items) {
+			if (it?.deleted === true) okn++;
+			else if (why == null) why = it?.error ?? '未删除';
+		}
+		res.deleted = okn;
+		res.failed = length(res.items) - okn;
+		if (okn > 0) res.ok = true;
+		else if (res.pending != true) { res.ok = false; res.error = why ?? '删除失败'; }
+	}
+	http.write_json(res);
+}
+
 /* ---------- mwrt_assurance_status：首页连接状态区（gw()） ----------
  * 前端只取四个中文键，值含「在线/Online」时点亮状态点。 */
 
@@ -1029,6 +1218,11 @@ return {
 	fancontrol_devpop: fancontrol_devpop,
 	/* 2026-11-19: 原来是 _empty，首页「蜂窝模组/SIM/基站」三张卡因此误报未插模组 */
 	fancontrol_modem_ctrl: fancontrol_modem_ctrl,
+	/* 首页浮窗：锁频设置 / 短信管理（用户要求不跳转，改成弹窗） */
+	modem_band_get: modem_band_get,
+	modem_band_set: modem_band_set,
+	modem_sms_list: modem_sms_list,
+	modem_sms_del: modem_sms_del,
 	redirect_wizard: redirect_wizard,
 	redirect_ota: redirect_ota,
 	network_mwrt_assurance_status: network_mwrt_assurance_status,
@@ -1043,7 +1237,7 @@ return {
 	modem_audio_wave: _empty,
 	modem_camframe: _empty,
 	modem_simslots: _empty,
-	modem_simstat: _empty,
+	modem_simstat: modem_simstat,
 	modem_wifi_get: _empty,
 	modem_wlbridge_status: _empty,
 	display_status: _empty,
