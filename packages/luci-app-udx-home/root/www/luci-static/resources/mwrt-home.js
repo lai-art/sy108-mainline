@@ -1477,7 +1477,11 @@ function cxCaHtml(bare){
 /* 附近小区。信号最强的三个做成卡片,其余落进紧凑表格 —— 这个站点能看到十个
    邻区,全做成卡片会把页面撑散,而尾部那些 -157 dBm 的弱邻区也不值一张卡。 */
 function cxNbHtml(){
-  if (!cellx || !cellx.supported) return '';
+  /* s137: 原来这里一进门就判 !cellx.supported 直接返回空串 —— 「附近小区」磁贴因此永远是灰的
+     （按钮 disabled 取决于有没有这张卡）。SY108 的邻区来自 udx.cellular status 的 cells[]，
+     服务端已经在 supported:false 的同时把 neighbours[] 填好了（签约速率/载波聚合两块仍按
+     supported 隐藏，那两块 SY108 确实没有数据）。所以这里只认 neighbours 有没有内容。 */
+  if (!cellx) return '';
   var nb = cellx.neighbours || [];
   if (!nb.length) return '';
   var servFcn = cellx.serving ? String(cellx.serving.arfcn) : '';
@@ -1862,25 +1866,36 @@ const mnc=mncE?(mncE.value||'').toString().trim().padStart(2,'0'):'';
 const imsi=imsiE?(imsiE.value||'').toString().replace(/\s/g,''):'';
 const imsiPlmn=imsi.length>=5?imsi.substring(0,5):'';
 let src='',nm='';
-const detect=(s)=>{if(/移动|CM|Mobile|46000|46002|46004|46007|46008/i.test(s))return['/logo/chinamobile.png','中国移动'];if(/联通|CU|United|46001|46006|46009/i.test(s))return['/logo/chinaunicom.png','中国联通'];if(/电信|CHN-CT|Telecom|CT|46003|46005|46011/i.test(s))return['/logo/ctc.png','中国电信'];if(/广电|CBN|46015/i.test(s))return['/logo/cbn.png','中国广电'];return['',''];};
+const detect=(s)=>{if(/移动|CM|Mobile|46000|46002|46004|46007|46008/i.test(s))return['china_mobile','中国移动'];if(/联通|CU|United|46001|46006|46009/i.test(s))return['china_unicom','中国联通'];if(/电信|CHN-CT|Telecom|CT|46003|46005|46011/i.test(s))return['china_telecom','中国电信'];if(/广电|CBN|46015/i.test(s))return['cbn','中国广电'];return['',''];};
 if(imsiPlmn){const r0=detect(imsiPlmn);if(r0[0]){src=r0[0];nm=r0[1];}}
 if(!nm){const r1=detect(opV);if(r1[0]){src=r1[0];nm=r1[1];}}
 if(!nm&&mcc&&mnc){const r2=detect(mcc+mnc);if(r2[0]){src=r2[0];nm=r2[1];}}
 // 必须显式清掉: 读不到 IMSI 时返回的 "+CME ERROR: 10" 会被压成 "+CMEE",
 // 而 detect() 的 /CM/i 正好命中它 —— 这就是没插卡也显示中国移动的原因。
 if(!online){src='';nm='';}
-/* /logo/*.png 都是 200x62 的"图形+文字"横版透明图, 品牌块只放得下图形那一截。
-   下面是各家图形在原图里的包围盒 [x,y,w,h](PIL 按 alpha 量的), 按 clip 边长等比放大后居中裁出来。
-   换了 logo 文件尺寸就要重量这组数。 */
-const EMB={chinamobile:[0,0,62,61],ctc:[0,5,57,54],cbn:[16,0,60,60],chinaunicom:[93,0,60,35]};
-const showLogo=s=>{if(!logo||!brand)return;
-if(!s){brand.classList.remove('has-logo');delete logo.dataset.op;logo.removeAttribute('src');logo.style.display='none';return;}
-if(logo.dataset.op!==s){logo.dataset.op=s;logo.onerror=()=>{brand.classList.remove('has-logo');logo.style.display='none';};logo.src=s;}
-logo.style.display='';brand.classList.add('has-logo');
-const b=EMB[(s.match(/([a-z]+)\.png$/i)||[])[1]],S=logo.parentNode.clientWidth||28;
-if(b){const k=S/Math.max(b[2],b[3]);logo.style.width=(200*k)+'px';logo.style.height=(62*k)+'px';logo.style.left=(-b[0]*k+(S-b[2]*k)/2)+'px';logo.style.top=(-b[1]*k+(S-b[3]*k)/2)+'px';}
-else{logo.style.width=logo.style.height='100%';logo.style.left=logo.style.top='0';logo.style.objectFit='contain';}};
-showLogo(src||(online&&logo&&logo.dataset.op)||'');
+/* s137 运营商徽标：mwrt 原版走 /logo/*.png（200x62 横版透明图 + 裁剪包围盒），
+   但**这几张 PNG 从没打进本固件**——设备上连 /logo 目录都不存在，<img> 必然 404。
+   heroUp 每 4 秒跑一次，每次都把 has-logo 加回来、把 .h-brand-ph 图标藏掉，
+   而 404 的 error 回调只在第一次触发 —— 结果就是品牌块变成一块空白
+   （用户 2026-11-19「首页运营商的图标不显示了」）。
+   改成自绘：品牌色圆角块 + 单字简称，零外部资源，离线也不会缺。 */
+const BRAND={
+china_mobile:{c:'#0086d1',t:'移'},   /* 中国移动 品牌蓝 */
+china_unicom:{c:'#e60012',t:'联'},   /* 中国联通 品牌红 */
+china_telecom:{c:'#0068b7',t:'电'},  /* 中国电信 品牌蓝 */
+cbn:{c:'#f26a1b',t:'广'}             /* 中国广电 品牌橙 */
+};
+const txEl=document.getElementById('h-brand-tx');
+const showLogo=s=>{if(!brand)return;
+const b=s?BRAND[s]:null;
+/* 拿不到运营商（未拨号/未注册）就退回中性色块 + 基站图标，不留白 */
+brand.classList.toggle('brand-tx',!!b);
+brand.classList.remove('has-logo');
+logo&&(logo.style.display='none');
+if(txEl)txEl.textContent=b?b.t:'';
+brand.style.background=b?b.c:'';
+brand.style.color=b?'#fff':'';};
+showLogo(src);
 if(opN){
   /* 运营商名也粘滞: 在线时一旦解析出名字(nm/opV/PLMN)就记进 lastOp;
      在线但这轮没读到名字(AT 空读)→ 沿用 lastOp, 不回退到"等待网络注册"。 */

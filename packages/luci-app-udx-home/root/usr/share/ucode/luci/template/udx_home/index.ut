@@ -28,16 +28,19 @@
 
 	const _swon = match(readfile('/proc/swaps') ?? '', /\n\//) != null;
 
-	const _mc = readfile('/tmp/modconf.conf') ?? '';
-	const _smsurl = (_mc == '' || index(_mc, 'MT5700') >= 0)
-		? '/cgi-bin/luci/admin/modem/smsc'
-		: '/cgi-bin/luci/admin/modem/webui' + (index(_mc, '未知') >= 0 ? '#/sms/center' : '#/sms/sms');
+	/* 短信入口。mwrt 原版按模组型号分三路（MT5700 → /modem/smsc，其它 → /modem/webui#/sms/...），
+	   这两个路由在 SY108 上都不存在 —— 点了直接 404（2026-11-19 用户反馈）。本机短信页是
+	   「移动网络」同级的 admin/udx/sms，且三种情况都走它，所以不再按模组型号分叉。 */
+	const _smsurl = '/cgi-bin/luci/admin/udx/sms';
 
 	const _rs = '/www/luci-static/resources/';
 	const _sz = (f) => {
 		const t = stat(_rs + f);
 		return t ? t.size : 0;
 	};
+	/* mwrt-home.css 在 /www/luci-static/mwrt/ 下，不在 resources/，_sz() 拼不到路径，
+	   单独取一次大小当缓存键（改成 CSS 就自动失效） */
+	const _cssv = stat('/www/luci-static/mwrt/mwrt-home.css')?.size ?? 0;
 
 	let _dv = match(dev_name, /^(\S+)\s+(.+)$/);
 	const dv_b = _dv ? _dv[1] : null;
@@ -50,7 +53,9 @@
  放在 body 内是 HTML5 允许的写法；header.ut 已经输出完 </head><body>，
  没有更早的插入点。
 #}
-<link rel="stylesheet" href="/luci-static/mwrt/mwrt-home.css">
+{# s137: 补 ?v=文件大小 —— 原来这条 link 没有版本参数，改完 CSS 浏览器命中旧缓存，
+   用户「改了看不到」的老坑（经验册坑 6）。_cssv 取的是 mwrt-home.css 的真实大小。 #}
+<link rel="stylesheet" href="/luci-static/mwrt/mwrt-home.css?v={{ _cssv }}">
 {# s131: 版式覆盖 —— mwrt-home.css 把 .P 限在 1200px 居中（宽屏两侧留白），
      用户明确要求全宽。放在 link 之后, 同特异性下后出者胜, 再加 !important 兜底。 #}
 <style>
@@ -68,7 +73,7 @@ html .P{max-width:none !important;}
 <div id="hero-w" class="hid"><div class="hero">
 <!-- 三块: h-id 运营商身份 / h-mx 四格指标 / h-sig 信号舱(布局说明见样式表 "Hero · 蜂窝信号")。
      id 沿用旧版的 h-op / h-op-status / h-bdg / h-ring / h-bars / h-sl / h-logo / h-cellid, heroUp 照旧按 id 填 -->
-<div class="hero-sig" id="hero-sig"><div class="h-id"><div class="h-brand" id="h-brand"><i class="fas fa-broadcast-tower h-brand-ph" aria-hidden="true"></i><span class="h-brand-clip"><img id="h-logo" src="" alt="" style="display:none"></span></div><div class="h-id-t"><div class="h-op-row"><div class="h-op-name" id="h-op">--</div><div class="h-bdg" id="h-bdg"></div><div class="h-op-st"><span class="h-dot"></span><span id="h-op-status">读取中…</span></div></div></div></div><div class="h-mx"><div class="h-m" id="hm-rsrq"><div class="h-mk"><span><i class="fas fa-chart-bar"></i>RSRQ</span><b>--</b></div><div class="h-mv"><span class="n">--</span><small>dB</small></div><span class="h-mb"><span style="width:0"></span></span></div><div class="h-m" id="hm-sinr"><div class="h-mk"><span><i class="fas fa-bullseye"></i>SINR</span><b>--</b></div><div class="h-mv"><span class="n">--</span><small>dB</small></div><span class="h-mb"><span style="width:0"></span></span></div><div class="h-m h-m-tap" id="hm-band" role="button" tabindex="0" onclick="caPop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();caPop();}" title="查看载波聚合详情"><div class="h-mk"><span><i class="fas fa-wave-square"></i>频段 Band</span><b class="h-ca" id="h-ca" style="display:none"></b></div><div class="h-mv" id="h-band">--</div><div class="h-ms" id="h-band-s">--</div></div><div class="h-m h-m-tap" id="hm-sim" role="button" tabindex="0" onclick="simPop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();simPop();}" title="点击快速切换卡槽"><div class="h-mk"><span><i class="fas fa-sim-card"></i>卡槽 SIM</span><span class="h-swap" aria-hidden="true"><i class="fas fa-exchange-alt"></i></span></div><div class="h-mv h-mv-t" id="h-pci">--</div><div class="h-ms h-sim" id="h-cellid">读取中…</div></div></div><div class="h-sig"><div class="sig-rg" id="h-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="sr-tk" cx="50" cy="50" r="46"/><circle class="sr-bg" cx="50" cy="50" r="38"/><circle class="sr-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ct"><span class="v">--</span><span class="l">dBm</span></div></div><div class="sig-nfo"><div class="sig-k">RSRP · 信号强度</div><div class="sig-lv" id="h-lv">--</div><div class="sig-bars" id="h-bars"><span style="height:9px"></span><span style="height:13px"></span><span style="height:17px"></span><span style="height:21px"></span><span style="height:25px"></span></div><div class="sl" id="h-sl">读取中…</div></div></div></div>
+<div class="hero-sig" id="hero-sig"><div class="h-id"><div class="h-brand" id="h-brand"><i class="fas fa-broadcast-tower h-brand-ph" aria-hidden="true"></i><span class="h-brand-tx" id="h-brand-tx" aria-hidden="true"></span><span class="h-brand-clip"><img id="h-logo" src="" alt="" style="display:none"></span></div><div class="h-id-t"><div class="h-op-row"><div class="h-op-name" id="h-op">--</div><div class="h-bdg" id="h-bdg"></div><div class="h-op-st"><span class="h-dot"></span><span id="h-op-status">读取中…</span></div></div></div></div><div class="h-mx"><div class="h-m" id="hm-rsrq"><div class="h-mk"><span><i class="fas fa-chart-bar"></i>RSRQ</span><b>--</b></div><div class="h-mv"><span class="n">--</span><small>dB</small></div><span class="h-mb"><span style="width:0"></span></span></div><div class="h-m" id="hm-sinr"><div class="h-mk"><span><i class="fas fa-bullseye"></i>SINR</span><b>--</b></div><div class="h-mv"><span class="n">--</span><small>dB</small></div><span class="h-mb"><span style="width:0"></span></span></div><div class="h-m h-m-tap" id="hm-band" role="button" tabindex="0" onclick="caPop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();caPop();}" title="查看载波聚合详情"><div class="h-mk"><span><i class="fas fa-wave-square"></i>频段 Band</span><b class="h-ca" id="h-ca" style="display:none"></b></div><div class="h-mv" id="h-band">--</div><div class="h-ms" id="h-band-s">--</div></div><div class="h-m h-m-tap" id="hm-sim" role="button" tabindex="0" onclick="simPop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();simPop();}" title="点击快速切换卡槽"><div class="h-mk"><span><i class="fas fa-sim-card"></i>卡槽 SIM</span><span class="h-swap" aria-hidden="true"><i class="fas fa-exchange-alt"></i></span></div><div class="h-mv h-mv-t" id="h-pci">--</div><div class="h-ms h-sim" id="h-cellid">读取中…</div></div></div><div class="h-sig"><div class="sig-rg" id="h-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="sr-tk" cx="50" cy="50" r="46"/><circle class="sr-bg" cx="50" cy="50" r="38"/><circle class="sr-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ct"><span class="v">--</span><span class="l">dBm</span></div></div><div class="sig-nfo"><div class="sig-k">RSRP · 信号强度</div><div class="sig-lv" id="h-lv">--</div><div class="sig-bars" id="h-bars"><span style="height:9px"></span><span style="height:13px"></span><span style="height:17px"></span><span style="height:21px"></span><span style="height:25px"></span></div><div class="sl" id="h-sl">读取中…</div></div></div></div>
 <!-- 系统信息版 hero: 无蜂窝模组时显示。结构与 #hero-sig 一一对应(h-id / h-mx / h-sig), id 全部以 hs- 开头, 和蜂窝版互不干扰 -->
 <div class="hero-sig hero-sys hid" id="hero-sys"><div class="hl"><div class="hl-l"><span class="hl-dot"></span><span class="hl-n" id="hl-name">--</span><i class="hl-sp"></i><span class="hl-s" id="hl-sub">读取中…</span></div><div class="hl-r" id="hl-chips"></div></div><div class="h-id"><div class="h-id-t"><div class="h-op-row"><div class="h-op-name" id="hs-name">--</div></div><div class="h-op-sub"><span class="hs-pill"><span class="h-dot"></span><span class="st" id="hs-st">读取中…</span></span><span class="h-fw" id="hs-fw">--</span></div></div></div><div class="h-mx"><div class="h-m" id="hs-up"><div class="h-mk"><span><i class="fas fa-clock"></i>运行时间</span></div><div class="h-mv" id="hs-up-v">--</div><div class="h-ms" id="hs-up-s">--</div></div><div class="h-m t-g" id="hs-cl"><div class="h-mk"><span><i class="fas fa-network-wired"></i>在线设备</span></div><div class="h-mv" id="hs-cl-v">--</div><div class="h-ms" id="hs-cl-s">--</div></div><div class="h-m t-o" id="hs-wan"><div class="h-mk"><span><i class="fas fa-arrows-alt-v"></i>WAN 流量</span></div><div class="h-mv" id="hs-wan-v">--</div><div class="h-ms" id="hs-wan-s">--</div></div><div class="h-m t-c" id="hs-sto"><div class="h-mk"><span><i class="fas fa-hdd"></i>存储</span><b id="hs-sto-b">--</b></div><div class="h-mv" id="hs-sto-v">--</div><span class="h-mb"><span id="hs-sto-bar" style="width:0"></span></span><div class="h-ms" id="hs-sto-s">--</div></div></div><div class="h-sig"><div class="sig-rg" id="hs-ring"><svg viewBox="0 0 100 100" aria-hidden="true"><circle class="sr-tk" cx="50" cy="50" r="46"/><circle class="sr-bg" cx="50" cy="50" r="38"/><circle class="sr-fg" cx="50" cy="50" r="38" stroke-dasharray="238.8" stroke-dashoffset="238.8"/></svg><div class="ct"><span class="v" id="hs-rv">--</span><span class="l">load1</span></div></div><div class="sig-nfo"><div class="sig-k">CPU 负载 · 系统状态</div><div class="sig-lv" id="hs-lv">--</div><div class="sig-bars" id="hs-bars"><span style="height:9px"></span><span style="height:13px"></span><span style="height:17px"></span><span style="height:21px"></span><span style="height:25px"></span></div><div class="sl" id="hs-sl">读取中…</div></div></div></div>
 </div></div>
@@ -156,7 +161,7 @@ html .P{max-width:none !important;}
 </div>
 <div class="gx-mod gx-nomod" id="gx-mod">
 <div class="gx-grid">
-<a class="gx-t" data-k-go="lockband" href="{{ '/cgi-bin/luci/admin/modem/webui' }}#/network/setting" title="锁频设置 · 前往网络设置页"><b>锁频设置</b></a>
+<a class="gx-t" data-k-go="lockband" href="{{ '/cgi-bin/luci/admin/udx/network?tab=radio' }}" title="锁频设置 · 前往「移动网络 → 频段与小区」"><b>锁频设置</b></a>
 
 <a class="gx-t" href="{{ _smsurl }}" title="短信管理"><b>短信管理</b></a>
 <button type="button" class="gx-t" data-k="sim" disabled><b>SIM卡信息</b></button>
