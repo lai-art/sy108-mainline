@@ -38,42 +38,7 @@ document.querySelectorAll('.fan-ctrl .fc-btn:not(.fc-link)').forEach(b=>b.classL
 const id=map[mode];if(id){const el=document.getElementById(id);if(el)el.classList.add('active');}
 const sw=document.getElementById('fan-slider-wrap');if(sw&&mode!=='无极'){sw.style.display='none';}
 }
-/* s113 首页风扇设置浮窗: 产品图右上角风扇键(#dv-fan)点开, 里面就是原来的 #fan-card
- * (节点原样搬进浮窗, id 与 fanSet/fanFree/fanSlider 全不动, 转速/温度刷新照旧)。
- * 用事件委托: 这段脚本在 HTML 之前执行, 解析时拿不到按钮。 */
-(function(){
- var last=null;
- function $(i){return document.getElementById(i);}
- function open(btn){
-  var m=$('fnw');if(!m)return;
-  var w=$('wfm');   /* 与其它浮窗放在同一层, 免得被带 transform 的祖先困住 fixed 定位 */
-  if(w&&w.parentNode&&m.parentNode!==w.parentNode)w.parentNode.insertBefore(m,w);
-  var host=document.querySelector('.main-right')||$('maincontent'),left=0;
-  if(host){var r=host.getBoundingClientRect();if(r.width>0&&r.left>0)left=Math.round(r.left);}
-  m.style.setProperty('--wfm-l',left+'px');
-  try{if(window.MRT_OVBOX)window.MRT_OVBOX();}catch(e){}
-  last=btn||$('dv-fan');
-  m.classList.add('open');m.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
-  if(last)last.classList.add('on');
-  var x=$('fnw-x');if(x)try{x.focus({preventScroll:true});}catch(e){}
- }
- function close(){
-  var m=$('fnw');if(!m||!m.classList.contains('open'))return;
-  m.classList.remove('open');m.setAttribute('aria-hidden','true');document.body.style.overflow='';
-  var b=$('dv-fan');if(b){b.classList.remove('on');try{b.focus({preventScroll:true});}catch(e){}}
- }
- document.addEventListener('click',function(e){
-  var t=e.target;if(!t||!t.closest)return;
-  var b=t.closest('#dv-fan');
-  if(b){e.preventDefault();var m=$('fnw');if(m&&m.classList.contains('open'))close();else open(b);return;}
-  if(t.closest('#fnw-x')){close();return;}
-  if(t.id==='fnw')close();
- });
- document.addEventListener('keydown',function(e){
-  var m=$('fnw');if(e.key==='Escape'&&m&&m.classList.contains('open'))close();
- });
- window.MRT_FANWIN={open:open,close:close};
-})();
+/* s143 11-22: 风扇浮窗整体移除（SY108 无 PWM/风扇硬件，入口按钮已从模板删除）。 */
 /* s122 关于本机浮窗: 产品图右上角「关于本机」键(#dv-about)打开, 里面是原来首页的设备规格卡 .cd-q(节点原样放在浮窗里, f-* 等 id 与刷新逻辑都不动)。
  * 用事件委托: 这段脚本在 HTML 之前执行, 解析时拿不到节点。 */
 (function(){
@@ -1504,7 +1469,8 @@ function cxNbHtml(){
     return '<div class="nb-c' + (same ? ' same' : '') + '">'
       + '<div class="nb-hd"><span class="nb-pci"><span class="lb">物理小区 PCI</span>'
       + '<span class="nv">' + (c.pci != null ? c.pci : '--') + '</span></span>'
-      + '<span class="nb-tags"><span class="nb-rat' + (isNR ? ' nr' : '') + '">' + (c.rat || '--') + '</span>'
+      + '<span class="nb-tags">'
+      + '<span class="nb-rat' + (isNR ? ' nr' : '') + '">' + (c.rat || '--') + (c.band ? ' · ' + String(c.band).replace(/[<>&"]/g, '') : '') + '</span>'
       + (same ? '<span class="nb-same">同频邻区</span>' : '') + '</span></div>'
       + '<div class="nb-main"><span class="l">参考信号接收功率 RSRP</span>'
       + '<div class="row"><span><span class="nv" style="color:' + col + '">'
@@ -1530,7 +1496,7 @@ function cxNbHtml(){
       return '<tr><td class="rk">' + (i + 4) + '</td>'
         + '<td><span class="pci">' + (c.pci != null ? c.pci : '--') + '</span>'
         + (same ? '<span class="nb-same2">同频</span>' : '') + '</td>'
-        + '<td><span class="nb-rat2' + (isNR ? ' nr' : '') + '">' + (c.rat || '--') + '</span></td>'
+        + '<td><span class="nb-rat2' + (isNR ? ' nr' : '') + '">' + (c.rat || '--') + (c.band ? ' · ' + String(c.band).replace(/[<>&"]/g, '') : '') + '</span></td>'
         + '<td class="fcn">' + (c.earfcn != null ? c.earfcn : '--') + '</td>'
         + '<td><span class="nb-sig"><span class="nb-sb">'
         + '<i style="width:' + nbPct(c.rsrp) + '%;background:' + col + '"></i></span>'
@@ -1543,9 +1509,9 @@ function cxNbHtml(){
     h += '<div class="nb-rest"><div class="nb-rest-h">'
       + '<span class="nb-rest-t"><i class="fas fa-list-ul"></i> 其余 ' + rest.length + ' 个邻区</span>'
       + '<span class="nb-rest-n">按参考信号接收功率排序</span></div>'
-      + '<table class="nb-tb"><colgroup><col style="width:44px"><col style="width:96px">'
-      + '<col style="width:78px"><col style="width:96px"><col><col style="width:78px">'
-      + '<col style="width:78px"></colgroup>'
+      + '<table class="nb-tb"><colgroup><col style="width:40px"><col style="width:86px">'
+      + '<col style="width:96px"><col style="width:86px"><col><col style="width:72px">'
+      + '<col style="width:72px"></colgroup>'
       + '<thead><tr><th>#</th><th>PCI</th><th>制式</th><th>ARFCN</th>'
       + '<th>RSRP<span class="sm"> dBm</span></th><th>RSRQ<span class="sm"> dB</span></th>'
       + '<th>SINR<span class="sm"> dB</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
@@ -1787,7 +1753,6 @@ if(fanSvg){
 if(fanPct>0){fanSvg.classList.remove('off');fanSvg.style.animationDuration=Math.max(0.2,2.5-fanPct/45)+'s';fanSvg.classList.toggle('fast',fanPct>=70);fanSvg.classList.toggle('hot',fanTemp>65);}
 else{fanSvg.classList.add('off');fanSvg.classList.remove('fast','hot');}
 }
-{const dvf=document.getElementById('dv-fan');if(dvf){dvf.classList.toggle('spin',fanPct>0);dvf.style.setProperty('--fs',Math.max(0.35,2.5-fanPct/45)+'s');dvf.classList.toggle('hot',fanTemp>65);}}
 // Card background glow based on temp
 if(fanCard){fanCard.classList.remove('fan-hot','fan-warm','fan-cool');if(fanTemp>65)fanCard.classList.add('fan-hot');else if(fanTemp>45)fanCard.classList.add('fan-warm');else fanCard.classList.add('fan-cool');
 // Blowing state + wind speed
@@ -2786,21 +2751,25 @@ function render(d){
   v:ipx(d.wan_ip,0),b:[100],bt:[egk?egk[1]:'已联网']});
  /* s64: 硬件加速 HNAT: 加速类型 + PPE 绑定占比, 点开看详情; Full Cone NAT(全锥)= 游戏加速, 单独点出来。数据来自 HNAT_D(hnatFetch 5 秒一轮)。
     s124: 数值取总占比, 底部细条按 PPE 分段(一条 PPE 一段, 悬停看绑定数) */
- /* s130: 原「HNAT 加速」是 MTK 特性, SY108 没有 turboacc, 卡片整体改为「信号强度」。
-   数据仍走 devpop?k=hnat (服务端读 udx.cellular status, 5 秒一轮):
-   rsrp/rsrq/sinr/rat_txt/band/operator/state。真机口径: csq=99 是 AT 的
-   「未知」占位值, 可信信号只有服务小区的 RSRP/RSRQ/SINR (2026-11-15 实测)。 */
+ /* s142 11-22: 原「信号强度」卡与顶部信号环/蜂窝屏的 RSRP/RSRQ/SINR 重复(用户反馈),
+    改为「签约速率」——显示运营商签约的上下行 + 承载等级 5QI/QCI。
+    数据仍走 devpop?k=hnat (服务端读 udx.cellular status 的 qos, 5 秒一轮):
+    qos.down_kbps / qos.up_kbps (kbps) + qos.qci / qos.kind。
+    真机: 下行 500000 kbps=500M, 上行 100000 kbps=100M, qci=8/kind=5qi。 */
   var hn=window.MRT_HNAT||HNAT_D;
-  if(hn&&hn.rsrp!=null){
-   var rv=+hn.rsrp,rl=rv>=-85?'极佳':rv>=-95?'良好':rv>=-105?'一般':'较弱';
-   var rp=Math.max(4,Math.min(100,Math.round((rv+140)/70*100)));
-   ips.push({k:'hnat',ic:'fa-signal',lb:'信号强度',x:'<span class="tg">'+esc(hn.rat_txt||'蜂窝')+(hn.band?' '+esc(hn.band):'')+'</span>',v:Math.round(rv)+'<small>dBm</small>',pop:'hnat',
-    b:[rp],
-    bt:['RSRP '+rv.toFixed(1)+' dBm（信号'+rl+'） · RSRQ '+(hn.rsrq!=null?hn.rsrq.toFixed(1):'--')+' dB · SINR '+(hn.sinr!=null?hn.sinr.toFixed(1):'--')+' dB']});
-  }else if(hn&&hn.noready){
-   ips.push({k:'hnat',ic:'fa-signal',lb:'信号强度',x:'',v:'--<small>无信号</small>',b:[0],pop:'hnat'});
+  var qo=hn&&hn.qos?hn.qos:null;
+  function spd(kb){kb=+kb||0;return kb>=1000000?(kb/1000000).toFixed(1)+'G':(kb>=1000?(kb/1000)+'M':(kb>0?kb+'K':'--'));}
+  if(qo&&(+qo.down_kbps>0||+qo.up_kbps>0)){
+   var lvl=(qo.kind==='5qi'?'5QI':'QCI')+' '+(qo.qci!=null?qo.qci:'--');
+   var pctBar=Math.max(4,Math.min(100,Math.round(+qo.down_kbps/1000)));  /* 500M -> 50%, 只做视觉条；注意别遮蔽全局 pct(a,b) */
+   ips.push({k:'hnat',ic:'fa-gauge-high',lb:'签约速率',x:'<span class="tg">'+esc(lvl)+'</span>',
+    v:spd(qo.down_kbps)+'<small>↓</small> '+spd(qo.up_kbps)+'<small>↑</small>',pop:'hnat',
+    b:[pctBar],
+    bt:['签约下行 '+spd(qo.down_kbps)+' / 上行 '+spd(qo.up_kbps)+' · '+esc(lvl)+' 承载']});
+  }else if(hn&&(hn.noready||qo)){
+   ips.push({k:'hnat',ic:'fa-gauge-high',lb:'签约速率',x:'',v:'--<small>无承载</small>',b:[0],pop:'hnat'});
   }else{
-   ips.push({k:'hnat',ic:'fa-signal',lb:'信号强度',x:'',v:'—<small>读取中…</small>',b:[0],pop:'hnat'});
+   ips.push({k:'hnat',ic:'fa-gauge-high',lb:'签约速率',x:'',v:'—<small>读取中…</small>',b:[0],pop:'hnat'});
   }
   /* 在线设备 / 活动连接: 带趋势线和环比标记。
     线色取各自格子的强调色(绿/粉), 和徽章同色系, 不另引入第七种颜色。
@@ -3927,27 +3896,26 @@ function rConns(){
 /* s64: 硬件加速 HNAT 详情浮层。数据用页面那轮缓存的 window.MRT_HNAT(devpop?k=hnat)。
    列:加速引擎 / 全锥 NAT(游戏加速)/ 各 PPE 绑定表项占比, 末尾挂 USB 网卡通道 + 虚拟网卡名 HNAT 说明。 */
 function rHnat(){
- /* s130: 原 HNAT 详情浮层(加速引擎/全锥/PPE)已随磁贴整体改为「信号强度详情」。
-    数据 = window.MRT_HNAT (devpop?k=hnat, 弹窗开着时 3 秒一轮)。 */
+ /* s142 11-22: 详情浮层随磁贴改为「签约速率 / 承载等级」。
+    数据 = window.MRT_HNAT (devpop?k=hnat, 弹窗开着时 3 秒一轮) 的 qos 字段。 */
  var p=window.MRT_HNAT||(cache.hnat&&cache.hnat.d);
- var o=head('fa-signal','信号强度详情','');
+ var o=head('fa-gauge-high','签约速率 · 承载等级','');
+ function spdx(kb){kb=+kb||0;return kb>=1000000?(kb/1000000).toFixed(2)+' Gbps':(kb>=1000?(kb/1000)+' Mbps':(kb>0?kb+' Kbps':'--'));}
  if(!p)return o+'<div class="gp-n">读取中…</div>';
- if(p.rsrp==null)return o+'<div class="gp-n">'+h(p.state||'暂无信号数据')+'</div>';
- var rv=+p.rsrp,rl=rv>=-85?'极佳':rv>=-95?'良好':rv>=-105?'一般':'较弱';
+ var qo=p.qos;
+ if(!qo||(!+qo.down_kbps&&!+qo.up_kbps))return o+'<div class="gp-n">'+h(p.state||'暂无承载信息')+'</div>';
+ var lvl=(qo.kind==='5qi'?'5QI':'QCI')+' '+(qo.qci!=null?qo.qci:'--');
  var g='';
- g+='<span class="gp-k">连接状态</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.state||'--')+'</span>';
+ g+='<span class="gp-k">签约下行</span>'+bar(Math.max(4,Math.min(100,Math.round(+qo.down_kbps/1000))))+'<span class="gp-v">'+spdx(qo.down_kbps)+'</span>';
+ g+='<span class="gp-k">签约上行</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+spdx(qo.up_kbps)+'</span>';
+ g+='<span class="gp-k">承载等级</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(lvl)+'<small>（'+(qo.kind==='5qi'?'5G QoS 标识':'4G 业务质量等级')+'）</small></span>';
+ g+='<span class="gp-k">保证下行</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+spdx(qo.gbr_down)+'</span>';
+ g+='<span class="gp-k">保证上行</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+spdx(qo.gbr_up)+'</span>';
  g+='<span class="gp-k">运营商</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.operator||'--')+(p.plmn?'<small>（'+h(p.plmn)+'）</small>':'')+'</span>';
  g+='<span class="gp-k">网络</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.rat_txt||'--')+(p.band?'<small> · band '+h(p.band)+'</small>':'')+'</span>';
- g+='<span class="gp-k">RSRP</span>'+bar(Math.max(4,Math.min(100,Math.round((rv+140)/70*100))))+'<span class="gp-v">'+rv.toFixed(1)+'<small> dBm</small></span>';
- g+='<span class="gp-k">RSRQ</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.rsrq!=null?p.rsrq.toFixed(1)+'<small> dB</small>':'--')+'</span>';
- g+='<span class="gp-k">SINR</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.sinr!=null?p.sinr.toFixed(1)+'<small> dB</small>':'--')+'</span>';
- g+='<span class="gp-k">物理小区 PCI</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.pci!=null?h(String(p.pci)):'--')+'</span>';
- g+='<span class="gp-k">跟踪区 TAC</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+(p.tac?h(String(p.tac)):'--')+'</span>';
  g+='<span class="gp-k">APN</span><span class="gp-v" style="grid-column:2/-1;text-align:left;word-break:break-all">'+h(p.apn||'--')+'</span>';
- g+='<span class="gp-k">WAN 地址</span><span class="gp-v" style="grid-column:2/-1;text-align:left">'+h(p.ip||'--')+'</span>';
- /* RSRP 判档: ≥-85 极佳 / ≥-95 良好 / ≥-105 一般 / 更弱较差, 与磁贴一致。 */
  return o+'<div class="gp-g">'+g+'</div>'+
-  '<div class="gp-f">RSRP 反映基站信号强度：≥-85 极佳、-95~-85 良好、-105~-95 一般、低于 -105 较弱。速率上不去时先看这里和 RSRQ/SINR。</div>';
+  '<div class="gp-f">签约速率是运营商套餐允许的最大上下行（AMBR），实际速率受信号与基站负载影响；5QI/QCI 是这条数据承载的业务质量等级，数字越小优先级越高。</div>';
 }
 /* s71/s74: 产品图网口 / USB 的浮层 —— 直接吃 router3d-data 那一轮(MRT_R3D, 1.8 秒), 不另发请求 */
 /* 字节 → 1.2 GB / 356 MB */
@@ -4844,6 +4812,8 @@ window.MRT_POP={upd:function(){if(cur)render();},open:open,close:close};
  if(hs0)new MutationObserver(sched).observe(hs0,{attributes:true,attributeFilter:['class']});
  window.MX={open:open,close:close,sync:sync};
  /* s141: 浮窗外壳给同文件里后面那些 IIFE 复用（在线更新的弹窗要用） */
+ /* s145: 导出锁频/短信浮窗给「网络设置」浮窗调用 */
+ window.lockbandOpen=lockbandOpen;window.smsOpen=smsOpen;
  window.MXF={open:mxfOpen,note:mxfNote,err:mxfErr,esc:esc};
  sync();
 })();
@@ -5155,3 +5125,85 @@ window.MRT_POP={upd:function(){if(cur)render();},open:open,close:close};
    网口当 LAN 时插上光猫/上级路由, 哪个页面都要能弹"接入检测"提示, 浮窗跟它是一套。
    这里只把网口格按钮的 onclick 接过去。 */
 window.pwmOpen=function(){if(window.mwrtPortSw)mwrtPortSw.open();};
+
+/* === s145 网络设置浮窗（原「设置向导」的浮窗化移植，2026-11-22） ===
+   #wz-btn 点击后就地弹窗，内含网络模式 / SA-NSA / APN 三样常用配置，
+   复杂配置保留「更多设置」链接跳整页。数据走 admin/modem/netcfg_get/set，
+   改网络模式会重拨，保存前必须二次确认。独立 IIFE，不依赖上面的内部变量。 */
+(function(){
+ 'use strict';
+ var P='/cgi-bin/luci/', data=null, busy=false;
+ function $(i){return document.getElementById(i);}
+ function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+ function get(url,cb){var x=new XMLHttpRequest();x.open('GET',url+(url.indexOf('?')<0?'?':'&')+'_='+Date.now(),true);
+  x.onreadystatechange=function(){if(x.readyState!==4)return;if(x.status===200){try{cb(JSON.parse(x.responseText));}catch(e){cb(null);}}else cb(null);};x.send();}
+ function open(){
+  var m=$('ncfg');if(!m)return;
+  var w=$('wfm');if(w&&w.parentNode&&m.parentNode!==w.parentNode)w.parentNode.insertBefore(m,w);
+  var host=document.querySelector('.main-right')||$('maincontent'),left=0;
+  if(host){var r=host.getBoundingClientRect();if(r.width>0&&r.left>0)left=Math.round(r.left);}
+  m.style.setProperty('--wfm-l',left+'px');
+  try{if(window.MRT_OVBOX)window.MRT_OVBOX();}catch(e){}
+  m.classList.add('open');m.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';
+  load();
+ }
+ function close(){var m=$('ncfg');if(!m)return;m.classList.remove('open');m.setAttribute('aria-hidden','true');document.body.style.overflow='';}
+ function opt(v,label,cur){return '<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(label)+'</option>';}
+ function load(){
+  var b=$('ncfg-body');if(b)b.innerHTML='<div style="opacity:.6;font-size:13px"><i class="fas fa-circle-notch fa-spin"></i> 正在读取…</div>';
+  get(P+'admin/modem/netcfg_get',function(d){
+   data=d;if(!b)return;
+   if(!d||d.ok!==true){b.innerHTML='<div style="color:#f87171;font-size:13px"><i class="fas fa-triangle-exclamation"></i> '+esc((d&&d.error)||'读取失败')+'</div>';return;}
+   var mc=d.mode_choices||{},nc=(d.nr_capability&&d.nr_capability.choices)||{},opts='';
+   for(var k in mc)opts+=opt(k,mc[k].label||k,d.mode);
+   var nopts='';for(var n in nc)nopts+=opt(n,nc[n].label||n,(d.nr_capability&&d.nr_capability.mode)||'');
+   b.innerHTML=
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12px;opacity:.75">'+
+      '<span class="tg">'+esc((d.mode||'--').toUpperCase())+'</span><span>'+esc(d.apn||'自动识别')+'</span>'+
+      (d.active?'<span style="color:#34d399">● 已连接</span>':'<span style="color:#fbbf24">○ 未连接</span>')+'</div>'+
+    '<div style="margin-bottom:12px"><label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px">网络模式</label>'+
+      '<select id="ncfg-mode" style="width:100%;padding:8px 10px;border-radius:8px">'+opts+'</select>'+
+      '<div style="font-size:11px;opacity:.55;margin-top:3px">切换会重拨，网络短暂中断</div></div>'+
+    '<div style="margin-bottom:12px"><label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px">SA / NSA</label>'+
+      '<select id="ncfg-nr" style="width:100%;padding:8px 10px;border-radius:8px"'+(!d.write_supported?' disabled':'')+'>'+nopts+'</select></div>'+
+    '<div style="margin-bottom:12px"><label style="display:block;font-size:12px;opacity:.7;margin-bottom:4px">APN（留空 = 自动识别）</label>'+
+      '<input type="text" id="ncfg-apn" maxlength="63" value="'+esc(d.apn||'')+'" placeholder="例如 cmnet" style="width:100%;padding:8px 10px;border-radius:8px"></div>'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(127,127,127,.08);border-radius:8px;padding:10px 12px;margin-top:14px">'+
+      '<div><b style="font-size:13px">锁频设置</b><div style="font-size:11px;opacity:.6">只允许指定频段接入</div></div>'+
+      '<button type="button" class="wfm-act-btn" onclick="ncfgBand()">打开 <i class="fas fa-arrow-right"></i></button></div>'+
+    '<div id="ncfg-tip" style="font-size:12px;opacity:.7;margin-top:12px;min-height:18px"></div>';
+  });
+ }
+ function save(){
+  if(busy)return;
+  var mode=$('ncfg-mode'),nr=$('ncfg-nr'),apn=$('ncfg-apn'),tip=$('ncfg-tip');
+  var btn=$('ncfg-ok');
+  if(!btn._ok){
+   btn._ok=1;var old=btn.innerHTML;btn.innerHTML='<i class="fas fa-exclamation-triangle"></i> 确认应用？再点一次';
+   if(tip)tip.textContent='保存后蜂窝会重新拨号，网络会短暂中断';
+   setTimeout(function(){btn._ok=0;btn.innerHTML=old;},5000);
+   return;
+  }
+  var params=[];
+  if(mode&&mode.value!==(data&&data.mode))params.push('mode='+encodeURIComponent(mode.value));
+  var nrNow=(data&&data.nr_capability&&data.nr_capability.mode)||'';
+  if(nr&&!nr.disabled&&nr.value!==nrNow)params.push('nr_capability='+encodeURIComponent(nr.value));
+  var apnNow=(data&&data.apn)||'';
+  if(apn&&apn.value!==apnNow)params.push('apn='+encodeURIComponent(apn.value));
+  if(!params.length){if(tip)tip.textContent='没有改动';btn._ok=0;return;}
+  busy=true;btn.disabled=true;if(tip)tip.textContent='正在应用…';
+  get(P+'admin/modem/netcfg_set?'+params.join('&'),function(d){
+   busy=false;btn.disabled=false;btn._ok=0;
+   if(tip)tip.textContent=(d&&d.ok)?((d.pending?'已下发，正在切换…':'已保存并应用')):((d&&d.error)||'保存失败');
+   if(d&&d.ok)setTimeout(load,1500);
+  });
+ }
+ function band(){close();try{if(typeof window.lockbandOpen==='function')window.lockbandOpen();}catch(e){} }
+ document.addEventListener('click',function(e){
+  var t=e.target;if(!t||!t.closest)return;
+  if(t.closest('#wz-btn')){e.preventDefault();e.stopPropagation();open();return;}
+  if(t.closest('#ncfg-x')){close();return;}
+ },true);
+ document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+ window.ncfgOpen=open;window.ncfgClose=close;window.ncfgSave=save;window.ncfgBand=band;
+})();

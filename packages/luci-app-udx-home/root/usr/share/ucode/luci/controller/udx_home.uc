@@ -282,7 +282,23 @@ function _cell_signal(c) {
 		cell_id: s?.cell_id ?? null,
 		apn: st.data_session?.network_apn ?? null,
 		ip: st.data_session?.ipv4 ?? null,
-		mode: st.mode ?? null
+		mode: st.mode ?? null,
+		/* 11-22: 首页「签约速率 / 等级」卡。qos 是 udx.cellular status 里的真承载信息：
+		   ambr_downlink_kbps / ambr_uplink_kbps = 签约上下行（本设备 500000/100000），
+		   qci + kind(5qi/qci) = 承载等级（本设备 qci=8, kind=5qi）。
+		   字段全做兜底，缺失时前端按 null 显示 '--'，不误报硬件问题。 */
+		qos: (function() {
+			let q = st.qos ?? null;
+			if (q == null) return null;
+			return {
+				down_kbps: q.ambr_downlink_kbps ?? q.downlink_kbps ?? null,
+				up_kbps: q.ambr_uplink_kbps ?? q.uplink_kbps ?? null,
+				qci: q.qci ?? null,
+				kind: q.kind ?? 'qci',
+				gbr_down: q.gbr_downlink_kbps ?? null,
+				gbr_up: q.gbr_uplink_kbps ?? null
+			};
+		})()
 	};
 }
 
@@ -698,6 +714,45 @@ function fancontrol_devpop() {
 	}
 }
 
+/* ---------- s144 屏保：配置读写（从 mwrt 移植，存 /etc/config/outline 的 screensaver 段） ----------
+ * mwrt 原版把屏保开关/时长放在 /etc/config/mwrt 的 ndis.showtime，后端 msgct 吐出来，
+ * 前端 footer.htm 的 idle overlay 轮询。SY108 没有那个配置包，改存 luci-theme-outline
+ * 自带的 /etc/config/outline（已有 appearance/updates 等段），新增 screensaver 段：
+ *   config screensaver 'screensaver'
+ *       option enabled '1'
+ *       option showtime '30'     (秒；0/缺失=关闭)
+ * 默认关闭，用户不设置就不会触发屏保——不打扰默认体验。 */
+function fancontrol_msgct() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let c = cursor();
+	let en = c.get('outline', 'screensaver', 'enabled');
+	let st = c.get('outline', 'screensaver', 'showtime');
+	let enabled = (en === '1' || en === 1);
+	let secs = _int(st, 0);
+	if (!enabled || secs < 6) secs = 0;   /* <6 秒不当作开启，避免误触 */
+	http.write_json({ showtime: secs, enabled: (secs > 0) });
+}
+
+function fancontrol_screensaver_set() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let en = http.formvalue('enabled');
+	let st = http.formvalue('showtime');
+	let enabled = (en === '1' || en === 'true' || en === 1 || en === true);
+	let secs = _int(st, 30);
+	/* 允许 6~3600 秒；0 表示关闭（此时 enabled 强制 false）。
+	   注意 ucode 没有 JS 的 Math 全局，手写 clamp，别用 Math.max/min。 */
+	if (secs !== 0) {
+		if (secs < 6) secs = 6;
+		if (secs > 3600) secs = 3600;
+	}
+	let c = cursor();
+	c.set('outline', 'screensaver', 'screensaver');   /* 确保段存在 */
+	c.set('outline', 'screensaver', 'enabled', (enabled && secs > 0) ? '1' : '0');
+	c.set('outline', 'screensaver', 'showtime', '' + secs);
+	c.commit('outline');
+	http.write_json({ ok: true, enabled: (enabled && secs > 0), showtime: (enabled && secs > 0) ? secs : 0 });
+}
+
 /* ---------- modem_ctrl：首页底部「蜂窝模组 / SIM卡信息 / 基站信息」三张卡 ----------
  * mwrt 原版这三块吃的是 AT 口模组：/usr/bin/mwrt-cellinfo 写盘 + generic.sh 吐的 key/value 表。
  * SY108 的模组是 UDX710 —— 模组自己就是主控，这台机器上没有 AT 口（也没有 mwrt-cellinfo），
@@ -794,6 +849,10 @@ function modeminfo_cellx() {
 				if (x?.pci == null && x?.rsrp == null) continue;
 				push(nb, {
 					rat: (x?.rat == 'nr') ? 'NR' : (x?.rat == 'lte') ? 'LTE' : (x?.rat ?? '--'),
+					/* 11-22: 带上频段，前端「附近小区」卡/表格显示 n41 / n28 徽章，
+					   不用再从 ARFCN 心算。band 来自 cells[].band，服务小区是模组直报
+					   （band_source=modem），邻区多为 arfcn-inferred，两者都是真机数据。 */
+					band: x?.band ?? null,
 					earfcn: x?.arfcn ?? null,
 					pci: x?.pci ?? null,
 					rsrp: x?.rsrp ?? null,
@@ -802,8 +861,8 @@ function modeminfo_cellx() {
 				});
 			}
 		}
-		/* 前端用 serving.arfcn 标「同频邻区」 */
-		if (c.serving?.arfcn != null) serv = { arfcn: c.serving.arfcn };
+		/* 前端用 serving.arfcn 标「同频邻区」，serving.band 给卡片标题标注当前驻留频段 */
+		if (c.serving?.arfcn != null) serv = { arfcn: c.serving.arfcn, band: c.serving.band ?? null };
 	}
 
 	http.write_json({
@@ -921,6 +980,87 @@ function _op_wait(reply, tries) {
 	}
 	if (res.state == 'queued' || res.state == 'running') res.pending = true;
 	return res;
+}
+
+/* ---------- s145 网络设置浮窗：读取/修改网络模式与 APN ----------
+ * 原「设置向导」跳转到移动网络整页；这里把向导里对 SY108 有意义的几步
+ * （网络模式 / SA-NSA / APN）做成首页浮窗。数据全部来自 udx.cellular status，
+ * 写入走 ubus 的 network_mode / apn 方法（network_mode_write_supported=true 已实测）。 */
+function modem_netcfg_get() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let c = _cell();
+	if (c == null) { http.write_json({ ok: false, error: '蜂窝服务不可用' }); return; }
+	let st = c.raw;
+	http.write_json({
+		ok: true,
+		write_supported: (st.network_mode_write_supported === true),
+		mode: st.mode ?? null,
+		mode_choices: st.mode_choices ?? {},
+		nr_capability: st.nr_capability ?? null,
+		apn: (st.data_session?.network_apn ?? st.profile?.apn ?? ''),
+		pdp_type: st.profile?.pdp_type ?? 'IPV4V6',
+		apn_mode: st.apn_mode ?? null,
+		active: (st.state == 'pdp_active' && st.pdp_state == 'active')
+	});
+}
+
+/* 改网络模式会让链路重拨（几秒断网），所以前端要二次确认；
+   后端只做白名单校验：模式必须在模组上报的 mode_choices 里，SA/NSA 必须在 nr_capability.choices 里。 */
+function modem_netcfg_set() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let c = _cell();
+	if (c == null) { http.write_json({ ok: false, error: '蜂窝服务不可用' }); return; }
+	let st = c.raw;
+	let mode = trim(http.formvalue('mode') ?? '');
+	let nr = trim(http.formvalue('nr_capability') ?? '');
+	let apn = trim(http.formvalue('apn') ?? '');
+	let pdp = trim(http.formvalue('pdp_type') ?? '');
+	let did = '';
+
+	if (mode != '' || nr != '') {
+		if (st.network_mode_write_supported !== true) {
+			http.write_json({ ok: false, error: '本机模组不支持修改网络模式' }); return;
+		}
+		let mc = st.mode_choices ?? {};
+		let nc = (st.nr_capability?.choices ?? {});
+		/* mode 与 nr_capability 可以只改一个：另一个沿用模组当前值 */
+		if (mode != '' && mc[mode] == null) { http.write_json({ ok: false, error: '未知的网络模式' }); return; }
+		if (nr != '' && nc[nr] == null) { http.write_json({ ok: false, error: '未知的 SA/NSA 模式' }); return; }
+		let args = {};
+		if (mode != '') args.mode = mode;
+		if (nr != '') args.nr_capability = nr;
+		let reply = ubus.call('udx.cellular', 'network_mode', args);
+		did = 'network_mode';
+		if (type(reply) != 'object' || reply.accepted != true) {
+			http.write_json({ ok: false, error: (type(reply) == 'object' && reply.error) ? reply.error : '模组拒绝修改网络模式', op: did }); return;
+		}
+		/* network_mode 是异步 operation，等一会儿看是否完成 */
+		let res = _op_wait(reply, 8);
+		http.write_json({ ok: res.ok, error: res.error, pending: !!res.pending, op: did });
+		return;
+	}
+
+	if (apn != '' || pdp != '') {
+		/* APN 允许 1-63 字符，只允许常见的可见字符，防注入 */
+		if (apn != '' && !match(apn, /^[A-Za-z0-9._\-~]{1,63}$/)) {
+			http.write_json({ ok: false, error: 'APN 只能包含字母、数字和 . _ - ~' }); return;
+		}
+		if (pdp != '' && !match(pdp, /^(IP|IPV4|IPV6|IPV4V6)$/)) {
+			http.write_json({ ok: false, error: 'IP 类型不合法' }); return;
+		}
+		let args = {};
+		if (apn != '') args.apn = apn;
+		if (pdp != '') args.pdp_type = pdp;
+		let reply = ubus.call('udx.cellular', 'apn', args);
+		if (type(reply) != 'object' || reply.accepted != true) {
+			http.write_json({ ok: false, error: (type(reply) == 'object' && reply.error) ? reply.error : '模组拒绝修改 APN', op: 'apn' }); return;
+		}
+		let res = _op_wait(reply, 8);
+		http.write_json({ ok: res.ok, error: res.error, pending: !!res.pending, op: 'apn' });
+		return;
+	}
+
+	http.write_json({ ok: false, error: '没有要修改的项目' });
 }
 
 function modem_band_set() {
@@ -1526,11 +1666,17 @@ return {
 	/* 已实现 */
 	fancontrol_devinfo: devinfo,
 	fancontrol_devpop: fancontrol_devpop,
+	/* s144 屏保：配置读取 + 设置（移植 mwrt 的 msgct，存 outline 配置） */
+	fancontrol_msgct: fancontrol_msgct,
+	fancontrol_screensaver_set: fancontrol_screensaver_set,
 	/* 2026-11-19: 原来是 _empty，首页「蜂窝模组/SIM/基站」三张卡因此误报未插模组 */
 	fancontrol_modem_ctrl: fancontrol_modem_ctrl,
 	/* 首页浮窗：锁频设置 / 短信管理（用户要求不跳转，改成弹窗） */
 	modem_band_get: modem_band_get,
 	modem_band_set: modem_band_set,
+	/* s145 网络设置浮窗：网络模式 / SA-NSA / APN 的读写 */
+	modem_netcfg_get: modem_netcfg_get,
+	modem_netcfg_set: modem_netcfg_set,
 	modem_sms_list: modem_sms_list,
 	modem_sms_del: modem_sms_del,
 	/* 首页「检查更新」：查 GitHub Releases（原来是 rpcd luci.mwrt-ota，SY108 没有） */
