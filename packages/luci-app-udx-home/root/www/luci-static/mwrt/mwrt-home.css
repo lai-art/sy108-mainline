@@ -3177,3 +3177,93 @@ html:not(#mwrt-nope) #P.L .tv-sun{background:#fffaf0;box-shadow:0 0 0 7px color-
 html:not(#mwrt-nope) #P .tv-ck{background:color-mix(in srgb,var(--tvb) 14%,transparent)}
 html:not(#mwrt-nope) #P.L .tv-ck{background:rgba(255,255,255,.4)}
 .P .dv-mini{display:none}
+
+/* ===== s148 COLOR TRIAL (2026-11-22) 紫 -> 浅蓝/蒂芙尼蓝；整段为可回退试色，回退=删本段 ===== */
+/* 背景氛围光：紫 radial -> 蒂芙尼蓝 */
+.P::before{background-image:radial-gradient(ellipse at 10% 40%,rgba(45,212,191,.10),transparent 55%),radial-gradient(ellipse at 90% 20%,rgba(56,189,248,.07),transparent 45%),radial-gradient(ellipse at 50% 95%,rgba(94,234,212,.05),transparent 40%)!important}
+.P.L::before{background-image:radial-gradient(ellipse at 10% 40%,rgba(45,212,191,.05),transparent 55%),radial-gradient(ellipse at 90% 20%,rgba(56,189,248,.03),transparent 45%)!important}
+/* 卡片/规格渐变底：紫晕 -> 蒂芙尼蓝晕 */
+.P .cd:not(.dv-card){background:radial-gradient(120% 160% at 0% 0%,rgba(45,212,191,.12),rgba(45,212,191,0) 55%),#22313c!important;border-color:rgba(94,234,212,.1)!important}
+.P.L .cd:not(.dv-card){background:radial-gradient(120% 160% at 0% 0%,rgba(45,212,191,.08),rgba(45,212,191,0) 55%),#fff!important;border-color:rgba(13,148,136,.09)!important}
+.P .cd:not(.dv-card) .cd-t>i,.P .cd.cd-q .fw-chk,.P .cd.cd-q .sp-act{color:#5eead4!important}
+.P .cd.cd-q .fw-chk,.P .cd.cd-q .sp-act{background:rgba(45,212,191,.14)!important}
+/* 固件横幅渐变 */
+.P .fw-banner{background:linear-gradient(135deg,rgba(45,212,191,.16),rgba(56,189,248,.1))!important}
+.P.L .fw-banner{background:linear-gradient(135deg,rgba(45,212,191,.2),rgba(56,189,248,.12))!important}
+/* 硬件/处理器紫卡(.fc.fp) -> 蒂芙尼蓝卡 */
+.P .fc.fp{background:linear-gradient(135deg,rgba(45,212,191,.13),rgba(94,234,212,.07))!important}
+.P .fc.fp .fc-i{color:#5eead4!important;background:rgba(45,212,191,.16)!important}
+.P.L .fc.fp{background:linear-gradient(135deg,rgba(45,212,191,.16),rgba(94,234,212,.08))!important}
+.P.L .fc.fp .fc-i{color:#0d9488!important}
+/* 信号舱默认光晕 & 5G 徽章 & 焦点框 */
+.P .hero-sig{--lvr:45,212,191!important}
+.P .hero-sig.hc-lite,.P.L .hero-sig.hc-lite{background:radial-gradient(120% 160% at 0% 0%,rgba(45,212,191,.14),rgba(45,212,191,0) 55%),#141f22!important}
+.P .hero-sig.hc-lite .bdg-5g{background:rgba(45,212,191,.2)!important;color:#99f6e4!important}
+.P .bdg-5g{background:linear-gradient(135deg,#14b8a6,#0d9488)!important}
+.P .h-mk b.h-ca{background:rgba(45,212,191,.18)!important;color:#99f6e4!important}
+.P .h-mk b.h-ca.on{background:linear-gradient(135deg,rgba(45,212,191,.55),rgba(56,189,248,.45))!important;color:#fff!important}
+.P .hero-sys .h-m{--tc:#5eead4;--tn:rgba(45,212,191,.16)}
+.P .gx-rings .ga:is(.mp,.mb,.mcy,.mg){--tc:#5eead4!important;--tb:rgba(45,212,191,.16)!important}
+.P.L .gx-rings .ga:is(.mp,.mb,.mcy,.mg){--tc:#5eead4!important}
+/* 主按钮/开关/对话框头的紫渐变 -> 蒂芙尼蓝 */
+.P .wfm-act button.pri{background:linear-gradient(135deg,#2dd4bf,#5eead4)!important}
+.P .wfm-sw[aria-checked="true"]{background:linear-gradient(135deg,#2dd4bf,#5eead4)!important}
+.P #wfm .wfm-hd>i{background:linear-gradient(135deg,#0d9488,#2dd4bf)!important;box-shadow:0 4px 12px rgba(45,212,191,.32)!important}
+.P .wfm-adv:focus-visible,.P .hl-bds .hl-bd .ss.ed:focus-visible,.P .wfm-act .wfm-adv:focus-visible{outline-color:#5eead4!important}
+/* 桥接/联网胶囊里的紫 */
+.P .hl-br{background:linear-gradient(135deg,rgba(56,189,248,.15),rgba(45,212,191,.17))!important}
+.P .hl-br:hover{background:linear-gradient(135deg,rgba(56,189,248,.26),rgba(45,212,191,.28))!important}
+.P .hl-bds .hl-bd .bt.bt-5g{color:#5eead4!important;background:rgba(45,212,191,.2)!important}
+/* SIM 图标紫 */
+.P .sim-opt .sim-ic{background:rgba(45,212,191,.16)!important;color:#99f6e4!important}
+/* 信号仪表 hover 光晕 */
+.P .sig-gauge:hover{border-color:rgba(45,212,191,.3)!important}
+.P .sig-gauge::before{background:radial-gradient(circle at 50% 0,rgba(45,212,191,.08),transparent 70%)!important}
+/* 时间卡山形（--tva 默认取主题主色 --dk 紫，这里锁成蒂芙尼蓝） */
+html:not(#mwrt-nope) #P .tv-bz{--tva:#2dd4bf!important;--tvb:#7dd3fc!important}
+html:not(#mwrt-nope) #P.L .tv-bz{--tva:#14b8a6!important;--tvb:#7dd3fc!important}
+/* 小卡片下三条装饰条：把残留紫色 --tn/--tc 统一 */
+.P .gx-rings .ga{--tc:#5eead4!important;--tb:rgba(45,212,191,.16)!important}
+.P .ga{--tn:rgba(45,212,191,.2)!important;--tb:rgba(45,212,191,.16)!important;--tc:#5eead4!important}
+/* 强调色总源头：浅色 --dk 紫 -> 蒂芙尼蓝，夜间默认紫也换掉（.tg 徽章/时间卡文字/进度条一次覆盖） */
+.P{--ac:#2dd4bf!important}
+.P.L{--ac:#0d9488!important}
+#mwa-dlg{--ac:#2dd4bf!important}
+/* 活动连接：浅色/深色都用暖色（粉/红），与在线设备的绿色区分；sparkline 用 currentColor 跟着变 */
+#P .dv-side>.dv-meta>.dv-cell[data-pop="conns"]{color:#f472b6!important;--tc:#f472b6!important;--tb:rgba(244,114,182,.18)!important;--tc2:#f472b6!important}
+.P.L #P .dv-side>.dv-meta>.dv-cell[data-pop="conns"],#P.L .dv-side>.dv-meta>.dv-cell[data-pop="conns"]{color:#db2777!important;--tc:#db2777!important;--tb:rgba(219,39,119,.16)!important;--tc2:#db2777!important}
+/* 右栏 meta 其余格（在线设备）写死的紫文字 -> 青 */
+
+#P .dv-side>.dv-meta>.dv-cell{color:#5eead4!important}
+.P.L .dv-cell{--tn:rgba(45,212,191,.20)!important;--tb:rgba(45,212,191,.18)!important;--tc:#0d9488!important}
+.P .dv-cell{--tn:rgba(45,212,191,.20)!important;--tb:rgba(45,212,191,.18)!important;--tc:#5eead4!important}
+.P.L{--dk:#0d9488!important}
+.P{--dk:#2dd4bf!important}
+/* 右栏小卡的 mp 紫配色 -> 青 */
+.P.L .dv-cell.mp,.P.L .ga.mp{--tn:rgba(45,212,191,.22)!important;--tw:rgba(45,212,191,.16)!important;--tb:rgba(45,212,191,.15)!important;--tc:#0d9488!important}
+/* 小卡进度条 .ip-bar / .cv2 里的紫色渐变（按 --dk/--tc 派生） */
+.P .dv-cell .ip-bar,.P .dv-ips .dv-cell .ip-bar{background:linear-gradient(90deg,#2dd4bf,#5eead4)!important}
+/* 页面内其余紫色图标底（浅色固件横幅图标、规格卡 i、系统菜单强调） */
+.P.L .fw-banner>i{background:rgba(45,212,191,.16)!important;color:#0d9488!important}
+.P.L .cd:not(.dv-card) .cd-t>i{color:#0d9488!important}
+.P.L .cd.cd-q .fw-chk,.P.L .cd.cd-q .sp-act{color:#0d9488!important;background:rgba(45,212,191,.10)!important}
+#P.L .dv-side>.dv-meta>.dv-cell{color:#0d9488!important}
+/* 时间卡整体文字色（之前继承 --dk 紫） */
+.P.L .tv-bz,.P .tv-bz{color:inherit!important}
+/* s148d 深色模式残留紫：展台聚光灯 / 设备底座光圈 / 名字下线 / 波形 / 浮窗进度条 */
+.P .dv-stage{background:radial-gradient(55% 50% at 50% 34%,rgba(45,212,191,.18),transparent 72%),radial-gradient(80% 45% at 50% 100%,rgba(34,211,238,.10),transparent 72%),linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,0) 45%),var(--c2)!important}
+.P.L .dv-stage{background:radial-gradient(55% 50% at 50% 34%,rgba(45,212,191,.1),transparent 72%),radial-gradient(80% 45% at 50% 100%,rgba(34,211,238,.1),transparent 72%),linear-gradient(180deg,#fdfdff 0%,#eff1f8 100%)!important}
+.P .dv-floor{background:radial-gradient(closest-side,rgba(45,212,191,.22),transparent)!important;box-shadow:inset 0 0 0 1px rgba(94,234,212,.22)!important}
+.P .dv-name::after{background:linear-gradient(90deg,#2dd4bf,#22d3ee)!important}
+.P .mxf-bar>i{background:linear-gradient(90deg,#2dd4bf,#5eead4)!important}
+.P .dv-shot .dv-wvp,.P .dv-shot .dv-wvbg{--wva:#2dd4bf!important;--wvb:#22d3ee!important}
+/* ===== s151 附近小区浮窗局部回紫（11-22 用户：全局青色下浮窗文字看不清，仅此浮窗回紫） =====
+   注意：附近小区浮窗是 #mxm（mxm-b 容器），clone 时去掉了 data-mx，所以用 #mxm-b 定位 */
+#mxm-b{--ac:#7c5cfc!important;--tb:rgba(124,92,252,.16)!important;--tc:#a78bfa!important;--tc2:#a78bfa!important}
+#mxm-b .cd-t>i{color:#a78bfa!important}
+#mxm-b .nb-rat,#mxm-b .nb-rat2{background:rgba(124,92,252,.13)!important;color:#a78bfa!important;border-color:rgba(124,92,252,.26)!important}
+.P.L #mxm-b .nb-rat,.P.L #mxm-b .nb-rat2{color:#6d4df6!important}
+#mxm-b .nb-same,#mxm-b .nb-same2{color:#a78bfa!important;background:rgba(124,92,252,.12)!important}
+#mxm-b .nb-rat2{white-space:nowrap!important}
+/* ===== /s151 ===== */
+/* ===== /s148 COLOR TRIAL ===== */
