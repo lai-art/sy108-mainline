@@ -21,6 +21,20 @@
    "function": "fancontrol_devpop"
   }
  },
+ "admin/fancontrol/msgct": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_msgct"
+  }
+ },
+ "admin/fancontrol/screensaver_set": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fancontrol_screensaver_set"
+  }
+ },
  "admin/fancontrol/memfree": {
   "action": {
    "type": "function",
@@ -385,6 +399,20 @@
    "type": "function",
    "module": "luci.controller.udx_home",
    "function": "redirect_ota"
+  }
+ },
+ "admin/modem/netcfg_get": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_netcfg_get"
+  }
+ },
+ "admin/modem/netcfg_set": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "modem_netcfg_set"
   }
  }
 }
