@@ -1174,6 +1174,54 @@ function _ota_date(s) {
  * 面板是纯前端，原来走上游 ip 接口拿到的是「浏览器所在机器」的公网 IP
  * （用户 2026-11-23 指出与设备状态页不一致）。这个接口直接读 wwan0 的
  * data_session，返回设备自己拿到的 IPv4 / 全局 IPv6。 */
+/* s157 设备侧测速桥：让移植面板的下载真的从 wwan0 出去。
+ * 面板是浏览器里的纯前端，直接 fetch 节点会从电脑的网络出口走。
+ * 这三个接口把 udx.speedtest 包一层 HTTP，浏览器只发指令/读结果。 */
+function _fl_arg(name, def) {
+	let v = http.formvalue(name);
+	return (v == null || v == '') ? def : v;
+}
+function fl_speed_start() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let mode = _fl_arg('mode', 'speed') == 'burn' ? 'burn' : 'speed';
+	let node = _fl_arg('node', '');
+	let threads = int(_fl_arg('threads', '4'));
+	let seconds = int(_fl_arg('seconds', '0'));
+	let bytes = int(_fl_arg('bytes', '0'));
+	let limit = int(_fl_arg('limit', '0'));
+	let r = null;
+	try {
+		r = ubus.call('udx.speedtest', 'start', {
+			mode : mode, node : node, threads : threads,
+			max_seconds : seconds, max_bytes : bytes, limit_kbps : limit
+		});
+	} catch (e) {
+		http.write_json({ ok : false, error : String(e) });
+		return;
+	}
+	http.write_json((type(r) == 'object' && r?.accepted === false)
+		? { ok : false, error : r.error ?? 'busy', busy : true, mode : r.mode }
+		: { ok : true, result : r });
+}
+function fl_speed_status() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let r = null;
+	try { r = ubus.call('udx.speedtest', 'status'); } catch (e) {
+		http.write_json({ ok : false, error : String(e) });
+		return;
+	}
+	http.write_json({ ok : true, state : r });
+}
+function fl_speed_stop() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let r = null;
+	try { r = ubus.call('udx.speedtest', 'stop'); } catch (e) {
+		http.write_json({ ok : false, error : String(e) });
+		return;
+	}
+	http.write_json({ ok : true, result : r });
+}
+
 function device_netinfo() {
 	http.prepare_content('application/json; charset=UTF-8');
 	let st = null;
@@ -1729,6 +1777,9 @@ return {
 	/* 首页「检查更新」：查 GitHub Releases（原来是 rpcd luci.mwrt-ota，SY108 没有） */
 	ota_check: ota_check,
 	device_netinfo: device_netinfo,
+	fl_speed_start: fl_speed_start,
+	fl_speed_status: fl_speed_status,
+	fl_speed_stop: fl_speed_stop,
 	/* 在线更新：下载 → 进度 → 校验 → 手动确认刷机 */
 	ota_download: ota_download,
 	ota_progress: ota_progress,

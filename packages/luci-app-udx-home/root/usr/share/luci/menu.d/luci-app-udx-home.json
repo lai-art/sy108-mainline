@@ -77,6 +77,27 @@
    "function": "modem_sms_del"
   }
  },
+ "admin/fancontrol/fl_speed_start": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fl_speed_start"
+  }
+ },
+ "admin/fancontrol/fl_speed_status": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fl_speed_status"
+  }
+ },
+ "admin/fancontrol/fl_speed_stop": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "fl_speed_stop"
+  }
+ },
  "admin/fancontrol/device_netinfo": {
   "action": {
    "type": "function",
