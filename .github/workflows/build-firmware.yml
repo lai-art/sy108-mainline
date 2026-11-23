@@ -57,10 +57,23 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build_stamp: ${{ steps.stamp.outputs.value }}
+      build_id: ${{ steps.stamp.outputs.build_id }}
     steps:
       - name: Build timestamp (UTC+8)
         id: stamp
-        run: echo "value=$(date -u -d '+8 hours' +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+        env:
+          # tag 构建用 tag 名做版本戳：git describe 在同一 commit 有多个 tag 时
+          # 会挑旧的那个（实测 v2026.11.23 构建出 sy108-v2026.11.19-14-g1df5077），
+          # 导致 /etc/udx-system-build 与 Release 名字对不上，OTA 判定绕路。
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          echo "value=$(date -u -d '+8 hours' +%Y%m%d-%H%M)" >> "$GITHUB_OUTPUT"
+          if [ "$REF_TYPE" = "tag" ]; then
+            echo "build_id=$REF_NAME" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_id=auto" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     needs: meta
@@ -73,6 +86,8 @@ jobs:
       # job count and the cgroup quota in step.
       SY108_JOBS: 4
       BUILD_STAMP: ${{ needs.meta.outputs.build_stamp }}
+      # tag 构建传 tag 名；分支构建传 auto，source.mk 见到 auto 就走 git describe
+      SY108_BUILD_ID: ${{ needs.meta.outputs.build_id }}
       SY108_MEMORY: 8g
     strategy:
       fail-fast: false
