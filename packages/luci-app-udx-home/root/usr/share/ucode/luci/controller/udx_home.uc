@@ -1285,14 +1285,32 @@ function ota_check() {
 	   "Failure writing output to destination"、读到 0 字节。system 是本文件里
 	   已经在用的方式（_run），稳。 */
 	let tmpf = '/tmp/.udx-ota-rel.json';
-	let cmd = "curl -sS -m 10 -H 'Accept: application/vnd.github+json' "
-	        + "-H 'User-Agent: sy108-ota' -o " + tmpf + " "
-	        + "https://api.github.com/repos/lai-art/sy108-mainline/releases/latest 2>/dev/null";
-	try { system(cmd); } catch (e) { }
-	let raw = _rd(tmpf);
-
+	/* s159: 加速节点也用在「检查更新」上。三个内置节点主要代理 github.com 下载，
+	 * 对 api.github.com 的支持不一：先试加速，拿不到合法 release JSON 就直连兜底，
+	 * 避免加速节点反而让检查更新失效。加速值本身已由 _ota_accel() 做白名单和
+	 * 字符校验，这里只拼进 URL，不会形成命令注入。 */
+	/* 不能调 _ota_accel()：它在文件后面定义，ucode 不提升函数声明，
+	 * 在这里调用会 Reference error 500。直接读同样的参数并做同样的校验。 */
+	let acc = trim(http.formvalue('accel') ?? '');
+	if (acc != '' && acc != 'https://gh-proxy.com/' && acc != 'https://ghproxy.net/' &&
+	    acc != 'https://githubproxy.cc/' &&
+	    (length(acc) > 200 || match(acc, /^https?:\/\/[A-Za-z0-9._~:\/\[\]-]+$/) == null))
+		acc = '';
+	let api = 'https://api.github.com/repos/lai-art/sy108-mainline/releases/latest';
 	let rel = null;
-	try { rel = json(raw); } catch (e) { rel = null; }
+	let via = 'direct';
+	let urls = acc ? [ acc + api, api ] : [ api ];
+	for (let u in urls) {
+		let cmd = sprintf("curl -sS -m 10 -H 'Accept: application/vnd.github+json' " +
+		                  "-H 'User-Agent: sy108-ota' -o %s '%s' 2>/dev/null", tmpf, u);
+		try { system(cmd); } catch (e) { }
+		let raw = _rd(tmpf);
+		try { rel = json(raw); } catch (e) { rel = null; }
+		if (type(rel) == 'object' && rel?.tag_name != null) {
+			via = (u == api) ? 'direct' : 'accel';
+			break;
+		}
+	}
 	if (type(rel) != 'object' || rel?.tag_name == null) {
 		http.write_json({ ok: false, error: 'nonet', local: _ota_local() });
 		return;
@@ -1344,6 +1362,7 @@ function ota_check() {
 	let out = {
 		ok: true,
 		update: update,
+		via: via,
 		version: rtag,
 		local: local,
 		local_tag: ltag,

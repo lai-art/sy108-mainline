@@ -3704,9 +3704,16 @@ function otaOpen(){
 function rpc(method){
 	/* s140: 原来 declare 的是 rpcd 的 luci.mwrt-ota —— SY108 上根本没有这个对象，
 	   点「检查更新」必然 reject。改成打本包的 /fancontrol/ota_check，服务端去查
-	   GitHub Releases（公开仓库，免 token），latest 那个调用带 6 小时缓存。 */
+	   GitHub Releases（公开仓库，免 token），latest 那个调用带 6 小时缓存。
+	   s159: 把用户在 OTA 浮窗里选的加速节点也带过来，让检查更新走同一条路；
+	   服务端会先试加速，失败自动降级直连。 */
+	var acc='';
+	try{
+		var s=JSON.parse(localStorage.getItem('mwrt-ota-accel')||'null');
+		if(s&&s.on)acc=s.url||s.node||'';
+	}catch(e){}
 	return new Promise(function(res,rej){
-		XHR.get('/cgi-bin/luci/admin/fancontrol/ota_check',{what:method},function(x,d){
+		XHR.get('/cgi-bin/luci/admin/fancontrol/ota_check',{what:method,accel:acc},function(x,d){
 			if(d&&d.ok===true)res(d);else rej(new Error((d&&d.error)||'fail'));
 		});
 	});
