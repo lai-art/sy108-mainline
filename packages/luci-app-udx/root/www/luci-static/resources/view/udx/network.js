@@ -18,7 +18,7 @@ var TABS = [
     {id : 'operator', title : 'Operators'},
     {id : 'apn', title : 'APN'},
     {id : 'speed', title : 'Speed test'},
-    {id : 'burn', title : 'Data burn'}
+    {id : 'burn', title : '网络面板'}
 ];
 var TAB_ALIAS = {bands : 'radio', cells : 'radio', ops : 'operator', operators : 'operator'};
 var STEPS = [
