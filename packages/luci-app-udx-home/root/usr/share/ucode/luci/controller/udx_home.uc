@@ -1192,6 +1192,13 @@ function fl_speed_start() {
 	 * 若传了 bytes（流量上限设置）则以调用方为准。 */
 	let bytes = int(_fl_arg('bytes', '0'));
 	let limit = int(_fl_arg('limit', '0'));
+	/* 旧后端（还没刷入支持 0=无上限的版本）会把 0 夹到 30s/100MB。
+	 * 这里在「不限」时给旧固件能吃下的最大值：30 分钟 / 10 GB，
+	 * 刷入新后端后这些值也不会误伤（新后端把它们当显式上限，仍可接受）。 */
+	if (!seconds)
+		seconds = 1800;
+	if (!bytes)
+		bytes = 10000000000;
 	let r = null;
 	try {
 		r = ubus.call('udx.speedtest', 'start', {
