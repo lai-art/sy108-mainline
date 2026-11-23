@@ -340,19 +340,22 @@ var CSS = [
     'background:var(--warning-surface,#fdf4e3);color:var(--warning,#8a5308);font-weight:600}',
     '.udx-step.on-fail{border-color:var(--destructive-a20,#efb7b5);',
     'background:var(--danger-surface,#fcedec);color:var(--danger,#a32d2d);font-weight:600}',
-    '.udx-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;border-bottom:1px solid var(--udx-line)}',
-    '.udx-tab{appearance:none;background:transparent;border:0;border-bottom:2px solid transparent;',
-    'padding:7px 12px;font:inherit;font-size:13px;color:var(--udx-text2);cursor:pointer}',
-    '.udx-tab:hover{color:var(--udx-text)}',
-    '.udx-tab.on{color:var(--success,#0f6e56);border-bottom-color:var(--success,#0f6e56);',
-    'font-weight:600}',
+    /* Capsule tabs (user request 2026-11-23): pill-shaped buttons instead of
+     * the old underline row. Same --udx-* tokens as .udx-step so both themes
+     * stay in sync. */
+    '.udx-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}',
+    '.udx-tab{appearance:none;background:transparent;border:1px solid var(--udx-line2);',
+    'border-radius:999px;padding:6px 16px;font:inherit;font-size:13px;',
+    'color:var(--udx-text2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}',
+    '.udx-tab:hover{color:var(--udx-text);border-color:var(--success-color-low,#9fd4c4)}',
+    '.udx-tab.on{color:var(--success,#0f6e56);border-color:var(--success,#0f6e56);',
+    'background:var(--success-surface,#e8f5f0);font-weight:600}',
     /* ---- live speed curve ---- */
     '.udx-chart{position:relative;margin:6px 0 2px}',
     '.udx-chart-live{font-size:18px;font-weight:600;color:var(--success,#16a34a);',
     'font-variant-numeric:tabular-nums;text-shadow:0 0 14px rgba(22,163,74,.4);',
     'margin:4px 0 0;line-height:1.2}',
     /* ---- neon / sci-fi accents, readability-safe ---- */
-    '.udx-tab.on{text-shadow:0 0 8px rgba(22,163,74,.35)}',
     '.udx-card,.udx-panel{transition:border-color .2s ease,box-shadow .2s ease}',
     '.udx-card:hover{border-color:var(--success-color-low,#9fd4c4);',
     'box-shadow:0 0 0 1px rgba(22,163,74,.08) inset,0 0 18px rgba(22,163,74,.14)}',

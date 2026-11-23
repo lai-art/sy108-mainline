@@ -5,19 +5,17 @@
 'require udx';
 
 /* One page per task instead of one page per API: connection policy, bands and
- * cells, operator, APN, speed test and data burn all answer "my mobile network
- * does X, where do I change it". The tab is part of the URL so the legacy
+ * cells, operator, APN and the data panel all answer "my mobile network does X,
+ * where do I change it". The tab is part of the URL so the legacy
  * /admin/udx/cellular route can land on the band tab.
  *
- * The speed test and the data burn test are two separate functions that happen
- * to share one service: separate parameter blocks, separate result blocks,
- * separate start and stop buttons. They only share the poll loop in udx.js. */
+ * The built-in speed test tab was removed on user request (2026-11-23); the
+ * 网络面板 (FlowLoss) tab stays and keeps its own independent measurement. */
 var TABS = [
     {id : 'connect', title : 'Connection'},
     {id : 'radio', title : 'Bands and cells'},
     {id : 'operator', title : 'Operators'},
     {id : 'apn', title : 'APN'},
-    {id : 'speed', title : 'Speed test'},
     {id : 'burn', title : '网络面板'}
 ];
 var TAB_ALIAS = {bands : 'radio', cells : 'radio', ops : 'operator', operators : 'operator'};
@@ -102,9 +100,6 @@ function select(options, selected) {
     return node;
 }
 var field = udx.field;
-/* Traffic rows must use the decimal formatter; `udx.bytesText` is 1024-based
- * and stays reserved for storage sizes. */
-var dataText = udx.dataText;
 function panel(title, hint) {
     var p = udx.panel(title, hint);
     p.foot.hidden = false;
@@ -774,333 +769,6 @@ function buildApn(status, initialApn) {
 }
 
 /* ------------------------------------------------------------------------- */
-/* "Speed test" and "Data burn" share nothing but the service and its poll
- * loop: their own parameters, their own result block, their own buttons. */
-/* A live speed curve. The service samples the wwan0 byte counter once a second
- * (and speed_now every 500 ms), so the samples array grows during a run and the
- * front end re-paints this chart on every poll — the line, the area under it
- * and the trailing dot all advance in real time. */
-function spotChart() {
-    var W = 600, H = 168, L = 54, R = 12, T = 12, B = 24;
-    var uid = udx.randomId();
-    var svg = udx.svgEl('svg', {viewBox : '0 0 ' + W + ' ' + H, preserveAspectRatio : 'none',
-                        style : 'width:100%;height:' + H + 'px;display:block'});
-    var defs = udx.svgEl('defs', {});
-    var grad = udx.svgEl('linearGradient', {id : 'udxArea' + uid, x1 : '0', y1 : '0', x2 : '0', y2 : '1'});
-    grad.appendChild(udx.svgEl('stop', {offset : '0',
-                                style : 'stop-color:var(--success,#16a34a);stop-opacity:.30'}));
-    grad.appendChild(udx.svgEl('stop', {offset : '1',
-                                style : 'stop-color:var(--success,#16a34a);stop-opacity:0'}));
-    defs.appendChild(grad);
-    svg.appendChild(defs);
-
-    /* Horizontal grid lines with a compact Mbps label each. The top label also
-     * carries the unit so the others can stay as bare numbers. */
-    var gridLabels = [], gridLines = [];
-    for (var g = 0; g <= 4; g++) {
-        var gy = T + (H - T - B) * g / 4;
-        gridLines.push(udx.svgEl('line', {x1 : L, y1 : gy, x2 : W - R, y2 : gy,
-                                  style : 'stroke:var(--udx-line,#e3e6ea);stroke-width:1'}));
-        gridLabels.push(udx.svgEl('text', {x : L - 7, y : gy + 3, 'text-anchor' : 'end',
-                                   style : 'font-size:9.5px;fill:var(--udx-text2,#5b6472);' +
-                                           'font-variant-numeric:tabular-nums'}));
-        svg.appendChild(gridLines[g]);
-        svg.appendChild(gridLabels[g]);
-    }
-    var unitLabel = udx.svgEl('text', {x : L - 7, y : T - 4, 'text-anchor' : 'end',
-                               style : 'font-size:9px;fill:var(--udx-text2,#5b6472);' +
-                                       'opacity:.75'});
-
-    var area = udx.svgEl('path', {fill : 'url(#udxArea' + uid + ')', stroke : 'none'});
-    var glow = udx.svgEl('polyline', {fill : 'none',
-                              style : 'stroke:var(--success,#16a34a);stroke-width:6;' +
-                                      'stroke-opacity:.18;stroke-linejoin:round;' +
-                                      'stroke-linecap:round'});
-    var line = udx.svgEl('polyline', {fill : 'none',
-                              style : 'stroke:var(--success,#16a34a);stroke-width:2;' +
-                                      'stroke-linejoin:round;stroke-linecap:round'});
-    var dot = udx.svgEl('circle', {r : '3.5', style : 'fill:var(--success,#16a34a);' +
-                                              'filter:drop-shadow(0 0 4px var(--success,#16a34a))'});
-
-    svg.appendChild(unitLabel);
-    svg.appendChild(area);
-    svg.appendChild(glow);
-    svg.appendChild(line);
-    svg.appendChild(dot);
-
-    var live = E('div', {class : 'udx-chart-live', style : 'visibility:hidden'});
-    var caption = E('div', {class : 'udx-note'});
-
-    function niceCeil(v) {
-        if (!(v > 0))
-            return 1;
-        var exp = Math.floor(Math.log(v) / Math.LN10), base = Math.pow(10, exp), m = v / base;
-        return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * base;
-    }
-
-    return {
-        node : E('div', {class : 'udx-chart'}, [ svg, live, caption ]),
-        set : function(samples, unit) {
-            var points = (samples || []).filter(function(x) {
-                return isFinite(Number(x));
-            }).map(Number);
-            if (!points.length) {
-                area.setAttribute('d', '');
-                glow.setAttribute('points', '');
-                line.setAttribute('points', '');
-                dot.setAttribute('cx', '');
-                dot.setAttribute('cy', '');
-                live.textContent = '';
-                live.style.visibility = 'hidden';
-                caption.textContent = _('No samples yet.');
-                return;
-            }
-            var max = niceCeil(Math.max.apply(null, points));
-            var innerW = W - L - R, innerH = H - T - B;
-            var coords = points.map(function(v, i) {
-                var x = points.length === 1 ? L + innerW / 2 : L + i / (points.length - 1) * innerW;
-                var y = T + (1 - v / max) * innerH;
-                return [ x, y ];
-            });
-            var pts = coords.map(function(p) {
-                return p[0].toFixed(1) + ',' + p[1].toFixed(1);
-            }).join(' ');
-            line.setAttribute('points', pts);
-            glow.setAttribute('points', pts);
-            var d = 'M' + coords[0][0].toFixed(1) + ',' + (H - B).toFixed(1);
-            coords.forEach(function(p) {
-                d += 'L' + p[0].toFixed(1) + ',' + p[1].toFixed(1);
-            });
-            d += 'L' + coords[coords.length - 1][0].toFixed(1) + ',' + (H - B).toFixed(1) + 'Z';
-            area.setAttribute('d', d);
-            var last = coords[coords.length - 1];
-            dot.setAttribute('cx', last[0].toFixed(1));
-            dot.setAttribute('cy', last[1].toFixed(1));
-            /* Grid labels read off the nice ceiling so they stay round numbers;
-             * the top one also carries the unit. */
-            for (var g = 0; g <= 4; g++)
-                gridLabels[g].textContent = udx.bpsText(max * (4 - g) / 4);
-            unitLabel.textContent = _('Mbps');
-            /* Live read-out: the freshest point, so the eye lands on a number
-             * that changes every poll rather than a static caption. */
-            live.style.visibility = 'visible';
-            live.textContent = unit(points[points.length - 1]);
-            caption.textContent = _('Top of the chart') + ': ' + unit(max) + ' · ' +
-                                  points.length + ' ' + _('samples');
-        }
-    };
-}
-/* A status snapshot right after `start` may carry no counters yet. Treat such
- * a snapshot as "no result", otherwise the panel blanks out the previous run
- * it was still showing. */
-function hasResult(data) {
-    return data.total_bytes !== undefined && data.total_bytes !== null ||
-           data.p90 !== undefined && data.p90 !== null ||
-           data.avg !== undefined && data.avg !== null ||
-           data.sample_count > 0 || Array.isArray(data.samples) && data.samples.length > 0;
-}
-function confidenceNote(state) {
-    var stable = (state.stable_samples === undefined) ? null : Number(state.stable_samples);
-    if (stable === null || isNaN(stable))
-        return null;
-    if (stable >= 5)
-        return null;
-    return _('Fewer than 5 stable samples, so this result is indicative only.');
-}
-
-function buildSpeed() {
-    var nodes = [], nodeState = 'loading', nodeError = null;
-    var params = {node : ''};
-    var nodeSelect = select([ [ '', _('Automatic (best round trip)') ] ], '');
-    /* The list can fail to load or come back empty; without this the control
-     * just sits there looking normal and the user cannot tell why. */
-    var nodeHint = E('div', {class : 'udx-note'});
-    var threadSelect = select([ 1, 2, 4, 6, 8 ].map(function(n) {
-        return [ String(n), String(n) ];
-    }), '4');
-    var startButton = E('button', {type : 'button', 'class' : 'cbi-button cbi-button-apply'},
-                        _('Start speed test'));
-    var stopButton = E('button', {type : 'button', 'class' : 'cbi-button'}, _('Stop speed test'));
-    stopButton.disabled = true;
-    var stateBadge = udx.pill(_('Not started'), 'neutral');
-    var main = udx.main('Mbps');
-    var avg = udx.row(_('Average')), peak = udx.row(_('Peak')),
-        current = udx.row(_('Current')), idlePing = udx.row(_('Idle latency')),
-        loadPing = udx.row(_('Latency under load')),
-        bytes = udx.row(_('Data used')), elapsed = udx.row(_('Elapsed'));
-    var message = E('div', {class : 'udx-note'});
-    var chart = spotChart();
-
-    function rebuildNodes() {
-        nodeSelect.textContent = '';
-        var auto = E('option', {value : ''}, _('Automatic (best round trip)'));
-        nodeSelect.appendChild(auto);
-        nodes.forEach(function(n) {
-            var label = n.name + (n.rtt !== null ? ' · ' + n.rtt + ' ms' : '') +
-                        (n.enabled ? '' : ' · ' + _('unavailable'));
-            var option = E('option', {value : n.id}, label);
-            if (!n.enabled)
-                option.disabled = true;
-            nodeSelect.appendChild(option);
-        });
-        nodeSelect.disabled = (nodeState === 'loading');
-        nodeHint.textContent = nodeError || '';
-    }
-    function loadNodes() {
-        nodeState = 'loading';
-        nodeError = null;
-        rebuildNodes();
-        return udx.speedNodesFor('speed').then(function(list) {
-            nodes = list;
-            nodeState = nodes.length ? 'ready' : 'empty';
-            if (!nodes.length)
-                nodeError = _('No measurement node is reachable right now; the service picks one when the test starts.');
-            var preferred = nodes.filter(function(n) {
-                return n.selected;
-            })[0] ||
-                            nodes.filter(function(n) {
-                                return n.enabled;
-                            })[0];
-            params.node = preferred ? preferred.id : '';
-            rebuildNodes();
-            nodeSelect.value = params.node;
-        }, function(e) {
-            nodeState = 'error';
-            nodeError = (e && e.message) || _('The node list could not be read.');
-            rebuildNodes();
-        });
-    }
-    startButton.onclick = function() {
-        if (startButton.disabled)
-            return;
-        startButton.disabled = true;
-        /* The node id is passed explicitly: the service must not have to guess
-         * which node the user picked, and an empty id means "auto". */
-        return udx.speedStart('speed', [ 'speed', nodeSelect.value || '', Number(threadSelect.value) ])
-            .catch(function(e) {
-                startButton.disabled = false;
-                ui.addNotification(null, E('p', {}, e.message), 'error');
-            });
-    };
-    stopButton.onclick = function() {
-        stopButton.disabled = true;
-        return udx.speedStop().then(function(r) {
-            /* A guard may have stopped the run a moment before this click; then
-             * the honest message is "it had already stopped", and the real
-             * reason comes from the next status poll. */
-            ui.addNotification(null, E('p', {}, r.text), r.accepted ? 'info' : 'warning');
-            /* Nothing was actually stopped, so let the user try again instead of
-             * leaving the button dead until the next poll. */
-            if (!r.accepted)
-                stopButton.disabled = false;
-            return r;
-        }, function(e) {
-            ui.addNotification(null, E('p', {}, udx.failureText(e)), 'error');
-            stopButton.disabled = false;
-        });
-    };
-
-    var paramsPanel = panel(_('Speed test parameters'),
-                            _('Runs for a fixed time; the service decides the data cap'));
-    paramsPanel.body.appendChild(field(_('Measurement node'), nodeSelect));
-    paramsPanel.body.appendChild(nodeHint);
-    paramsPanel.body.appendChild(field(_('Threads'), threadSelect,
-                                       _('More threads give a more accurate figure on fast links.')));
-    paramsPanel.body.appendChild(
-        E('div', {class : 'udx-note'},
-          _('The run stops at 20 seconds or 300 MB, whichever comes first. Above 120 Mbps the data cap ends it first, so a shorter run with fewer samples — and a rougher P90 — is normal there, not a fault.')));
-    paramsPanel.foot.appendChild(startButton);
-
-    var resultPanel = panel(_('Speed test result'));
-    resultPanel.body.appendChild(E('div', {class : 'udx-card-h'},
-                                   [ E('span', {}, _('Ninety percent of samples are faster than this')),
-                                     stateBadge ]));
-    resultPanel.body.appendChild(main.node);
-    resultPanel.body.appendChild(chart.node);
-    resultPanel.body.appendChild(message);
-    [ avg, peak, current, idlePing, loadPing, bytes, elapsed ].forEach(function(r) {
-        resultPanel.body.appendChild(r.node);
-    });
-    resultPanel.foot.appendChild(stopButton);
-
-    rebuildNodes();
-    /* The last snapshot that belonged to a speed run. Kept so that when a burn
-     * run takes the service over and then ends, this tab goes back to showing
-     * its own result instead of leaving "Data burn is running" on screen. */
-    var last = null;
-    function paint(data, running) {
-        if (running) {
-            udx.setPill(stateBadge, _('Running'), 'teal');
-            message.textContent =
-                _('Keep the page open; the result stays available after the run ends.');
-        }
-        else if (data.error) {
-            udx.setPill(stateBadge, _('Failed'), 'bad');
-            message.textContent = data.error;
-        }
-        else {
-            /* `status.stop_reason`, not the stop reply's `reason`. */
-            var reason = udx.stopReason(data.stop_reason);
-            /* null means the service has no run to describe; that is not a
-             * finished run, so do not badge it as one. */
-            udx.setPill(stateBadge, reason ? reason.text
-                                           : hasResult(data) ? _('Finished') : _('Not started'),
-                        reason ? reason.tone : 'neutral');
-            /* A failed run shows the service's own text instead of the sample
-             * hint; "fewer than 5 stable samples" is meaningless when there is
-             * no result at all. */
-            message.textContent = (reason && reason.raw === 'error' && data.error)
-                                      ? data.error
-                                      : (confidenceNote(data) || '');
-        }
-        /* p90 only exists for a speed run; the service returns null for a burn
-         * run, so it must never be treated as a zero. */
-        main.set(udx.bpsText(data.p90));
-        avg.set(udx.bpsText(data.avg) ? udx.bpsText(data.avg) + ' Mbps' : null);
-        peak.set(udx.bpsText(data.peak) ? udx.bpsText(data.peak) + ' Mbps' : null);
-        current.set(udx.bpsText(data.speed_now) ? udx.bpsText(data.speed_now) + ' Mbps' : null);
-        idlePing.set(data.idle_latency_ms == null ? _('Not measured')
-                                                  : Math.round(data.idle_latency_ms) + ' ms');
-        loadPing.set(data.latency_ms == null ? _('Not measured')
-                                             : Math.round(data.latency_ms) + ' ms',
-                     data.latency_ms == null ? null : udx.level('latency', data.latency_ms));
-        bytes.set(dataText(data.total_bytes));
-        elapsed.set(udx.durationText(data.elapsed));
-        chart.set(data.samples, function(v) {
-            return udx.bpsText(v) + ' Mbps';
-        });
-    }
-    return {
-        panel : paramsPanel,
-        resultPanel : resultPanel,
-        warmUp : loadNodes,
-        onSpeed : function(state) {
-            var data = state.state || {}, running = !!state.running;
-            var mine = data.mode === 'speed';
-            if (mine && hasResult(data))
-                last = data;
-            if (!mine && running) {
-                udx.setPill(stateBadge, data.mode === 'burn' ? _('Data burn is running') : _('Busy'),
-                            'warn');
-                message.textContent =
-                    data.mode === 'burn'
-                        ? _('A data burn run is in progress. Stop it before measuring speed.')
-                        : _('Another test is running. Stop it first.');
-                startButton.disabled = true;
-                stopButton.disabled = true;
-                return;
-            }
-            /* A node list that is still loading means the test cannot start. */
-            startButton.disabled = running || nodeState === 'loading';
-            stopButton.disabled = !running;
-            if (mine)
-                paint(data, running);
-            else if (last)
-                paint(last, false);
-        }
-    };
-}
-
 /* ---------------- 流量消耗页：嵌入移植的 FlowLoss 面板 ----------------
  * 用户 2026-11-23 要求「一模一样」，直接移植了上游源码
  * （https://github.com/arsnyeon/FlowLoss_SpeedTestPanel ，MIT）：
@@ -1132,7 +800,6 @@ return view.extend({
                 var bands = buildBands(status);
                 var operators = buildOperators();
                 var apn = buildApn(status, apnState);
-                var speed = buildSpeed();
                 var burn = burnPanel(status);
                 return Promise
                     .all([ connection.form, bands.form, apn.form ])
@@ -1143,7 +810,6 @@ return view.extend({
                             bands : bands,
                             operators : operators,
                             apn : apn,
-                            speed : speed,
                             burn : burn,
                             forms : forms
                         };
@@ -1181,12 +847,7 @@ return view.extend({
                        [ parts.apn.panel.node, parts.apn.templatePanel.node,
                          parts.apn.providerPanel.node ]);
 
-        /* ---- speed test and data burn: two independent pages ----
-         * Parameters first, result under the button: the first visit shows an
-         * actionable block instead of two empty panels, and the number appears
-         * where the eye already is after the click. */
-        panels.speed = E('div', {class : 'udx-tabpanel'},
-                         [ parts.speed.panel.node, parts.speed.resultPanel.node ]);
+        /* ---- data panel (FlowLoss): its own embedded measurement UI ---- */
         panels.burn = E('div', {class : 'udx-tabpanel'},
                         [ parts.burn.node ]);
 
@@ -1246,17 +907,13 @@ return view.extend({
          * backend-derived, and the banner must clear itself once a speed test
          * stops instead of waiting for the next manual reload. */
         var watchError = udx.watch(udx.getStatus, update, null);
-        /* One subscriber drives the connection guard and both test tabs. */
+        /* One subscriber drives the connection guard and the data panel. */
         udx.speedWatch(function(state) {
             parts.connection.onSpeed(state);
-            parts.speed.onSpeed(state);
             parts.burn.onSpeed(state);
             if (udx.speedRunning())
                 banner.show('neutral', _('A speed test is running, so status refresh may lag.'));
         });
-        /* Warm the node list once on entry: the first call may block for a few
-         * seconds while the service measures round trip times. */
-        parts.speed.warmUp();
 
         return E('div', {class : 'udx-page'}, [
             banner.node, watchError, tabbar, body
