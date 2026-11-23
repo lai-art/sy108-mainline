@@ -5,7 +5,22 @@
 -#}
 
 {%
+	import { readfile } from 'fs';
 	const boardinfo = ubus.call('system', 'board') ?? {};
+
+	/* 「关于」浮窗里默认信息一栏以前是写死的 mwrt 原厂值(192.168.66.1 / 20260909),
+	   换到 SY108 后既不对、也不会随版本更新。这里改成读镜像里的真实文件:
+	   - /etc/udx-system-build 由 packages/udx-runtime/Makefile 打包时写入
+	     (git describe --always --dirty, 例: sy108-v2026.11.19-6-gf1a6253)
+	   - /etc/os-release 的 OPENWRT_BUILD_DATE 是 OpenWrt 构建时写下的 Unix 时间戳 */
+	const _stamp = trim(readfile('/etc/udx-system-build') ?? '') || '--';
+	const _osr = readfile('/etc/os-release') ?? '';
+	const _bd = match(_osr, /OPENWRT_BUILD_DATE="?([0-9]+)/);
+	let _bdate = '--';
+	if (_bd != null) {
+		const _t = localtime(+_bd[1]);
+		_bdate = sprintf('%04d-%02d-%02d %02d:%02d', _t.year, _t.mon, _t.mday, _t.hour, _t.min);
+	}
 -%}
 {% include('header', {
 	blank_page: true,
@@ -138,7 +153,7 @@
           <tr><td>主控平台</td><td>{{ entityencode(boardinfo?.system ?? '', true) }}</td></tr>
           <tr><td>无线规格</td><td>—</td></tr>
           <tr><td>有线接口</td><td>—</td></tr>
-          <tr><td>固件版本</td><td>{{ entityencode(version?.distname ?? '', true) }}</td></tr>
+          <tr><td>固件版本</td><td>{{ entityencode(_stamp, true) }}</td></tr>
           <tr><td>系统基线</td><td>{{ entityencode(boardinfo?.release?.target ?? '', true) }}</td></tr>
         </table>
         <div class="ab-sec">{{ _('主要功能') }}</div>
@@ -150,9 +165,9 @@
         </p>
         <div class="ab-sec">{{ _('默认信息') }}</div>
         <table class="ab-kv">
-          <tr><td>管理地址</td><td>192.168.66.1</td></tr>
+          <tr><td>管理地址</td><td>192.168.9.1</td></tr>
           <tr><td>默认账号</td><td>root</td></tr>
-          <tr><td>构建时间</td><td>20260909</td></tr>
+          <tr><td>构建时间</td><td>{{ entityencode(_bdate, true) }}</td></tr>
         </table>
       </div>
       <div class="ab-pane" data-ab-pane="law">
