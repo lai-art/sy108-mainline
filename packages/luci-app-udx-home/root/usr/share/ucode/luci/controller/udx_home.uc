@@ -1230,11 +1230,22 @@ function ota_check() {
 		try { cm = json(_rd(cf)); } catch (e) { cm = null; }
 		if (type(cm) == 'object' && cm?.sha != null) {
 			rsha = cm.sha;
-			update = (index(rsha, lsha) != 0);   /* 本地 sha 是线上 sha 的前缀 → 同一版 */
+			if (index(rsha, lsha) == 0) update = false;   /* 本地 sha 是线上 sha 的前缀 → 同一提交 */
 		}
 	}
-	if (update == null && ld != null && rd != null) update = (rd > ld);
-	else if (update == null && rtag == ltag) update = false;
+	/* s152: sha 对不上(或本地根本没有 sha)时，按日期判方向，绝不再默认"有更新"。
+	   以前是 `update = (index(rsha, lsha) != 0)` —— 只要 sha 不一致就判有新版：
+	     · 设备跑 main 分支 CI 产物(v2026.11.19-6-gf1a6253) 去比 latest(v2026.11.19)
+	       → sha 必然不同 → 弹「发现新固件 v2026.11.19」，点下去其实是从 11-22 降回 11-19。
+	   现在：线上日期更新 → 有更新；同一日期或本地更晚 → 已是最新(用户 11-23 明确要求
+	   「当前已是最新就显示最新」，不要绕成"不可比较")。 */
+	if (update == null) {
+		if (ld != null && rd != null) {
+			update = (rd > ld);
+		} else if (rtag == ltag) {
+			update = false;
+		}
+	}
 
 	let out = {
 		ok: true,
