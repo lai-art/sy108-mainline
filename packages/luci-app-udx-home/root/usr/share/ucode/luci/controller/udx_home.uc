@@ -1187,7 +1187,12 @@ function fl_speed_start() {
 	let node = _fl_arg('node', '');
 	let threads = int(_fl_arg('threads', '4'));
 	let seconds = int(_fl_arg('seconds', '0'));
+	/* 这台的 UCI 把 speed 默认上限改成了 10 MB，宽带下 2~4 秒就 byte_limit
+	 * 停了。面板测速要跑满时间，显式给服务端的硬上限 300 MB；调用方
+	 * 若传了 bytes（流量上限设置）则以调用方为准。 */
 	let bytes = int(_fl_arg('bytes', '0'));
+	if (!bytes)
+		bytes = 300000000;
 	let limit = int(_fl_arg('limit', '0'));
 	let r = null;
 	try {
