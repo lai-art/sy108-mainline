@@ -204,8 +204,6 @@ return view.extend({
         records.body.appendChild(recordList.node);
 
         return E('div', {class : 'udx-page'}, [
-            E('p', {class : 'udx-note', style : 'margin:0 0 14px;font-size:12.5px;opacity:1'},
-              _('Card identity and card activity. Everything else about the connection is on "Overview" and "Mobile network".')),
             banner.node, error, rows.node, empty, records.node, actions.node
         ]);
     },

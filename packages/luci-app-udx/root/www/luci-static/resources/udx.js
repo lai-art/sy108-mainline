@@ -1215,11 +1215,14 @@ function table(title, rows) {
     var cells = rows.map(function() {
         return E('td', {class : 'td'}, '—');
     });
-    var node = E('section', {class : 'cbi-section'}, [
-        E('h3', {}, title), E('table', {class : 'table'}, rows.map(function(r, i) {
+    /* title 传 null 就不出 <h3>：卡片(panel)自己已有同名标题时，里面再顶一条
+       同样的标题就是重复(用户 2026-11-23 要求「注册状态」这类重复标题去掉)。 */
+    var head = title ? [ E('h3', {}, title) ] : [];
+    var node = E('section', {class : 'cbi-section'}, head.concat([
+        E('table', {class : 'table'}, rows.map(function(r, i) {
             return E('tr', {class : 'tr'}, [ E('td', {class : 'td'}, r[0]), cells[i] ]);
         }))
-    ]);
+    ]));
     return {
         node : node,
         update : function(data) {
