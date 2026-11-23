@@ -67,7 +67,7 @@ var speedStartRPC = rpc.declare({
 var burnStartRPC = rpc.declare({
     object : 'udx.speedtest',
     method : 'start',
-    params : [ 'mode', 'max_seconds', 'max_bytes', 'threads' ],
+    params : [ 'mode', 'node', 'threads', 'max_seconds', 'max_bytes', 'limit_kbps' ],
     expect : {'' : {}},
     reject : true
 });

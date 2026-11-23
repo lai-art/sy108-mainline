@@ -1101,202 +1101,24 @@ function buildSpeed() {
     };
 }
 
-function buildBurn() {
-    var gbInput = input('1', {number : true, min : 0.1, max : 10, step : 0.1, width : '120px'});
-    var secondsInput = input('300', {number : true, min : 30, max : 1800, step : 30,
-                                     width : '120px'});
-    var threadSelect = select([ 1, 2, 4, 6, 8 ].map(function(n) {
-        return [ String(n), String(n) ];
-    }), '4');
-    var startButton = E('button', {type : 'button', 'class' : 'cbi-button cbi-button-apply'},
-                        _('Start data burn'));
-    var stopButton = E('button', {type : 'button', 'class' : 'cbi-button'}, _('Stop data burn'));
-    stopButton.disabled = true;
-    var stateBadge = udx.pill(_('Not started'), 'neutral');
-    var main = udx.main('GB');
-    var limitBar = udx.bar();
-    var used = udx.row(_('Used / cap')), avg = udx.row(_('Average')),
-        current = udx.row(_('Current')), elapsed = udx.row(_('Elapsed')),
-        remain = udx.row(_('Remaining')), estimated = udx.row(_('Estimated cost'));
-    var message = E('div', {class : 'udx-note'});
-    /* What the service actually armed, read back from `status.max_bytes` /
-     * `status.max_seconds` after the run starts. The pane must quote this and
-     * never the figure the user typed: the service clamps to its own bounds,
-     * and a page that keeps saying 10 GB while 9.3 GB runs is a lie. */
-    var capHint = E('div', {class : 'udx-note'});
-    var chart = spotChart();
-    /* What the user asked for, kept only to explain a clamp. */
-    var requested = null;
-
-    startButton.onclick = function() {
-        var gb = Number(gbInput.value), seconds = Number(secondsInput.value);
-        if (!isFinite(gb) || gb <= 0)
-            return ui.addNotification(null, E('p', {}, _('Enter a data cap in GB greater than zero.')),
-                                      'error');
-        if (!isFinite(seconds) || seconds < 30)
-            return ui.addNotification(null,
-                                      E('p', {}, _('Enter a duration of at least 30 seconds.')),
-                                      'error');
-        /* Decimal on purpose: the service compares raw bytes and clamps to
-         * 100 MB .. 10 GB expressed the same way, so 1 GB has to mean 1e9 and
-         * not 1024^3 — otherwise every intermediate size overshoots by 7% and
-         * the 10 GB ceiling silently becomes 9.3 GB. */
-        var cap = Math.round(gb * 1e9), secs = Math.round(seconds);
-        var cost = (gb * 3).toFixed(2);
-        return confirm(_('Start the data burn test?'),
-                       _('This uses mobile data on purpose: up to') + ' ' + gb + ' GB, ' +
-                           _('for up to') + ' ' + seconds + ' ' + _('seconds') + '. ' +
-                           _('At roughly 3 yuan per GB that is about') + ' ' + cost + ' ' +
-                           _('yuan of traffic. You can stop it at any time.') + ' ' +
-                           _('This is an estimate, not the rate you are actually billed.'),
-                       _('Start and use data'))
-            .then(function(ok) {
-                if (!ok)
-                    return null;
-                startButton.disabled = true;
-                requested = cap;
-                /* The service takes INT64/INT32 only: a value that arrives as a
-                 * float (e.g. 1.073741824e9) is rejected and the run falls back
-                 * to the default cap without a word in the log. Hence the
-                 * Math.round on every number sent here. */
-                return udx
-                    .speedStart('burn', [ 'burn', secs, cap,
-                                          Math.round(Number(threadSelect.value)) ])
-                    .catch(function(e) {
-                        startButton.disabled = false;
-                        ui.addNotification(null, E('p', {}, e.message), 'error');
-                    });
-            });
-    };
-    stopButton.onclick = function() {
-        stopButton.disabled = true;
-        return udx.speedStop().then(function(r) {
-            /* A guard may have stopped the run a moment before this click; then
-             * the honest message is "it had already stopped", and the real
-             * reason comes from the next status poll. */
-            ui.addNotification(null, E('p', {}, r.text), r.accepted ? 'info' : 'warning');
-            /* Nothing was actually stopped, so let the user try again instead of
-             * leaving the button dead until the next poll. */
-            if (!r.accepted)
-                stopButton.disabled = false;
-            return r;
-        }, function(e) {
-            ui.addNotification(null, E('p', {}, udx.failureText(e)), 'error');
-            stopButton.disabled = false;
-        });
-    };
-
-    var paramsPanel = panel(_('Data burn parameters'),
-                            _('This is not a speed test: it keeps using data on purpose'));
-    paramsPanel.body.appendChild(field(_('Data cap (GB)'), gbInput));
-    paramsPanel.body.appendChild(field(_('Duration (seconds)'), secondsInput));
-    paramsPanel.body.appendChild(field(_('Threads'), threadSelect));
-    paramsPanel.body.appendChild(capHint);
-    paramsPanel.foot.appendChild(startButton);
-
-    var resultPanel = panel(_('Data burned'));
-    resultPanel.body.appendChild(E('div', {class : 'udx-card-h'},
-                                   [ E('span', {}, _('Total consumed since the run started')),
-                                     stateBadge ]));
-    resultPanel.body.appendChild(main.node);
-    resultPanel.body.appendChild(limitBar.node);
-    resultPanel.body.appendChild(chart.node);
-    resultPanel.body.appendChild(message);
-    [ used, avg, current, elapsed, remain, estimated ].forEach(function(r) {
-        resultPanel.body.appendChild(r.node);
+/* ---------------- 流量消耗页：嵌入移植的 FlowLoss 面板 ----------------
+ * 用户 2026-11-23 要求「一模一样」，直接移植了上游源码
+ * （https://github.com/arsnyeon/FlowLoss_SpeedTestPanel ，MIT）：
+ * 在 .fl/src 里改品牌名、隐藏首页/关于导航、base 设为 /fl/ 后构建，
+ * 产物随本包装到 /www/fl/，这里用 iframe 铺满内容区。
+ * 说明：该面板是纯前端测速（浏览器直连节点），不走本机的 udx-speedtest 服务。
+ */
+function burnPanel() {
+    var frame = E('iframe', {
+        src : '/fl/',
+        'class' : 'bn-frame',
+        style : 'width:100%;height:calc(100vh - 148px);border:0;border-radius:12px;' +
+                'background:#0a0a0a;display:block'
     });
-    resultPanel.foot.appendChild(stopButton);
-
-    /* Same pattern as the speed tab: remember our own last run so the panel
-     * goes back to it after the other mode finishes. `p90` is deliberately
-     * absent here — the service returns null for a burn run and a null is not
-     * a number to display. */
-    var last = null;
-    function paint(data, running) {
-        if (running) {
-            udx.setPill(stateBadge, _('Running'), 'teal');
-            message.textContent =
-                _('Keep the page open. Stop the run as soon as you have seen enough.');
-        }
-        else if (data.error) {
-            udx.setPill(stateBadge, _('Failed'), 'bad');
-            message.textContent = data.error;
-        }
-        else {
-            /* `status.stop_reason`, not the stop reply's `reason`. */
-            var reason = udx.stopReason(data.stop_reason);
-            /* null means the service has no run to describe; that is not a
-             * finished run, so do not badge it as one. */
-            udx.setPill(stateBadge, reason ? reason.text
-                                           : hasResult(data) ? _('Finished') : _('Not started'),
-                        reason ? reason.tone : 'neutral');
-            /* No confidence note here: this tab has no P90, so "fewer than 5
-             * stable samples" would warn about a number it never shows.
-             * `error` is the one case that still needs words: the badge alone
-             * would leave the user with "it failed" and no reason. */
-            message.textContent =
-                (reason && reason.raw === 'error' && data.error) ? data.error : '';
-        }
-        var total = Number(data.total_bytes || 0);
-        /* Decimal, same basis as the request: 1 GB = 1e9 bytes. */
-        var gb = total / 1e9;
-        main.set(gb >= 0.01 ? gb.toFixed(2) : (total ? '< 0.01' : '0.00'));
-        /* The cap is whatever the service armed, never the number typed above. */
-        var cap = Number(data.max_bytes || 0), secs = Number(data.max_seconds || 0);
-        limitBar.set(cap ? total / cap * 100 : 0, cap && total >= cap ? 'warn' : 'teal');
-        used.set((dataText(total) || '0 B') + ' / ' +
-                 (cap ? (dataText(cap) || _('no cap')) : _('no cap')));
-        avg.set(udx.bpsText(data.avg) ? udx.bpsText(data.avg) + ' Mbps' : null);
-        current.set(udx.bpsText(data.speed_now) ? udx.bpsText(data.speed_now) + ' Mbps' : null);
-        var spent = udx.durationText(data.elapsed), allowed = udx.durationText(secs);
-        elapsed.set(spent ? (allowed ? spent + ' / ' + allowed : spent) : null);
-        remain.set(cap ? dataText(Math.max(0, cap - total)) : null);
-        /* Cost is always quoted off what was actually burned, never off the
-         * cap: a run that stopped at 1.2 GB must not look like it billed 10. */
-        estimated.set(total ? (total / 1e9 * 3).toFixed(2) + ' ' + _('yuan') : null);
-        if (!cap)
-            capHint.textContent = '';
-        else if (requested && cap !== requested)
-            /* The silent clamp, spelled out instead of hidden. One template
-             * rather than three glued fragments, so a translation can order
-             * the two numbers its own way. */
-            capHint.textContent = _('You asked for %s, but the service applied %s.')
-                                      .replace('%s', dataText(requested))
-                                      .replace('%s', dataText(cap));
-        else
-            capHint.textContent = _('Effective limit for this run') + ': ' + dataText(cap) +
-                                  (secs ? ' / ' + udx.durationText(secs) : '');
-        chart.set(data.samples, function(v) {
-            return udx.bpsText(v) + ' Mbps';
-        });
-    }
-
     return {
-        panel : paramsPanel,
-        resultPanel : resultPanel,
-        onSpeed : function(state) {
-            var data = state.state || {}, running = !!state.running;
-            var mine = data.mode === 'burn';
-            if (mine && hasResult(data))
-                last = data;
-            if (!mine && running) {
-                udx.setPill(stateBadge,
-                            data.mode === 'speed' ? _('Speed test is running') : _('Busy'),
-                            'warn');
-                message.textContent =
-                    data.mode === 'speed'
-                        ? _('A speed test is in progress. Stop it before burning data.')
-                        : _('Another test is running. Stop it first.');
-                startButton.disabled = true;
-                stopButton.disabled = true;
-                return;
-            }
-            startButton.disabled = running;
-            stopButton.disabled = !running;
-            if (mine)
-                paint(data, running);
-            else if (last)
-                paint(last, false);
+        node : E('div', {class : 'bn-embed'}, [ frame ]),
+        onSpeed : function() {
+            /* 面板自带测速引擎，与本地 speedtest 任务互不影响 */
         }
     };
 }
@@ -1311,7 +1133,7 @@ return view.extend({
                 var operators = buildOperators();
                 var apn = buildApn(status, apnState);
                 var speed = buildSpeed();
-                var burn = buildBurn();
+                var burn = burnPanel(status);
                 return Promise
                     .all([ connection.form, bands.form, apn.form ])
                     .then(function(forms) {
@@ -1366,7 +1188,7 @@ return view.extend({
         panels.speed = E('div', {class : 'udx-tabpanel'},
                          [ parts.speed.panel.node, parts.speed.resultPanel.node ]);
         panels.burn = E('div', {class : 'udx-tabpanel'},
-                        [ parts.burn.panel.node, parts.burn.resultPanel.node ]);
+                        [ parts.burn.node ]);
 
         var tabbar = E('div', {class : 'udx-tabs', role : 'tablist'});
         TABS.forEach(function(t) {
