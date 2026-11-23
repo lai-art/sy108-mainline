@@ -77,6 +77,13 @@
    "function": "modem_sms_del"
   }
  },
+ "admin/fancontrol/device_netinfo": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_home",
+   "function": "device_netinfo"
+  }
+ },
  "admin/fancontrol/ota_check": {
   "action": {
    "type": "function",

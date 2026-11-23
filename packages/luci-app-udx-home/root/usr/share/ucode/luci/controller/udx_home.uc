@@ -1170,6 +1170,42 @@ function _ota_date(s) {
 	return m ? sprintf('%s-%s-%s', m[1], m[2], m[3]) : null;
 }
 
+/* s156 设备蜂窝出口地址：给移植的 FlowLoss 面板用。
+ * 面板是纯前端，原来走上游 ip 接口拿到的是「浏览器所在机器」的公网 IP
+ * （用户 2026-11-23 指出与设备状态页不一致）。这个接口直接读 wwan0 的
+ * data_session，返回设备自己拿到的 IPv4 / 全局 IPv6。 */
+function device_netinfo() {
+	http.prepare_content('application/json; charset=UTF-8');
+	let st = null;
+	try { st = ubus.call('udx.cellular', 'status'); } catch (e) { st = null; }
+	let ds = (st && st.data_session) ?? {};
+	let ipv6 = ds.ipv6 ?? ds.global_ipv6 ?? null;
+	/* udx.cellular 的 data_session 只给了 link-local(fe80::)，全局 IPv6 要读内核：
+	   ip -6 addr show dev wwan0 | grep 'scope global' */
+	if (ipv6 == null) {
+		/* 不能用 _run()：它只返回 system() 的成败，而且失败时会触发 network.reload。
+		   沿用本文件的 -o 落盘 + _rd() 模式。 */
+		let vf = '/tmp/.udx-wwan-ipv6';
+		system("ip -6 addr show dev wwan0 2>/dev/null | grep 'scope global' " +
+		       "| head -1 > " + vf);
+		let line = trim(_rd(vf));
+		let m = match(line, /inet6 ([0-9a-f:]+)\//);
+		if (m) ipv6 = m[1];
+	}
+	/* fe80:: 是链路本地，不能当出口地址 */
+	if (ipv6 != null && match(ipv6, /^fe[89ab][0-9a-f]:/i) != null)
+		ipv6 = null;
+	http.write_json({
+		ok: true,
+		interface: ds.interface ?? 'wwan0',
+		ipv4: ds.ipv4 ?? null,
+		ipv6: ipv6,
+		apn: ds.network_apn ?? null,
+		operator: (st && st.operator) ?? null,
+		local: _ota_local()
+	});
+}
+
 function ota_check() {
 	http.prepare_content('application/json; charset=UTF-8');
 
@@ -1692,6 +1728,7 @@ return {
 	modem_sms_del: modem_sms_del,
 	/* 首页「检查更新」：查 GitHub Releases（原来是 rpcd luci.mwrt-ota，SY108 没有） */
 	ota_check: ota_check,
+	device_netinfo: device_netinfo,
 	/* 在线更新：下载 → 进度 → 校验 → 手动确认刷机 */
 	ota_download: ota_download,
 	ota_progress: ota_progress,
