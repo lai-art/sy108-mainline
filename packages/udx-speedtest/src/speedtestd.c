@@ -819,9 +819,11 @@ static void tick_cb(struct uloop_timeout *timer)
 	job.read_errors = 0;
 	bool second = now - job.bucket_started >= 1.0;
 	sample(counter, now);
-	if (second && job.speed) {
+	if (second) {
 		/* Loaded latency once per second: a jump against the idle value is
-		 * the bufferbloat signal the UI shows in amber. */
+		 * the bufferbloat signal the UI shows in amber. 流量消耗页也要画
+		 * 速率/延迟双线(用户 2026-11-23 要求对齐 FlowLoss 面板)，所以这里
+		 * 不再只对 speed 生效；burn 的每次采样同样跑一次 ping。 */
 		char text[1024];
 		const char *argv[] = {settings.ping, "-c",       "1",   "-W",  "1",
 				      "-I",	      settings.interface, settings.latency_target, NULL};
@@ -967,7 +969,7 @@ static struct json_object *status_document(void)
 	js_int(out, "total_bytes", (int64_t)job.total);
 	js_real(out, "elapsed",
 		job.started > 0 ? (job.active ? now_mono() : job.ended) - job.started : 0);
-	js_real(out, "latency_ms", job.speed ? job.latency : NAN);
+	js_real(out, "latency_ms", job.latency);
 	js_real(out, "idle_latency_ms", job.speed ? job.idle_latency : NAN);
 	js_real(out, "temperature_c", job.temperature);
 	js_int(out, "max_bytes", (int64_t)job.max_bytes);
