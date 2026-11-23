@@ -45,13 +45,8 @@ return view.extend({
     },
     render : function() {
         udx.injectStyles();
-        var warning = udx.banner();
-        warning.show('bad',
-                     _('Commands on this page are sent straight to the baseband. A wrong band, frequency or IMEI value can leave the device unable to register on any network, and rewriting an IMEI is illegal in many countries. There is no undo here.'));
-        /* Sticky so it stays on screen while scrolling a long AT response. */
-        warning.node.style.position = 'sticky';
-        warning.node.style.top = '0';
-        warning.node.style.zIndex = '5';
+        /* 顶部红色警告条已按用户 2026-11-23 要求移除（连同「诊断工具…」那句说明），
+           页面直接从 AT 终端开始。 */
 
         /* ---------------- panel 1: AT terminal ---------------- */
         var command = E('input', {type : 'text', 'class' : 'cbi-input-text', value : 'AT'});
@@ -313,9 +308,7 @@ return view.extend({
         readback.update([]);
 
         return E('div', {class : 'udx-page'}, [
-            E('p', {class : 'udx-note', style : 'margin:0 0 12px;font-size:12.5px;opacity:1'},
-              _('Diagnostics that do not fit anywhere else. Nothing here is needed for normal use.')),
-            warning.node, at.node, imeiPanel.node
+            at.node, imeiPanel.node
         ]);
     },
     handleSaveApply : null,

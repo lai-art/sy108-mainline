@@ -163,8 +163,7 @@ function buildConnection(status) {
             roaming : current.roaming_allowed ? '1' : '0',
             auto : current.automatic_connect ? '1' : '0'
         }
-    },
-                             _('Connection'));
+    });
     var s = m.section(form.NamedSection, 'main', 'main');
     s.anonymous = true;
     var data = s.option(form.Flag, 'data', _('Mobile data'));
@@ -277,9 +276,9 @@ function buildConnection(status) {
         });
     };
     var panelNode = panel(_('Connection'));
-    panelNode.body.appendChild(E('div', {class : 'udx-note', style : 'margin-bottom:8px'},
-                                 _('These five settings are sent to the modem as five separate commands, in the order shown below. Do not click twice; switching SIM slots drops the network for about ten seconds.')));
-    panelNode.body.appendChild(steps.node);
+    /* 五个步骤的胶囊条已按用户 2026-11-23 要求去掉：卡片标题已经写着「连接」，
+       下面紧跟一排 1~5 的步骤名再加一条「连接」大标题，三层标题叠在一起。
+       steps 组件本身保留，runSteps 仍靠它记录哪一步失败(只是不挂进 DOM)。 */
     panelNode.foot.appendChild(applyButton);
     panelNode.foot.appendChild(busyNote);
     return {
@@ -302,8 +301,7 @@ function buildBands(status) {
             lte : (limits.lte || {}).unrestricted ? [] : (limits.lte || {}).bands || [],
             nr : (limits.nr || {}).unrestricted ? [] : (limits.nr || {}).bands || []
         }
-    },
-                             _('Bands and cells'));
+    });
     var s = m.section(form.NamedSection, 'main', 'main');
     s.anonymous = true;
     var lte = s.option(form.MultiValue, 'lte', _('LTE bands'));
@@ -514,7 +512,7 @@ function buildOperators() {
         return udx.execute('operator_select', {plmn : value, act : Number(act.value)});
     }));
 
-    var registration = udx.table(_('Registration'), [
+    var registration = udx.table(null, [
         [
             _('Operator'),
             function(d) {
@@ -1439,8 +1437,6 @@ return view.extend({
         parts.speed.warmUp();
 
         return E('div', {class : 'udx-page'}, [
-            E('p', {class : 'udx-note', style : 'margin:0 0 14px;font-size:12.5px;opacity:1'},
-              _('Everything that changes how the device connects lives here. Status and diagnostics are on "Overview" and "SIM card".')),
             banner.node, watchError, tabbar, body
         ]);
     },

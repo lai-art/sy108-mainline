@@ -508,8 +508,6 @@ return view.extend({
             paintBanner(snapshot);
         });
         return E('div', {class : 'udx-page'}, [
-            E('p', {class : 'udx-note', style : 'margin:0 0 14px;font-size:12.5px;opacity:1'},
-              _('Read-only dashboard. Change settings in "Mobile network"; diagnose SIM problems in "SIM card".')),
             banner.node, error,
             E('div', {class : 'udx-cards'},
               [ signal.node, network.node, sim.node, data.node, rate.node, thermal.node,
