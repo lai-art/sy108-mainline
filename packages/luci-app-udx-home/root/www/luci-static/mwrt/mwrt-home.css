@@ -3257,6 +3257,17 @@ html:not(#mwrt-nope) #P.L .tv-bz{--tva:#14b8a6!important;--tvb:#7dd3fc!important
 .P .dv-name::after{background:linear-gradient(90deg,#2dd4bf,#22d3ee)!important}
 .P .mxf-bar>i{background:linear-gradient(90deg,#2dd4bf,#5eead4)!important}
 .P .dv-shot .dv-wvp,.P .dv-shot .dv-wvbg{--wva:#2dd4bf!important;--wvb:#22d3ee!important}
+/* s152 关于本机浮窗(#abw)内不跟随首页卡片配色：
+   首页那层青色晕染是按页面底设计的，搬进浮窗会变成一块块色斑(用户 11-23 反馈
+   「红框处残留青色背景，与悬浮窗不匹配」)。这里把浮窗内的卡面/固件横幅/规格卡
+   还原成浮窗自身的中性底色，图标仍保持青色。 */
+.P #abw .cd:not(.dv-card){background:var(--c1)!important;border-color:var(--bd)!important}
+/* 横幅必须跟浮窗完全同底：先用 --c2 填过一版，浅色下 --c2 是浅灰，在白色浮窗里
+   又变成一块灰斑(用户 11-23 二次反馈)。透明即可，分隔由下方 .q-sp / 边框负责。 */
+.P #abw .fw-banner{background:transparent!important}
+.P #abw .fc.fp{background:transparent!important}
+/* 补 s148 漏掉的浅色态：规格卡图标底仍是紫 rgba(124,92,252,.16)，深色态已在 3195 覆盖 */
+.P.L .fc.fp .fc-i{background:rgba(45,212,191,.14)!important}
 /* ===== s151 附近小区浮窗局部回紫（11-22 用户：全局青色下浮窗文字看不清，仅此浮窗回紫） =====
    注意：附近小区浮窗是 #mxm（mxm-b 容器），clone 时去掉了 data-mx，所以用 #mxm-b 定位 */
 #mxm-b{--ac:#7c5cfc!important;--tb:rgba(124,92,252,.16)!important;--tc:#a78bfa!important;--tc2:#a78bfa!important}
