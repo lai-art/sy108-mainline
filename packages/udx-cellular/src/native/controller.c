@@ -424,8 +424,18 @@ char *controller_sim(struct controller *c)
 	const char *state = json_object_get_string(json_object_array_get_idx(row, 0));
 	char *result = state ? strdup(state) : NULL;
 	json_object_put(row);
-	if (!result)
+	if (!result) {
 		errorf(CELL_INVALID, "SIM state is missing");
+	} else {
+		/* 查询成功就清掉上一次的失败记录。这里被三条刷新路径共用
+		 * (modes.c 的 refresh_sim、controller.c 的 sim_refresh、apn.c 的
+		 * 连接前预检查)，原来只有 refresh_sim 在 READY 时删 sim_error，
+		 * 走另外两条就会留下「sim 已经 READY、sim_error 还挂着
+		 * +CME ERROR: 14(SIM busy)」的僵尸字段：2026-11-23 真机复查日志时
+		 * 看到该字段一直挂着，而 CPIN 明明已经读通、数据也在跑。
+		 * 前端目前不读这个字段，但 ubus 诊断会被它误导。 */
+		json_object_object_del(c->status, "sim_error");
+	}
 	return result;
 }
 
