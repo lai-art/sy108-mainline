@@ -836,11 +836,13 @@ static void tick_cb(struct uloop_timeout *timer)
 		}
 	}
 	double elapsed = now - job.started;
-	if (job.total >= job.max_bytes) {
+	/* 面板的「流量消耗」可以不设上限：传 UINT64_MAX / UINT32_MAX 作为哨兵，
+	 * 跳过这两个判断，一直跑到用户手动停止（温度保护仍然生效）。 */
+	if (job.max_bytes != UINT64_MAX && job.total >= job.max_bytes) {
 		finish("byte_limit", NULL);
 		return;
 	}
-	if (elapsed >= (double)job.max_seconds) {
+	if (job.max_seconds != UINT32_MAX && elapsed >= (double)job.max_seconds) {
 		finish("time_limit", NULL);
 		return;
 	}
@@ -972,8 +974,15 @@ static struct json_object *status_document(void)
 	js_real(out, "latency_ms", job.latency);
 	js_real(out, "idle_latency_ms", job.speed ? job.idle_latency : NAN);
 	js_real(out, "temperature_c", job.temperature);
-	js_int(out, "max_bytes", (int64_t)job.max_bytes);
-	js_int(out, "max_seconds", job.max_seconds);
+	/* 无上限哨兵不要转成负数：前端按 null 显示「不限」。 */
+	if (job.max_bytes == UINT64_MAX)
+		json_object_object_add(out, "max_bytes", NULL);
+	else
+		js_int(out, "max_bytes", (int64_t)job.max_bytes);
+	if (job.max_seconds == UINT32_MAX)
+		json_object_object_add(out, "max_seconds", NULL);
+	else
+		js_int(out, "max_seconds", job.max_seconds);
 	js_int(out, "threads", job.threads);
 	js_int(out, "limit_kbps", job.limit_kbps);
 	js_int(out, "sample_interval_seconds", 1);
@@ -1168,13 +1177,19 @@ static int handler_start(struct ubus_context *ctx, struct ubus_object *obj,
 		if (max_bytes < SPEED_BYTES_MIN)
 			max_bytes = SPEED_BYTES_MIN;
 	} else {
-		if (max_seconds < BURN_SECONDS_MIN)
+		/* 面板调用：0 = 不限制，一直跑（长时间消耗流量就是它的用途）。
+		 * 只有显式传了非零值才按 MIN/MAX 夹取。 */
+		if (!max_seconds)
+			max_seconds = UINT32_MAX;
+		else if (max_seconds < BURN_SECONDS_MIN)
 			max_seconds = BURN_SECONDS_MIN;
-		if (max_seconds > BURN_SECONDS_MAX)
+		else if (max_seconds > BURN_SECONDS_MAX)
 			max_seconds = BURN_SECONDS_MAX;
-		if (max_bytes < BURN_BYTES_MIN)
+		if (!max_bytes)
+			max_bytes = UINT64_MAX;
+		else if (max_bytes < BURN_BYTES_MIN)
 			max_bytes = BURN_BYTES_MIN;
-		if (max_bytes > BURN_BYTES_MAX)
+		else if (max_bytes > BURN_BYTES_MAX)
 			max_bytes = BURN_BYTES_MAX;
 	}
 	uint64_t counter;
