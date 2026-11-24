@@ -274,6 +274,35 @@ invalid:
 	return NULL;
 }
 
+/* 只读探测：模组当前制式是否已经是 mode。
+ *
+ * 为什么需要它：initialize() 原来只要 config 里有 network_mode，就无条件走
+ * radio_begin() → advanced_set_mode() → mode_set_nr() → radio_end()。而
+ * radio_begin() 的第一件事是 AT+SFUN=5（飞行模式），也就是每次 udx-cellulard
+ * 启动都要先断网再重新附着一次。读回一致时这次射频事务完全是白丢的：
+ * 2026-11-24 真机取证时 workmode 已经是 [131,254]、nr_capability 已经是 66
+ * (sa_nsa)，与配置完全一致，属于纯损耗。SA 的 NR 注册只在初始附着阶段完成，
+ * 多一次去附着就多一次「LTE 先抢到、NR 没跟上」的机会，因此这里先读回，
+ * 一致就整体跳过射频事务。
+ *
+ * 返回：1 = 已是目标制式，0 = 需要切换，-1 = 查询失败（错误已置 cell_error）。 */
+int advanced_mode_matches(struct controller *c, const char *mode)
+{
+	int index = mode_index(mode);
+	if (index < 0)
+		return errorf(CELL_INVALID, "Unknown network mode");
+	J *now = workmode(c);
+	if (!now)
+		return -1;
+	bool same = json_object_get_int(json_object_array_get_idx(now, 0)) == mode_codes[index];
+	/* 读回一致而跳过射频事务时，advanced_set_mode() 就不会执行，它原本是
+	 * status.workmode 的唯一写入者。这里补上，否则要等前端点开「网络设置」
+	 * 触发 advanced_refresh 才看得到工作模式。 */
+	json_object_object_add(c->status, "workmode", json_object_get(now));
+	json_object_put(now);
+	return same ? 1 : 0;
+}
+
 int advanced_set_mode(struct controller *c, const char *mode, J **result)
 {
 	*result = NULL;

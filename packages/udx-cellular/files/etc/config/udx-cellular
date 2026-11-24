@@ -5,6 +5,13 @@ config cellular 'modem'
  option automatic_connect '1'
  option roaming '0'
  option radio_enabled '1'
+ # 2026-11-24: 必须显式下发制式。原来没有 network_mode，
+ # initialize() 里的 if (*str(config,"network_mode")) 整段跳过，
+ # 从不下发 AT+SPTESTMODE，制式完全依赖 modem NV 残留值，
+ # 可能停在 lte_only 而永远不尝试 5G。默认 nr_lte 与 nr_capability=sa_nsa 配套。
+ # 注意：本文件是 conffile，升级会保留旧配置，存量设备靠
+ # /etc/uci-defaults/90-udx-cellular 里的迁移补这一项。
+ option network_mode 'nr_lte'
  option nr_capability 'sa_nsa'
  option username ''
  option password ''

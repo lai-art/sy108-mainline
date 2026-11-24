@@ -1,4 +1,18 @@
 #!/bin/sh
+# 2026-11-24 迁移：老配置缺 network_mode，initialize() 会跳过整个
+# AT+SPTESTMODE 下发，制式依赖 modem NV 残留（可能停在 lte_only）。
+# 只在缺失时补默认值，不覆盖用户显式设置的 lte_only / nr_only 等。
+#
+# 必须放在脚本最前面：下面 network.wan 的两个分支都有 `exit 0`
+# （device 不认识、或 proto 非空且 device 不是 sipa_eth0），存量设备
+# 是 device=wwan0 / proto=udx，正好走第二条 exit 0。而
+# /etc/config/udx-cellular 是 conffile，升级会保留旧配置、拿不到新默认值，
+# 于是迁移一旦排在那两个 exit 之后，就永远轮不到它执行——本次修复
+# 对最需要它的存量设备完全无效，只有全新烧写才生效。
+if [ -z "$(uci -q get udx-cellular.modem.network_mode)" ]; then
+	uci set udx-cellular.modem.network_mode=nr_lte
+	uci commit udx-cellular
+fi
 # Configure the cellular WAN and migrate its retired device name.
 kind=$(uci -q get network.wan)
 if [ -z "$kind" ]; then
