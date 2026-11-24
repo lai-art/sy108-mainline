@@ -15,7 +15,7 @@ define Package/udx-speedtest
   SECTION:=net
   CATEGORY:=Network
   TITLE:=SY108 on-device download runner for the speed test and traffic burner tabs
-  DEPENDS:=+libjson-c +libubox +libubus +libblobmsg-json +libuci +curl +procd
+  DEPENDS:=+libjson-c +libubox +libubus +libblobmsg-json +libuci +curl +procd +jsonfilter
 endef
 
 define Package/udx-speedtest/conffiles
@@ -33,6 +33,7 @@ define Package/udx-speedtest/install
 	$(INSTALL_DIR) $(1)/usr/sbin $(1)/etc/init.d $(1)/etc/config
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/udx-speedtestd $(1)/usr/sbin/
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-speedtest/files/etc/init.d/udx-speedtest $(1)/etc/init.d/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/packages/udx-speedtest/files/usr/sbin/udx-wan-probe $(1)/usr/sbin/
 	$(INSTALL_CONF) $(PKG_BUILD_DIR)/packages/udx-speedtest/files/etc/config/udx-speedtest $(1)/etc/config/
 endef
 $(eval $(call BuildPackage,udx-speedtest))
