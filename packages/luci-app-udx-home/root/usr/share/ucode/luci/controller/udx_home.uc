@@ -1169,6 +1169,13 @@ function _ota_date(s) {
 	let m = match(s, /v([0-9]{4})\.([0-9]{2})\.([0-9]{2})/);
 	return m ? sprintf('%s-%s-%s', m[1], m[2], m[3]) : null;
 }
+/* s161: 同一天的第几版：v2026.11.23-4 → 4；没有后缀 → 0。
+ * 用户 2026-11-24 实测：本地 v2026.11.23-2、线上 v2026.11.23-4，
+ * 日期相同被判成「已是最新」，实际差两版。日期相等时要比这个序号。 */
+function _ota_seq(s) {
+	let m = match(s, /v[0-9]{4}\.[0-9]{2}\.[0-9]{2}-([0-9]+)/);
+	return m ? int(m[1]) : 0;
+}
 
 /* s156 设备蜂窝出口地址：给移植的 FlowLoss 面板用。
  * 面板是纯前端，原来走上游 ip 接口拿到的是「浏览器所在机器」的公网 IP
@@ -1353,7 +1360,15 @@ function ota_check() {
 	   「当前已是最新就显示最新」，不要绕成"不可比较")。 */
 	if (update == null) {
 		if (ld != null && rd != null) {
-			update = (rd > ld);
+			/* 日期不同：按日期；日期相同：按当天的第几版（-2 < -4）。
+			 * v2026.11.23-2 与 v2026.11.23-4 日期都是 2026-11-23，
+			 * 只比日期会误判「已是最新」（用户 2026-11-24 实测踩到）。 */
+			if (rd > ld)
+				update = true;
+			else if (rd < ld)
+				update = false;
+			else
+				update = (_ota_seq(rtag) > _ota_seq(ltag));
 		} else if (rtag == ltag) {
 			update = false;
 		}
