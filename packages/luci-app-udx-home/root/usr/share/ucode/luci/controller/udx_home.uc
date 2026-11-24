@@ -550,6 +550,22 @@ function _unsupported() {
 
 /* ---------- 接口：devinfo（2 秒轮询，首页数字位主要来源） ---------- */
 
+/* s160: 从构建戳里解出 tag 名与日期，给「当前固件版本」那行展示用。
+ * 戳形如 sy108-v2026.11.23-2-1-g2164743 / sy108-v2026.11.23。 */
+function _dev_tag() {
+	let st = trim(_rd('/etc/udx-system-build') ?? '');
+	/* ucode 的正则不支持 (?:...) 非捕获组（实测 "Repetition not preceded by
+	 * valid expression"），这里用普通捕获组，取 m[0] 当整体匹配。 */
+	let m = match(st, /v[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?/);
+	return m ? m[0] : null;
+}
+function _dev_tag_date() {
+	let t = _dev_tag();
+	if (t == null) return null;
+	let m = match(t, /v([0-9]+)\.([0-9]+)\.([0-9]+)/);
+	return m ? sprintf('%s-%s-%s', m[1], m[2], m[3]) : null;
+}
+
 function devinfo() {
 	let usage = _cpu_usage();
 	let cores = _cpu_cores();
@@ -626,6 +642,13 @@ function devinfo() {
 		'设备型号': 'SY108',
 		'主机名': trim(_rd('/proc/sys/kernel/hostname')),
 		'固件版本': fwv,
+		/* s160 用户要求：固件版本后面带上当前打的 tag 及其日期。
+		 * /etc/udx-system-build 形如 sy108-v2026.11.23-2-1-g2164743 或
+		 * sy108-v2026.11.23（tag 构建修好后就是干净的 tag 名）。从里面抠出
+		 * vYYYY.MM.DD[-N] 展示，构建戳原文也一并给出供诊断。 */
+		'固件构建戳': trim(_rd('/etc/udx-system-build') ?? ''),
+		'固件tag': _dev_tag(),
+		'固件tag日期': _dev_tag_date(),
 		'内核版本': kvm ? kvm[1] : '--',
 		'CPU型号': 'UDX710 (ARMv8)',
 		'CPU核心数': sprintf('%d', cores),
