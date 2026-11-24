@@ -534,27 +534,81 @@ static int initialize(struct controller *c)
 		return 0;
 	const char *commands[] = {"ATE0Q0V1",	 "AT+CMEE=1",	  "AT+CEREG=2",
 				  "AT+C5GREG=2", "AT+CGEREP=1,0", "AT+CGPIAF=1"};
+	bool nr_events = true;
 	for (size_t i = 0; i < 6; i++)
 		if (command(c, commands[i], 15) < 0) {
 			if (i != 3 ||
 			    (cell_error_kind != CELL_MODEM && cell_error_kind != CELL_INVALID))
 				return -1;
+			/* 只有 NR 上报开关失败被容忍：它不参与注册，失败也不该
+			 * 拖住数据连接。但必须记住没打开，交给 refresh 重试。 */
+			nr_events = false;
 		}
-	if (*str(c->config, "network_mode")) {
-		struct radio_change change;
-		J *result = NULL, *nr = NULL;
-		bool ok = radio_begin(c, &change) == 0;
-		if (ok)
-			ok = advanced_set_mode(c, str(c->config, "network_mode"), &result) == 0;
-		if (ok) {
-			nr = mode_set_nr(c, str(c->config, "nr_capability"));
-			ok = nr != NULL;
+	if (!nr_events) {
+		c->nr_events_pending = true;
+		c->nr_events_last = mono();
+		string(c->status, "nr_events_error", cell_error);
+		/* 这条失败已经被容忍并转入重试，不能再留在 cell_error 里：调用方
+		 * 拿到 NULL 以外的返回就会把它当成「本次操作失败的原因」发布出去。 */
+		cell_error[0] = 0;
+		cell_error_kind = CELL_INVALID;
+	} else {
+		c->nr_events_pending = false;
+		string(c->status, "nr_events_error", NULL);
+	}
+	/* 只在读回与配置不一致时才做射频事务。
+	 *
+	 * 原实现只要 config 里有 network_mode 就无条件 radio_begin()：那会先发
+	 * AT+SFUN=5 进飞行模式，再写制式、写 NR 能力，最后 AT+SFUN=4 回到在线。
+	 * 如果模组 NV 里本来就是目标值（真机就是 workmode 131 / capability 66），
+	 * 这次去附着纯属白丢：SA 的 NR 注册只在初始附着阶段完成，多一次附着就多
+	 * 一次 LTE 先抢到的机会。所以先只读探测，一致就整段跳过。 */
+	const char *mode = str(c->config, "network_mode"), *cap = str(c->config, "nr_capability");
+	if (*mode) {
+		/* 探测是只读的，失败也不能当致命错误：读不到就按「需要设置」处理，
+		 * 退回改动前那种无条件射频事务，行为完全一致。探针内部用 errorf
+		 * 记过错误，这里原样还原，避免一条过期错误串到后面的失败路径上。 */
+		char saved[512];
+		enum cell_error_kind kind = cell_error_kind;
+		snprintf(saved, sizeof(saved), "%s", cell_error);
+		bool need = true;
+		int matched = advanced_mode_matches(c, mode);
+		if (matched >= 0) {
+			need = matched == 0;
+			if (!need && *cap)
+				need = mode_nr_matches(c, cap) != 1;
 		}
-		int rc = radio_end(c, &change, ok);
-		json_object_put(result);
-		json_object_put(nr);
-		if (rc < 0)
-			return -1;
+		size_t keep = strlen(saved) + 1;
+		memcpy(cell_error, saved, keep);
+		cell_error_kind = kind;
+		/* 配了制式却没配 NR 能力：原来 mode_set_nr("") 会直接失败，现在跳过
+		 * 写入就会「静默通过」。不 brick 无线（用户至少要能上网），但必须
+		 * 让它在 status 里可见，否则这个配置错误永远不会被发现。 */
+		if (*cap)
+			string(c->status, "nr_capability_error", NULL);
+		else
+			string(c->status, "nr_capability_error",
+			       "network_mode is set but nr_capability is empty");
+		if (need) {
+			struct radio_change change;
+			J *result = NULL, *nr = NULL;
+			bool ok = radio_begin(c, &change) == 0;
+			if (ok)
+				ok = advanced_set_mode(c, mode, &result) == 0;
+			if (ok && *cap) {
+				nr = mode_set_nr(c, cap);
+				ok = nr != NULL;
+			}
+			int rc = radio_end(c, &change, ok);
+			json_object_put(result);
+			json_object_put(nr);
+			if (rc < 0)
+				return -1;
+		}
+		/* 走「读回已一致」分支时也要补 status.mode：原来无条件调
+		 * advanced_set_mode()，即使 readback 没变也会写这个字段，而前端
+		 * 「网络模式」在 advanced_refresh 之前就要读它。 */
+		string(c->status, "mode", mode);
 	}
 	if (sms_configure(c, NULL) < 0) {
 		if (c->transport.poisoned)
@@ -639,6 +693,66 @@ static J *read_registration(struct controller *c)
 	json_object_object_add(c->status, "registration", lte);
 	json_object_object_add(c->status, "nr_registration", nr);
 	return json_object_get(json_object_get_boolean(get(nr, "registered")) ? nr : lte);
+}
+
+/* NR 注册状态的翻转留痕。
+ *
+ * 用户报的现象是「5G 信号明明更好，却注册不上 5G、反而退回更差的 4G」，而且是
+ * 间歇的。2026-11-24 真机取证那一刻正好停在 LTE B8（RSRP -95.75）、cells[] 里
+ * 零条 NR 邻区，抓不到现场——这种报障最难的地方不是解释，是「复现时没证据」。
+ *
+ * 所以这里只做一件不花钱的事：每次 NR 注册状态翻转，把翻转方向连同当时的 LTE
+ * 侧证据记一条。不写文件、不发 AT、不改任何射频行为，纯内存账本，最多留 8 条。
+ * 下次复现时 `ubus call udx.cellular status` 里的 nr_transitions 就能回答
+ * 「什么时候掉的、掉的时候 4G 是什么状态、之后有没有回来」。
+ *
+ * 数组按时间顺序，最后一条最新。 */
+static void nr_track(struct controller *c, bool before, bool after)
+{
+	/* 查询失败时 read_registration() 会造一个 {registered:false, error:...}
+	 * 的占位对象。那不是「掉了」：把它记成一次翻转会让每次 AT 超时都塞一条
+	 * 假的 nr_lost，把真正那次挤出 8 条上限之外。 */
+	if (get(get(c->status, "nr_registration"), "error"))
+		return;
+	J *history = get(c->status, "nr_transitions");
+	/* 首次（还没有账本）即使状态是「未注册」也记一条基线。用户的主诉正是
+	 * 「5G 信号更好却一直上不去」——这种场景永远不会发生翻转，没有基线就
+	 * 只剩空白，无法区分「一直没上过」和「压根没记录」。 */
+	if (before == after && history)
+		return;
+	J *row = json_object_new_object();
+	string(row, "event", before != after ? (after ? "nr_acquired" : "nr_lost")
+					    : "nr_baseline");
+	boolean(row, "registered", after);
+	real(row, "uptime", mono());
+	J *reg = get(c->status, "registration");
+	if (reg) {
+		json_object_object_add(row, "lte_act", json_object_get(get(reg, "act")));
+		string(row, "lte_tac", str(reg, "tac"));
+	}
+	J *nr = get(c->status, "nr_registration");
+	if (nr)
+		json_object_object_add(row, "nr_status", json_object_get(get(nr, "status")));
+	J *cells = get(c->status, "cells");
+	for (size_t i = 0; cells && i < json_object_array_length(cells); i++) {
+		J *cell = json_object_array_get_idx(cells, i);
+		if (!json_object_get_boolean(get(cell, "serving")))
+			continue;
+		string(row, "serving_rat", str(cell, "rat"));
+		string(row, "serving_band", str(cell, "band"));
+		json_object_object_add(row, "serving_rsrp", json_object_get(get(cell, "rsrp")));
+		json_object_object_add(row, "serving_sinr", json_object_get(get(cell, "sinr")));
+		break;
+	}
+	if (!history) {
+		history = json_object_new_array();
+		json_object_object_add(c->status, "nr_transitions", history);
+	}
+	json_object_array_add(history, row);
+	while (json_object_array_length(history) > 8)
+		json_object_array_del_idx(history, 0, 1);
+	int64_t seen = json_object_get_int64(get(c->status, "nr_transitions_seen"));
+	integer(c->status, "nr_transitions_seen", seen + 1);
 }
 
 static J *waiting(struct controller *c, const char *reason, J *reg)
@@ -798,11 +912,15 @@ int controller_refresh(struct controller *c)
 {
 	if (transport_admit(&c->transport) < 0 || sim_refresh(c) < 0)
 		return -1;
+	/* 先取上一轮的 NR 注册态，read_registration() 会把它覆盖掉。 */
+	bool nr_was = json_object_get_boolean(get(get(c->status, "nr_registration"), "registered"));
 	J *reg = read_registration(c);
 	if (!reg)
 		return -1;
 	bool registered_now = json_object_get_boolean(get(reg, "registered"));
 	json_object_put(reg);
+	nr_track(c, nr_was,
+		 json_object_get_boolean(get(get(c->status, "nr_registration"), "registered")));
 	J *op = controller_query(c, "AT+COPS?", 50, "+COPS:");
 	if (!op)
 		return -1;
@@ -834,6 +952,21 @@ int controller_refresh(struct controller *c)
 	integer(c->status, "attached", attached);
 	if (ims_refresh(c) < 0)
 		return -1;
+	/* AT+C5GREG=2 在 initialize() 里失败被容忍了，这里低频补开，成功后清标记。
+	 * 只在 CFUN == 1（射频在线）时补：initialize() 里失败的那些情况多半是模组
+	 * 刚上电还没就绪，飞行模式期间补发同样不会成功。60 秒一次的上限保证即使
+	 * 模组永久拒绝，也只是一条可忽略的额外 AT，不会挤占遥测通道。 */
+	if (c->nr_events_pending && cfun == 1 && mono() - c->nr_events_last >= 60) {
+		char saved[512];
+		enum cell_error_kind kind = cell_error_kind;
+		snprintf(saved, sizeof(saved), "%s", cell_error);
+		c->nr_events_last = mono();
+		if (command(c, "AT+C5GREG=2", 15) == 0) {
+			c->nr_events_pending = false;
+			string(c->status, "nr_events_error", NULL);
+		} else
+			errorf(kind, "%s", saved); /* 失败不污染本次刷新的错误状态 */
+	}
 	if (c->data) {
 		char *raw = controller_at(c, "AT+CGACT?", 5);
 		int active = raw ? bearer_active(raw) : -1;

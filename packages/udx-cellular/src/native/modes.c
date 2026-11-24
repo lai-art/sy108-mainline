@@ -80,6 +80,22 @@ static J *read_nr(struct controller *c)
 	return row;
 }
 
+/* 只读探测：模组当前 NR 能力是否已经是 mode。理由同 advanced_mode_matches()：
+ * 读回一致就没必要为了一次「写同样的值」而先做一遍飞行模式循环。
+ * 返回：1 = 已是目标能力，0 = 需要写，-1 = 查询失败。 */
+int mode_nr_matches(struct controller *c, const char *mode)
+{
+	int index = mode_index(mode);
+	if (index < 0)
+		return errorf(CELL_INVALID, "Unknown NR capability");
+	J *now = read_nr(c);
+	if (!now)
+		return -1;
+	bool same = text_equal(str(now, "mode"), mode);
+	json_object_put(now);
+	return same ? 1 : 0;
+}
+
 /* The caller owns the radio_begin/radio_end transaction. No RF transition here. */
 J *mode_set_nr(struct controller *c, const char *mode)
 {

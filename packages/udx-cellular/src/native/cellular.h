@@ -42,6 +42,13 @@ struct controller {
 	J *config, *status, *data, *fallback_profile;
 	bool fallback_attempted;
 	bool want_data, initialized, ims_initialized;
+	/* AT+C5GREG=2 只负责「打开 NR 注册状态的上报」，不影响能不能注册 5G。
+	 * 它在 initialize() 里被显式容忍失败（模组刚上电时常见），原来失败后
+	 * 仍然置 initialized = true，于是整个进程生命周期都不再重试，status 里的
+	 * nr_registration 就是永久假值。这里记下未完成状态，由 controller_refresh()
+	 * 低频重试，成功后清掉。 */
+	bool nr_events_pending;
+	double nr_events_last;
 	bool radio_restore_pending, restore_radio, restore_data;
 	char error[512], sms_instance[33], sms_active_request[33];
 	bool background, background_deferred;
@@ -117,6 +124,7 @@ int ims_refresh(struct controller *c);
 J *advanced_execute(struct controller *c, const char *operation, J *args);
 int advanced_validate(const char *operation, J *args);
 int advanced_set_mode(struct controller *c, const char *mode, J **result);
+int advanced_mode_matches(struct controller *c, const char *mode);
 int identity_validate(const char *operation, J *args);
 J *identity_parse(const char *raw);
 J *identity_execute(struct controller *c, const char *operation, J *args);
@@ -142,6 +150,7 @@ int telemetry_step(struct controller *c);
 int telemetry_publish(struct controller *c);
 J *decode_cells(const char *raw, const char *rat, bool serving);
 J *mode_set_nr(struct controller *c, const char *mode);
+int mode_nr_matches(struct controller *c, const char *mode);
 J *mode_execute(struct controller *c, const char *operation, J *args);
 int mode_validate(const char *operation, J *args);
 #endif
