@@ -1,0 +1,61 @@
+#!/bin/sh
+# Periodic short speed probe for the home page "PORTS / WAN" cell.
+# Waits for the cellular interface plus the speedtest ubus object, runs one
+# 3-second speed job, publishes the average as Mbps to /tmp/.udx-wan-speed.json,
+# then sleeps 600 seconds. A failed probe publishes {"mbps":null} so the UI
+# renders '--' instead of a stale reading. All child stderr is suppressed: this
+# runs forever under procd and must not flood the log on a dead AT channel.
+STATE=/tmp/.udx-wan-speed.json
+IFACE=wwan0
+
+publish_null() {
+	printf '{"mbps":null,"t":%s}\n' "$(date +%s)" >"$STATE" 2>/dev/null
+}
+
+wait_ready() {
+	while :; do
+		ubus -t 3 call udx.speedtest status >/dev/null 2>&1 || {
+			sleep 5
+			continue
+		}
+		ip -4 -o addr show dev "$IFACE" 2>/dev/null | grep -q ' inet ' || {
+			sleep 5
+			continue
+		}
+		return 0
+	done
+}
+
+while :; do
+	wait_ready
+	publish_null
+
+	# One job slot only: a UI-owned test makes this fail, which is a normal
+	# outcome and must not stop the loop.
+	ubus -t 5 call udx.speedtest start \
+		'{"mode":"speed","max_seconds":3,"max_bytes":100000000,"threads":4}' \
+		>/dev/null 2>&1 || {
+		sleep 600
+		continue
+	}
+
+	i=0
+	while [ "$i" -lt 15 ]; do
+		sleep 1
+		reply=$(ubus -t 3 call udx.speedtest status 2>/dev/null)
+		running=$(printf '%s' "$reply" | jsonfilter -e '@.running' 2>/dev/null)
+		[ "$running" = "false" ] && break
+		i=$((i + 1))
+	done
+
+	reply=$(ubus -t 3 call udx.speedtest status 2>/dev/null)
+	avg=$(printf '%s' "$reply" | jsonfilter -e '@.avg' 2>/dev/null)
+	if [ -n "$avg" ] && [ "$avg" != "null" ]; then
+		mbps=$(awk -v v="$avg" 'BEGIN { printf "%.1f", v / 1000000 }' 2>/dev/null)
+		if [ -n "$mbps" ]; then
+			printf '{"mbps":%s,"t":%s}\n' "$mbps" "$(date +%s)" >"$STATE" 2>/dev/null
+		fi
+	fi
+
+	sleep 600
+done
