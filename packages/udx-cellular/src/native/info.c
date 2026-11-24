@@ -301,23 +301,34 @@ J *info_signal(struct controller *c)
 {
 	J *f = controller_query(c, "AT+CSQ", 5, "+CSQ:");
 	int64_t rssi = 0, ber = 0;
-	bool valid =
-	    f && json_object_array_length(f) == 2 &&
-	    integer_text(json_object_get_string(json_object_array_get_idx(f, 0)), 0, 99, &rssi) &&
-	    integer_text(json_object_get_string(json_object_array_get_idx(f, 1)), 0, 99, &ber) &&
-	    (rssi < 32 || rssi == 99) && (ber < 8 || ber == 99);
+	bool valid = f && json_object_array_length(f) == 2 &&
+		     integer_text(json_object_get_string(json_object_array_get_idx(f, 0)), 0, 99,
+				  &rssi) &&
+		     integer_text(json_object_get_string(json_object_array_get_idx(f, 1)), 0, 99,
+				  &ber);
 	if (f && !valid)
-		errorf(CELL_INVALID, "Invalid CSQ range");
+		errorf(CELL_INVALID, "Invalid CSQ response");
 	json_object_put(f);
 	if (!valid)
 		return NULL;
+	/* 27.007 的 CSQ 是 0–31（99 = 未知），但 SY108 的模组**实际返回 43**
+	 * （2026-11-24 真机：`+CSQ: 43,10`）。原实现把 (rssi < 32 || rssi == 99)
+	 * 当有效条件，于是这条遥测每次都判无效，telemetry.queries.signal_refresh
+	 * 永久 stale、status.signal 永远停在启动时那一次的值。
+	 *
+	 * 不能因此把 43 折算成 dBm（-113 + 2*43 = -27 dBm 是假的）。正确的做法是
+	 * 原样记录模组给了什么，只在标准区间内才折算 dBm，越界就报 null 并标
+	 * csq_standard=false。首页信号卡本来就用 cells[].rsrp，不读这个字段，
+	 * 所以这里只是把一条坏掉的诊断补回可用，不影响任何展示。 */
 	J *out = json_object_new_object();
 	integer(out, "csq", rssi);
 	integer(out, "ber", ber);
-	if (rssi != 99)
+	bool standard = rssi >= 0 && rssi <= 31;
+	if (standard)
 		integer(out, "rssi_dbm", -113 + 2 * rssi);
 	else
 		json_object_object_add(out, "rssi_dbm", NULL);
+	boolean(out, "csq_standard", standard);
 	string(out, "rssi_limit", rssi == 31 ? "at-least" : rssi == 0 ? "at-most" : NULL);
 	real(out, "uptime", mono());
 	json_object_object_add(c->status, "signal", json_object_get(out));
