@@ -1682,7 +1682,15 @@ dev(){XHR.get('/cgi-bin/luci/admin/fancontrol/devinfo',{},(x,d)=>{if(!d)return;c
    f-cores 恢复成原版: 它是独立一块磁贴(.fc.fo「核心数」), 所以值就是"4 核",
    不带前缀分隔点; 读不到时给 '--' 和其它磁贴一致(空串会让那块卡只剩标签)。 */
 const model=d["设备型号"]?.name||d["设备型号"]||'';
-s('f-model',model);s('f-host',d["主机名"]);s('f-fw',d["固件版本"]);s('f-kernel',d["内核版本"]);s('f-cpu',d["CPU型号"]);s('f-cores',d["CPU核心数"]?d["CPU核心数"]+' 核':'--');
+s('f-model',model);s('f-host',d["主机名"]);
+/* s160: 固件版本后面带上当前 tag 及其日期（用户 2026-11-24 要求）。
+   devinfo 多返回了 固件tag / 固件tag日期，构建戳原文放 title 里方便诊断。 */
+(function(){var f=document.getElementById('f-fw'),t=d["固件tag"],dt=d["固件tag日期"],stamp=d["固件构建戳"];
+ if(f&&t){var base=String(d["固件版本"]||''),tail=t+(dt?' ('+dt+')':'');
+  if(f.textContent.indexOf(t)<0)f.textContent=base+(base?' · ':'')+tail;
+  if(stamp)f.title=String(stamp);}
+})();
+s('f-kernel',d["内核版本"]);s('f-cpu',d["CPU型号"]);s('f-cores',d["CPU核心数"]?d["CPU核心数"]+' 核':'--');
 // WiFi - show hint if unknown
 const w24=d["2.4G无线信号名称"],w5=d["5G无线信号名称"];
 const wifiWrap=document.getElementById('wifi-wrap');
