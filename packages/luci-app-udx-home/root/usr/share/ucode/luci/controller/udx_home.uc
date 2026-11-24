@@ -324,6 +324,33 @@ function _rate_bps(dev) {
 	return { rx_bps: (rx - prx) * 8.0 / dt, tx_bps: (tx - ptx) * 8.0 / dt, rx: rx, tx: tx };
 }
 
+/* USB gadget 与电脑之间的实际链路速率：读 UDC 的 current_speed（真机
+ * /sys/class/udc/29100000.usb/current_speed = high-speed）。这里只做字符串
+ * 比较，不用正则的非捕获组（ucode 的正则不支持 (?:...)）。
+ * 注意 maximum_speed 只是控制器能力上限，不是当前链路速率。 */
+function _udc_link_mbps() {
+	for (let name in (lsdir('/sys/class/udc') ?? [])) {
+		let speed = trim(_rd('/sys/class/udc/' + name + '/current_speed'));
+		if (speed == 'low-speed') return 1.5;
+		if (speed == 'full-speed') return 12;
+		if (speed == 'high-speed') return 480;
+		if (speed == 'super-speed') return 5000;
+		if (speed == 'super-speed-plus') return 10000;
+	}
+	return null;
+}
+
+/* 周期测速写入的当前结果：/tmp/.udx-wan-speed.json = {"mbps":12.3,"t":...}。
+ * 文件不存在 / 解析失败 / mbps 不是数字时一律返回 null，前端按 '--' 渲染。 */
+function _wan_probe_mbps() {
+	let state = null;
+	try { state = json(_rd('/tmp/.udx-wan-speed.json')); } catch (e) { state = null; }
+	if (state == null) return null;
+	let v = state.mbps ?? null;
+	if (type(v) == 'int' || type(v) == 'double') return v;
+	return null;
+}
+
 /* 执行一条 shell（重启 network/dnsmasq 用）。ucode core 的 system() 若不存在
  * （极老的运行时），退回 procd 事件，至少 network.reload 能生效。 */
 function _run(cmd) {
@@ -1660,8 +1687,10 @@ function modem_topo_data() {
 		lan: { ip: lan_ip, mask: 24, ssid24: null, ch24: null, w24: null },
 		counts: { wired: length(clients), wifi: 0, total: length(clients) },
 		ports: [
-			{ name: 'wwan0', role: 'WAN', up: wan_up, speed: null },
-			{ name: 'br-usb', role: 'LAN', up: true, speed: null }
+			{ name: 'wwan0', role: 'WAN', up: wan_up, carrier: wan_up ? 1 : 0,
+			  speed: _wan_probe_mbps() },
+			{ name: 'br-usb', role: 'LAN', up: true, carrier: 1,
+			  speed: _udc_link_mbps() }
 		],
 		clients: clients
 	});
