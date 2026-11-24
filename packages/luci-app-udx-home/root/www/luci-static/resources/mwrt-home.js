@@ -3608,11 +3608,12 @@ function otaOpen(){
 		+'<div class="mxf-acc">'
 		+'<label class="mxf-c ota-sw"><input type="checkbox" id="ota-acc-on"><span>启用 GitHub 下载加速</span></label>'
 		+'<select id="ota-acc-sel" class="mxf-sel">'
-		+'<option value="gh-proxy.com">gh-proxy.com（默认）</option>'
-		+'<option value="ghproxy.net">ghproxy.net</option>'
-		+'<option value="githubproxy.cc">githubproxy.cc</option>'
+		+'<option value="gh-proxy.com" data-probe="gh-proxy.com">gh-proxy.com（默认）</option>'
+		+'<option value="ghproxy.net" data-probe="ghproxy.net">ghproxy.net</option>'
+		+'<option value="githubproxy.cc" data-probe="githubproxy.cc">githubproxy.cc</option>'
 		+'<option value="__custom">自定义</option>'
 		+'</select>'
+		+'<div class="ota-probe-tip" id="ota-probe-tip" style="margin-top:6px;font-size:12px;line-height:1.5;color:var(--t2)">正在测速各线路…</div>'
 		+'<input id="ota-acc-url" class="mxf-inp" placeholder="https://你的加速节点/" hidden>'
 		+'</div></div>'
 		+'<div class="mxf-sec"><div class="mxf-h">升级包<i>'+sizeTxt(r.size)+'</i></div>'
@@ -3652,7 +3653,11 @@ function otaOpen(){
 		}
 		return 'https://'+accSel.value+'/';
 	}
-	accSel.addEventListener('change',function(){accSync();accSave();});
+	accSel.addEventListener('change',function(){
+		/* 切回内置节点时清掉残留的自定义地址，免得检查更新时 rpc() 优先用了旧 url */
+		if(accSel.value!=='__custom')accUrl.value='';
+		accSync();accSave();
+	});
 	accOn.addEventListener('change',accSave);
 	accUrl.addEventListener('change',accSave);
 	accLoad();
@@ -3660,6 +3665,47 @@ function otaOpen(){
 	function setNote(t,c){note.textContent=t;note.className='mxf-note '+(c||'');}
 	function setPct(p){bar.style.width=Math.max(0,Math.min(100,p))+'%';}
 	function get(u,p,cb){XHR.get('/cgi-bin/luci/admin/fancontrol/'+u,p||{},function(x,d){cb(d||{});});}
+	/* 打开浮窗就测一次四条线路：三个加速节点写在各自的 option 文字后面，
+	   直连和"最快"写在一行小字里（<option> 里不能放 <span>，只能用文字）。 */
+	function probeLines(){
+		var tip=b.querySelector('#ota-probe-tip');
+		var opts=Array.prototype.slice.call(accSel.querySelectorAll('option[data-probe]'));
+		opts.forEach(function(o){
+			o.dataset.label=o.textContent;
+			o.textContent=o.dataset.label+' · 测速中…';
+		});
+		if(tip)tip.textContent='正在测速各线路…';
+		get('ota_probe',{},function(d){
+			if(!d||d.ok!==true){
+				if(tip)tip.textContent='线路测速失败，可手动选择';
+				opts.forEach(function(o){o.textContent=o.dataset.label;});
+				return;
+			}
+			var R=d.results||{};
+			opts.forEach(function(o){
+				var v=R[o.getAttribute('data-probe')],suffix='';
+				if(v){
+					suffix=v.ok?(' · '+v.ms+'ms'):(' · 不可用('+(v.code||'err')+')');
+					o.style.color=v.ok?'#16a34a':'#dc2626';
+				}
+				o.textContent=o.dataset.label+suffix;
+			});
+			if(tip){
+				var parts=[],dv=R.direct;
+				if(dv)parts.push('直连 '+(dv.ok?(dv.ms+'ms'):('不可用('+(dv.code||'err')+')')));
+				if(d.best==='direct')parts.push('最快：直连（无需加速）');
+				else if(d.best)parts.push('最快：'+d.best+' · 已自动选中');
+				else parts.push('三个节点均不可用，建议直连');
+				tip.textContent=parts.join(' · ');
+			}
+			var hit=null;
+			Array.prototype.forEach.call(accSel.options,function(o){if(o.value===d.best)hit=o;});
+			if(d.best&&d.best!=='direct'&&R[d.best]&&hit){
+				accSel.value=d.best;accSync();accSave();
+			}
+		});
+	}
+	probeLines();
 	function verify(){
 		setNote('正在校验 sha256…','warn');
 		get('ota_verify',{},function(d){
@@ -3718,7 +3764,15 @@ function rpc(method){
 	var acc='';
 	try{
 		var s=JSON.parse(localStorage.getItem('mwrt-ota-accel')||'null');
-		if(s&&s.on)acc=s.url||s.node||'';
+		if(s&&s.on){
+			/* 后端只认完整 URL（内置节点白名单是 https://xxx/），
+			   不能把 option 的裸值 gh-proxy.com 直接传过去，否则校验会清零 */
+			var node=String(s.node||''),u='';
+			if(node==='__custom')u=String(s.url||'').trim();
+			else if(/^https?:\/\//.test(node))u=node;
+			else if(node)u='https://'+node;
+			if(u&&u.length<=200&&/^https?:\/\/[A-Za-z0-9._~:\/\[\]-]+$/.test(u))acc=u.replace(/\/+$/,'')+'/';
+		}
 	}catch(e){}
 	return new Promise(function(res,rej){
 		XHR.get('/cgi-bin/luci/admin/fancontrol/ota_check',{what:method,accel:acc},function(x,d){
@@ -3751,7 +3805,58 @@ window.fwCheck=function(){
 		else say('线上最新 '+r.version+'，本地 '+((r.local_tag)||'未知')+' —— 版本号不可直接比较');
 	}).catch(function(){say('检查失败，请稍后重试。');}).then(function(){busy=false;setBusy(false);});
 };
-function init(){rpc('latest').then(mark).catch(function(){});}
+/* 开机后的更新提示：先等设备真正联网（PDP 起来、wan 拿到 IP），再查一次版本。
+   最多等 10 次 ×3 秒；同一页面只弹一次，点「立即更新」直接开下载浮窗。 */
+var bootChecked=false,bootPrompted=false;
+function fmtBootTime(s){
+	var raw=String(s||'');if(!raw)return '未知时间';
+	var d=new Date(raw);
+	if(isNaN(d.getTime()))return raw.slice(0,16);
+	function p(n){return ('0'+n).slice(-2);}
+	return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function bootPrompt(r){
+	if(bootPrompted)return;bootPrompted=true;
+	var prev=document.getElementById('fw-boot-tip');if(prev&&prev.parentNode)prev.parentNode.removeChild(prev);
+	var el=document.createElement('div');el.id='fw-boot-tip';
+	el.style.cssText='position:fixed;top:12px;right:16px;z-index:10070;max-width:330px;padding:12px 14px;border-radius:10px;background:rgba(17,24,39,.96);color:#fff;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 28px rgba(0,0,0,.4);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+	function kill(){if(el.parentNode)el.parentNode.removeChild(el);}
+	var t=document.createElement('div');t.style.cssText='font-weight:700;margin-bottom:4px';t.textContent='发现新固件 '+String(r.version||'');
+	var dt=document.createElement('div');dt.style.cssText='color:#cbd5e1;margin-bottom:10px';dt.textContent='版本时间：'+fmtBootTime(r.published);
+	var row=document.createElement('div');row.style.cssText='display:flex;gap:8px;justify-content:flex-end';
+	var go=document.createElement('button');go.type='button';go.textContent='立即更新';
+	go.style.cssText='border:0;border-radius:6px;padding:5px 12px;background:#2563eb;color:#fff;cursor:pointer';
+	go.addEventListener('click',function(){kill();otaOpen();});
+	var no=document.createElement('button');no.type='button';no.textContent='关闭';
+	no.style.cssText='border:1px solid rgba(255,255,255,.25);border-radius:6px;padding:5px 12px;background:transparent;color:#cbd5e1;cursor:pointer';
+	no.addEventListener('click',kill);
+	row.appendChild(no);row.appendChild(go);
+	el.appendChild(t);el.appendChild(dt);el.appendChild(row);
+	(document.body||document.documentElement).appendChild(el);
+}
+function netReady(done,left){
+	/* devinfo 返回的是中文键（"蜂窝接口状态"等），没有 wan 字段；
+	 * 判联网要用 /fancontrol/devpop 的蜂窝状态或 wwan0 的 IP。
+	 * 这里打 devpop?k=hnat（蜂窝信号，本来就在用），它有 state 字段。 */
+	XHR.get('/cgi-bin/luci/admin/fancontrol/devpop',{k:'hnat'},function(x,d){
+		var st=d&&(d.state||d.pdp_state||d['蜂窝接口状态']);
+		if(st&&/active|pdp_active|online|在线/i.test(String(st))){done(true);return;}
+		if(left<=0){done(false);return;}
+		setTimeout(function(){netReady(done,left-1);},3000);
+	});
+}
+function bootCheck(){
+	if(bootChecked)return;bootChecked=true;
+	netReady(function(ok){
+		if(!ok)return;
+		/* 联网成功后再查一次版本；init() 已拿到且 update=true 就复用，不重复发请求 */
+		if(LAST&&LAST.update===true&&LAST.version){bootPrompt(LAST);return;}
+		rpc('latest').then(function(r){
+			if(r&&r.update===true&&r.version){mark(r);bootPrompt(r);}
+		}).catch(function(){});
+	},10);
+}
+function init(){rpc('latest').then(mark).catch(function(){});bootCheck();}
 /* s141: NEW 徽标改成开「固件更新」浮窗（原来跳 admin/system/ota）；没有浮窗外壳时保持原链接 */
 var na=document.getElementById('fw-new');
 if(na)na.addEventListener('click',function(e){if(window.MXF){e.preventDefault();otaOpen();}});

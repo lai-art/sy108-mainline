@@ -105,6 +105,13 @@
    "function": "device_netinfo"
   }
  },
+ "admin/fancontrol/ota_probe": {
+  "action": {
+   "type": "function",
+   "module": "luci.controller.udx_ota_probe",
+   "function": "ota_probe"
+  }
+ },
  "admin/fancontrol/ota_check": {
   "action": {
    "type": "function",
